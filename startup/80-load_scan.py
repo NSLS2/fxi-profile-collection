@@ -8,6 +8,8 @@
 
 
 from datetime import datetime
+import gc
+from skimage.transform import rescale, resize
 
 
 def timestamp_to_float(t):
@@ -72,16 +74,19 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
         if isinstance(scan_id, int):
             scan_id = [scan_id]
         for item in scan_id:
-            
-            # export_single_scan(int(item), binning)
-            custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath)
-            db.reg.clear_process_cache()
+            try:
+                custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath)
+                db.reg.clear_process_cache()
+            except:
+                print(f'fail to export {item}')
     else:
         for i in range(scan_id, scan_id_end + 1):
-            # export_single_scan(int(i), binning)
-            custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath)
-            db.reg.clear_process_cache()
-
+            try:
+                # export_single_scan(int(i), binning)
+                custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath)
+                db.reg.clear_process_cache()
+            except:
+                print(f'fail to export {i}')
 
 def custom_export(scan_id, binning=4, date_end_by=None, fpath=None):
     """
@@ -96,7 +101,7 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None):
             uid = sid.start["uid"]
             timestamp = sid.start["time"]
             ts = pd.to_datetime(timestamp, unit="s").tz_localize("US/Eastern")
-            date_end = covert_date_to_datetime(date_end_by)
+            date_end = pd.Timestamp(date_end_by,).tz_localize('US/Eastern')
             if ts < date_end:
                 export_single_scan(uid, binning)
                 break
@@ -528,6 +533,80 @@ def export_xanes_scan(h, fpath=None):
     )
 
 
+def export_xanes_scan_with_binning(h, fpath=None, binning=1):
+    if fpath is None:
+        fpath = "./"
+    else:
+        if not fpath[-1] == "/":
+            fpath += "/"
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos / zp_z_pos - 1) * 10.0
+    pxl_sz = 6500.0 / M
+    scan_type = h.start["plan_name"]
+    #    scan_type = 'xanes_scan'
+    uid = h.start["uid"]
+    note = h.start["note"]
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
+    try:
+        x_eng = h.start["XEng"]
+    except:
+        x_eng = h.start["x_ray_energy"]
+    chunk_size = h.start["chunk_size"]
+    num_eng = h.start["num_eng"]
+
+    img_xanes_avg = []
+    img_bkg_avg = []
+    img_list = list(h.data("Andor_image", stream_name="primary"))
+    bkg_list = list(h.data("Andor_image", stream_name="flat"))
+    for i in trange(num_eng):
+        img_xanes_sub = np.array(img_list[i])        
+        img_xanes_sub_avg = np.median(img_xanes_sub, axis=0)
+        img_bin1 = rescale(img_xanes_sub_avg, 1/binning)
+        img_xanes_avg.append(img_bin1)
+
+        img_bkg_sub = np.array(bkg_list[i])        
+        img_bkg_sub_avg = np.median(img_bkg_sub, axis=0)
+        img_bin2 = rescale(img_bkg_sub_avg, 1/binning)
+        img_bkg_avg.append(img_bin2)
+
+    
+
+    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
+    img_dark_avg = np.mean(img_dark, axis=1)[0]
+    img_bin = rescale(img_dark_avg, 1/binning)
+    img_dark_avg = np.expand_dims(img_bin, axis=0)
+    eng_list = list(h.start["eng_list"])
+
+    img_xanes_norm = (img_xanes_avg - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg)
+    img_xanes_norm[np.isnan(img_xanes_norm)] = 0
+    img_xanes_norm[np.isinf(img_xanes_norm)] = 0
+    fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
+    with h5py.File(fname, "w") as hf:
+        hf.create_dataset("uid", data=uid)
+        hf.create_dataset("scan_id", data=scan_id)
+        hf.create_dataset("note", data=str(note))
+        hf.create_dataset("scan_time", data=scan_time)
+        hf.create_dataset("X_eng", data=eng_list)
+        hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, dtype=np.float32))
+        hf.create_dataset("img_dark", data=np.array(img_dark_avg, dtype=np.float32))
+        hf.create_dataset("img_xanes", data=np.array(img_xanes_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
+
+    try:
+        write_lakeshore_to_file(h, fname)
+    except:
+        print("fails to write lakeshore info into {fname}")
+
+    del (
+        img_dark_avg,
+        img_bkg_avg,
+        img_xanes_avg,
+        img_xanes_norm,
+    )
+
 def export_xanes_scan_img_only(h, fpath=None):
     if fpath is None:
         fpath = "./"
@@ -612,10 +691,14 @@ def export_z_scan(h, fpath=None):
     num = h.start["plan_args"]["steps"]
     chunk_size = h.start["plan_args"]["chunk_size"]
     note = h.start["plan_args"]["note"] if h.start["plan_args"]["note"] else "None"
-    img = np.array(list(h.data("Andor_image")))
-    img_zscan = np.mean(img[:num], axis=1)
-    img_bkg = np.mean(img[num], axis=0, keepdims=True)
-    img_dark = np.mean(img[-1], axis=0, keepdims=True)
+    
+    img_zscan = np.mean(np.array(list(h.data("Andor_image", stream_name="primary"))), axis=1)
+    img_bkg = np.mean(np.array(list(h.data("Andor_image", stream_name="flat"))), axis=1).squeeze()
+    img_dark = np.mean(np.array(list(h.data("Andor_image", stream_name="dark"))), axis=1).squeeze()
+    # img = np.array(list(h.data("Andor_image", stream_name="primary")))
+    # img_zscan = np.mean(img[:num], axis=1)
+    # img_bkg = np.mean(img[num], axis=0, keepdims=False)
+    # img_dark = np.mean(img[-1], axis=0, keepdims=False)
     img_norm = (img_zscan - img_dark) / (img_bkg - img_dark)
     img_norm[np.isnan(img_norm)] = 0
     img_norm[np.isinf(img_norm)] = 0
@@ -638,7 +721,7 @@ def export_z_scan(h, fpath=None):
     except:
         print("fails to write lakeshore info into {fname}")
 
-    del img, img_zscan, img_bkg, img_dark, img_norm
+    del img_zscan, img_bkg, img_dark, img_norm
 
 
 def export_z_scan2(h, fpath=None):
@@ -709,48 +792,59 @@ def export_test_scan(h, fpath=None):
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
-    import tifffile
-
     scan_type = h.start["plan_name"]
-    scan_id = h.start["scan_id"]
     uid = h.start["uid"]
+    note = h.start["note"]
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
     try:
         x_eng = h.start["XEng"]
     except:
         x_eng = h.start["x_ray_energy"]
     num = h.start["plan_args"]["num_img"]
-    num_bkg = h.start["plan_args"]["num_bkg"]
-    note = h.start["plan_args"]["note"] if h.start["plan_args"]["note"] else "None"
-    img = np.squeeze(np.array(list(h.data("Andor_image"))))
-    assert len(img.shape) == 3, "load test_scan fails..."
-    img_test = img[:num]
-    img_bkg = np.mean(img[num : num + num_bkg], axis=0, keepdims=True)
-    img_dark = np.mean(img[-num_bkg:], axis=0, keepdims=True)
-    img_norm = (img_test - img_dark) / (img_bkg - img_dark)
+
+    img = np.array(list(h.data("Andor_image", stream_name="primary")))[:,0]
+    try:
+        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
+    except:
+        img_dark = np.zeros((1, img.shape[1], img.shape[2]))
+        img_dark_avg = img_dark
+    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
+
+    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
     img_norm[np.isnan(img_norm)] = 0
     img_norm[np.isinf(img_norm)] = 0
-    #    fn = h.start['plan_args']['fn']
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
-    fname_tif = fpath + scan_type + "_id_" + str(scan_id) + ".tif"
     with h5py.File(fname, "w") as hf:
         hf.create_dataset("uid", data=uid)
         hf.create_dataset("scan_id", data=scan_id)
-        hf.create_dataset("X_eng", data=x_eng)
         hf.create_dataset("note", data=str(note))
-        hf.create_dataset("img_bkg", data=img_bkg)
-        hf.create_dataset("img_dark", data=img_dark)
-        hf.create_dataset("img", data=np.array(img_test, dtype=np.float32))
+        hf.create_dataset("scan_time", data=scan_time)
+        hf.create_dataset("X_eng", data=x_eng)
+        hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, dtype=np.float32))
+        hf.create_dataset("img_dark", data=np.array(img_dark_avg, dtype=np.float32))
+        hf.create_dataset("img", data=np.array(img, dtype=np.float32))
         hf.create_dataset("img_norm", data=np.array(img_norm, dtype=np.float32))
         hf.create_dataset("Magnification", data=M)
         hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
-    #    tifffile.imsave(fname_tif, img_norm)
 
     try:
         write_lakeshore_to_file(h, fname)
     except:
         print("fails to write lakeshore info into {fname}")
 
-    del img, img_test, img_bkg, img_dark, img_norm
+    del (
+        img_dark,
+        img_dark_avg,
+        img_bkg,
+        img_bkg_avg,
+        #img_xanes,
+        #img_xanes_avg,
+        img_norm,
+        img
+    )
 
 
 def export_test_scan2(h, fpath=None):
@@ -1219,20 +1313,53 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
-    try:
-        repeat_num = h.start["plan_args"]["repeat_num"]
-    except:
-        repeat_num = 1
+    repeat_num = 1
 
     img_xanes = np.array(list(h.data("Andor_image", stream_name="primary")))
     img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
     img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))
 
-    img_xanes = np.mean(img_xanes, axis=1)
-    img_dark = np.mean(img_dark, axis=1)
-    img_bkg = np.mean(img_bkg, axis=1)
+    img_xanes = np.median(img_xanes, axis=1)
+    img_dark = np.median(img_dark, axis=1)
+    img_bkg = np.median(img_bkg, axis=1)
 
     eng_list = list(h.start["eng_list"])
+
+    len_img = len(img_xanes)
+    len_bkg = len(img_bkg)
+    
+    idx = int(len_img // num_pos)
+
+    id_end = int(min(idx, len_bkg) * num_pos)
+    img_xanes = img_xanes[:id_end]
+    eng_list = eng_list[:id_end]    
+    
+
+    for j in range(num_pos):
+        img = img_xanes[j::num_pos]
+        img_n = (img - img_dark) / (img_bkg - img_dark)
+        fn = fpath
+        fname = (f"{fn}{scan_type}_id_{scan_id}_pos_{j:02d}.h5")
+        
+        try:
+            print(f"saving {fname}")
+            with h5py.File(fname, "w") as hf:
+                    hf.create_dataset("uid", data=uid)
+                    hf.create_dataset("scan_id", data=scan_id)
+                    hf.create_dataset("note", data=str(note))
+                    hf.create_dataset("scan_time", data=scan_time)
+                    hf.create_dataset("X_eng", data=eng_list)
+                    hf.create_dataset("img_bkg", data=np.array(img_bkg, dtype=np.float32))
+                    hf.create_dataset("img_dark", data=np.array(img_dark, dtype=np.float32))
+                    hf.create_dataset("img_xanes", data=np.array(img_n, dtype=np.float32))
+                    hf.create_dataset("Magnification", data=M)
+                    hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
+        except Exception as err:
+            print(err)
+    del img_xanes    
+    del img_bkg
+    gc.collect()
+    '''
 
     for repeat in range(repeat_num):  # revised here
         try:
@@ -1280,7 +1407,8 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
     del img_xanes
     del img_bkg
     del img_dark
-    del img_p, img_p_n
+    #del img_p, img_p_n
+    '''
 
 
 def export_multipos_2D_xanes_scan3(h, fpath=None):
@@ -1468,6 +1596,29 @@ def export_user_fly_only(h, fpath=None):
     del img_dark
     del img_bkg
     del imgs
+
+
+def batch_export_flyscan(sid1, sid2):
+    n = sid2 - sid1
+    k = 0
+    while True:
+        sid_last = db[-2].start['scan_id']
+        if sid_last == sid2 or k >= n:
+            break
+        else:
+            for sid in range(sid1, sid2+1):
+                if sid > sid_last:
+                    break
+                else:
+                    file_exist = 0
+                    fn_fly = np.sort(glob.glob('fly*.h5'))
+                    for fn in fn_fly:
+                        if str(sid) in fn:
+                            file_exist = 1
+                            break
+                    if file_exist == 0:
+                        k = k + 1
+                        export_scan(sid)
 
 
 def export_scan_change_expo_time(h, fpath=None, save_range_x=[], save_range_y=[]):

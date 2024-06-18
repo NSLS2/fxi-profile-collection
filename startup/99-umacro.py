@@ -1,3 +1,5 @@
+import tqdm
+from skimage import io
 # new_user()
 # show_global_para()
 # run_pdf()
@@ -5,6 +7,51 @@
 # check_latest_scan_id(init_guess=60000, search_size=100)
 ###################################
 
+global img_handler
+
+def extract_1st_proj(scan_list=[], fn_save='', clim=[0, 0.5], rot_angle=0):
+    global img_handler
+    img_handler = []
+    if fn_save == '' and len(scan_list) >=2:
+        fn_save = f'proj_1st_{scan_list[0]}_{scan_list[-1]}_angle_{rot_angle}.tiff'
+    n = len(scan_list)
+    img = []
+    scan_failed = []
+    h1 = db[int(scan_list[0])]
+    tmp = list(h1.data("Andor_image", stream_name="primary"))[0]
+    n_angle = len(tmp)
+
+    ang_idx = int(rot_angle / 180. * n_angle)
+    for i, sid in tqdm.tqdm(enumerate(scan_list), total=n):
+        try:
+            h = db[int(sid)]
+            tmp = list(h.data("Andor_image", stream_name="primary"))[0]
+            img_tomo = np.array(tmp[ang_idx])
+            if i == 0:
+                img = np.zeros((n, *img_tomo.shape))
+            try:
+                img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0][0:4]
+                img_dark = np.median(img_dark, axis=0)
+            except:
+                img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0][0]
+            try:
+                img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0][0:4]            
+                img_bkg = np.median(img_bkg, axis=0)
+            except:
+                img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0][0]
+            img_norm = (img_tomo-img_dark)/(img_bkg-img_dark)
+            img[i] = img_norm
+        except:
+            scan_failed.append(sid)
+            print(f'fail to extract scan {sid}')
+    img = np.array(img)
+    
+    if len(fn_save):
+        print(f'save to {fn_save}')
+        io.imsave(fn_save, img)
+    #tracker = image_scrubber(img, clim)
+    img_handler.append(plot3D(img))
+    return img_handler, img
 
 def load_xanes_ref(*arg):
     """

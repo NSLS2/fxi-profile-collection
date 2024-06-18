@@ -95,7 +95,7 @@ def record_calib_pos_new(n):
     CALIBER[f"DetU_x_pos{n}"] = DetU.x.position
     CALIBER[f"aper_x_pos{n}"] = aper.x.position
     CALIBER[f"aper_y_pos{n}"] = aper.y.position
-    CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
+    #CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
 
     mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
     CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
@@ -432,6 +432,8 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
 
                 yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
                 yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
+
+                #yield from mv(DetU.x, DetU_x_ini + (det_final-det_ini)/400*0.15)
                 if move_clens_flag:
                     yield from mv(
                         clens.x,
@@ -448,7 +450,7 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
                 # yield from mv(pzt_dcm_th2.setpos, pzt_dcm_th2_target, pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
                 # yield from mv(pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
 
-                yield from bps.sleep(0.1)
+                yield from bps.sleep(0.5)
                 if abs(eng_new - eng_ini) >= 0.005:
                     t = 10 * abs(eng_new - eng_ini)
                     t = min(t, 2)
@@ -1370,13 +1372,26 @@ def get_scan_timestamp_legacy(scan_id, return_flag=0):
         return scan_time.split("#")[-1]
 
 
-def get_scan_timestamp(scan_id, return_flag=0):      
-    h = db[scan_id]
+def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, print_flag=1):  
+    tmp = list(db(scan_id=scan_id))
+    n = len(tmp)    
+    if date_end_by is None:    
+        h = db[scan_id]
+    else:
+        for sid in tmp:
+            uid = sid.start["uid"]
+            timestamp = sid.start["time"]
+            ts = pd.to_datetime(timestamp, unit="s").tz_localize("US/Eastern")
+            date_end = pd.Timestamp(date_end_by,).tz_localize('US/Eastern')
+            if ts < date_end:
+                h = db[uid]
+
     scan_id = h.start["scan_id"]
     timestamp = h.start["time"]
     dt = datetime.fromtimestamp(timestamp)
     t = dt.strftime('%Y-%m-%d %H:%M:%S')
-    print(t)
+    if print_flag:    
+        print(t)
     if return_flag:
         return t
 

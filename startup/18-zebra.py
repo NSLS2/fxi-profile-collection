@@ -665,9 +665,6 @@ class FXITomoFlyer(Device):
         whether that is true, so it will obligingly stop immediately. It is
         up to the caller to ensure that the motion is actually complete.
         """
-
-        print("\nin complet: complete starts")
-
         # Our acquisition complete PV is: XF:05IDD-ES:1{Dev:Zebra1}:ARRAY_ACQ
         t0 = ttime.monotonic()
         while self._encoder.pc.data_in_progress.get() == 1:
@@ -744,10 +741,10 @@ class FXITomoFlyer(Device):
             self._last_bulk["timestamps"].update(
                 {k: v["timestamp"] for k, v in reading.items()}
             )
-        print(
-            f"\nin complete: {type(self._last_bulk)=}\n{type(self._document_cache)=}\n"
-        )
-        print(f"\nin complete: {(self._last_bulk)=}\n{(self._document_cache)=}\n")
+        # print(
+        #     f"\nin complete: {type(self._last_bulk)=}\n{type(self._document_cache)=}\n"
+        # )
+        # print(f"\nin complete: {(self._last_bulk)=}\n{(self._document_cache)=}\n")
 
         return NullStatus()
 
@@ -829,7 +826,7 @@ class FXITomoFlyer(Device):
     def preset_flyer(self, scn_cfg):
         yield from FXITomoFlyer.bin_det(self.detectors[0], scn_cfg["bin_fac"])
         yield from FXITomoFlyer.init_mot_r(scn_cfg)
-        yield from FXITomoFlyer.set_cam_mode(self.detectors[0], stage="pre-scan")
+        # yield from FXITomoFlyer.set_cam_mode(self.detectors[0], stage="pre-scan")
         scn_cfg = FXITomoFlyer.cal_cam_rot_params(self.detectors[0], scn_cfg)
         pc_cfg = FXITomoFlyer.cal_zebra_pc_params(scn_cfg)
         yield from self.preset_zebra(pc_cfg)
@@ -1076,14 +1073,21 @@ class FXITomoFlyer(Device):
             yield from abs_set(det.cam.acquire, 1, wait=False)
 
     @staticmethod
+    def stop_det(det):
+        for _ in range(5):
+            yield from abs_set(det.cam.acquire, 0, wait=True)
+        yield from abs_set(det.hdf5.capture, 0, wait=True)
+
+    @staticmethod
     def bin_det(det, bin_fac):
-        yield from abs_set(det.cam.acquire, 0, wait=False)
-        if bin_fac is None:
-            bin_fac = 0
-        if int(bin_fac) not in [0, 1, 2, 3, 4]:
-            raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
-        yield from abs_set(det.binning, bin_fac, wait=True)
-        FXITomoFlyer.prime_det(det)
+        if det.binning.value != bin_fac:
+            yield from abs_set(det.cam.acquire, 0, wait=False)
+            if bin_fac is None:
+                bin_fac = 0
+            if int(bin_fac) not in [0, 1, 2, 3, 4]:
+                raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
+            yield from abs_set(det.binning, bin_fac, wait=True)
+            FXITomoFlyer.prime_det(det)
 
     @staticmethod
     def def_abs_out_pos(

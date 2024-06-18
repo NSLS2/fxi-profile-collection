@@ -317,12 +317,12 @@ def fly_scan(
     @bpp.monitor_during_decorator([zps.pi_r])
     @run_decorator(md=_md)
     def fly_inner_scan():
-        '''
+        
         for flt in filters:
             yield from mv(flt, 1)
             yield from mv(flt, 1)
         yield from bps.sleep(1)
-        '''
+        
         # close shutter, dark images: numer=chunk_size (e.g.20)
         print("\nshutter closed, taking dark images...")
         yield from _take_dark_image(
@@ -622,9 +622,11 @@ def xanes_scan2(
     filters=[],
     rot_first_flag=1,
     simu=False,
+    return_ini=True,
     md=None,
 ):
     """
+    changed something
     Different from xanes_scan:  In xanes_scan2, it moves out sample and take background image at each energy
 
     Scan the energy and take 2D image
@@ -736,10 +738,12 @@ def xanes_scan2(
     @stage_decorator(list(detectors) + motor)
     @run_decorator(md=_md)
     def xanes_inner_scan():
+        '''
         if len(filters):
             for filt in filters:
                 yield from mv(filt, 1)
                 yield from bps.sleep(0.5)
+        '''
         yield from _set_rotation_speed(rs=30)
         # take dark image
         print(f"\ntake {chunk_size} dark images...")
@@ -753,6 +757,10 @@ def xanes_scan2(
         yield from _open_shutter(simu)
 
         for eng in eng_list:
+            if len(filters):
+                for filt in filters:
+                    yield from mv(filt, 0)
+                    yield from bps.sleep(0.5)
             yield from _xanes_per_step(
                 eng,
                 detectors,
@@ -762,7 +770,10 @@ def xanes_scan2(
                 info_flag=0,
                 stream_name="primary",
             )
-
+            if len(filters):
+                for filt in filters:
+                    yield from mv(filt, 1)
+                    yield from bps.sleep(0.5)
             yield from _take_bkg_image(
                 motor_x_out,
                 motor_y_out,
@@ -784,13 +795,20 @@ def xanes_scan2(
                 repeat=2,
                 trans_first_flag=rot_first_flag,
             )
+        '''        
         if len(filters):
             for filt in filters:
                 yield from mv(filt, 0)
                 yield from bps.sleep(0.5)
-        yield from move_zp_ccd(eng_ini, move_flag=1, info_flag=0)
+        '''
+        if return_ini:
+            yield from move_zp_ccd(eng_ini, move_flag=1, info_flag=0)
         print("closing shutter")
         yield from _close_shutter(simu=simu)
+        if len(filters):
+            for filt in filters:
+                yield from mv(filt, 0)
+                yield from bps.sleep(0.5)
 
     yield from xanes_inner_scan()
     yield from mv(Andor.cam.image_mode, 1)
@@ -963,6 +981,8 @@ def xanes_scan(
             repeat=2,
             rot_first_flag=rot_first_flag,
         )
+        yield from move_zp_ccd(eng_list[0])
+        yield from bps.sleep(5)
         print(f"\ntake bkg image after xanes scan, {chunk_size} per each energy...")
         for eng in eng_list:
             yield from _xanes_per_step(
@@ -1836,11 +1856,7 @@ def raster_2D_scan(
     @stage_decorator(list(detectors) + motor)
     @run_decorator(md=_md)
     def raster_2D_inner():
-        
-        if len(filters):
-            for filt in filters:
-                yield from mv(filt, 1)
-                yield from bps.sleep(0.5)
+        select_filters(filters)
         
         # take dark image
         print("take 5 dark image")
@@ -1890,12 +1906,9 @@ def raster_2D_scan(
             repeat=1,
             trans_first_flag=1 - rot_first_flag,
         )
-        if len(filters):
-            for filt in filters:
-                yield from mv(filt, 0)
-                yield from bps.sleep(0.5)
+        select_filters([])
         print("closing shutter")
-        yield from _close_shutter(simu)
+        yield from _close_shutter(simu=simu)
 
     yield from raster_2D_inner()
     txt = get_scan_parameter()
@@ -2391,7 +2404,6 @@ def multipos_2D_xanes_scan2(
     out_y=None,
     out_z=None,
     out_r=None,
-    repeat_num=1,
     exposure_time=0.2,
     sleep_time=1,
     chunk_size=5,
@@ -2459,6 +2471,7 @@ def multipos_2D_xanes_scan2(
     note: string
 
     """
+    repeat_num = 1
     print(eng_list)
     print(x_list)
     print(y_list)
@@ -3106,6 +3119,7 @@ def xanes_3D(
     simu=False,
     relative_move_flag=1,
     rot_first_flag=1,
+    filters=[],
     note="",
     binning=[2, 2],
 ):
@@ -3129,6 +3143,7 @@ def xanes_3D(
             out_r=out_r,
             rs=rs,
             relative_move_flag=relative_move_flag,
+            filters=filters,
             note=my_note,
             simu=simu,
             rot_first_flag=rot_first_flag,
@@ -3363,5 +3378,3 @@ def tomo_mosaic_scan(
     txt = txt1 + txt4 + txt3
     insert_text(txt)
 
-
-#

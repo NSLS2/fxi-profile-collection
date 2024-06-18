@@ -140,15 +140,16 @@ class BetrandLens(Device):
     x = Cpt(MyEpicsMotor, "{BLens:1-Ax:X}Mtr")
     #y = Cpt(MyEpicsMotor, "{BLens:1-Ax:Y}Mtr")
     y = Cpt(MyEpicsMotor, "{ZP:1-Ax:Y}Mtr")
-    z = Cpt(MyBaseMotor, "{BLens:1-Ax:Z}Mtr")
+    #z = Cpt(MyBaseMotor, "{BLens:1-Ax:Z}Mtr")
 
 
 class TXMSampleStage(Device):
     sx = Cpt(MyEpicsMotor, "{Env:1-Ax:Xl}Mtr")
     sy = Cpt(MyEpicsMotor, "{Env:1-Ax:Yl}Mtr")
     sz = Cpt(MyEpicsMotor, "{Env:1-Ax:Zl}Mtr")
-    pi_x = Cpt(MyBaseMotor, "{TXM:1-Ax:X}Mtr")
+   # pi_x = Cpt(MyBaseMotor, "{TXM:1-Ax:X}Mtr")
     pi_r = Cpt(MyEpicsMotor, "{TXM:2-Ax:R}Mtr")
+    #pi_r = Cpt(MyEpicsMotor, "{TXM:1-Ax:R}Mtr")
 
 
 class DetSupport(Device):
@@ -243,11 +244,11 @@ motor_txm = [
     #phase_ring.z,
     betr.x,
     betr.y,
-    betr.z,
+    #betr.z,
     zps.sx,
     zps.sy,
     zps.sz,
-    zps.pi_x,
+    #zps.pi_x,
     zps.pi_r,
     DetU.x,
     DetU.y,

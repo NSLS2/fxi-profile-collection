@@ -210,3 +210,9 @@ def _take_ref_image(
     yield from _set_Andor_chunk_size(cams, chunk_size)
     yield from _take_image(cams, [], num, stream_name=stream_name)
 
+
+def _prime_cam(cam=Andor):
+    yield from abs_set(cam.cam.image_mode, 0, wait=True)
+    yield from abs_set(cam.cam.num_images, 5, wait=True)
+    yield from abs_set(cam.cam.acquire, 1, wait=True)
+

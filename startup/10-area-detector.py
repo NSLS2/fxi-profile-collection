@@ -20,7 +20,11 @@ from ophyd.areadetector.trigger_mixins import SingleTrigger
 from ophyd.areadetector.cam import AreaDetectorCam
 from ophyd.areadetector.detectors import DetectorBase
 from nslsii.ad33 import StatsPluginV33, CamV33Mixin
-#from nslsii.ad33 import SingleTriggerV33
+
+
+from nslsii.ad33 import SingleTriggerV33
+
+
 from ophyd.areadetector.trigger_mixins import TriggerBase, ADTriggerStatus
 from ophyd.device import Staged
 from ophyd.status import SubscriptionStatus
@@ -44,7 +48,7 @@ class ExternalFileReference(Signal):
         )
         return res
 
-
+'''
 class SingleTriggerV33(TriggerBase):
     _status_type = ADTriggerStatus
 
@@ -68,7 +72,7 @@ class SingleTriggerV33(TriggerBase):
         self.dispatch(self._image_name, ttime.time())
         return status
 
-
+'''
 class AndorCam(CamV33Mixin, AreaDetectorCam):
     def __init__(self, *args, **kwargs):
         AreaDetectorCam.__init__(self, *args, **kwargs)
@@ -219,7 +223,7 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
         self.hdf5._generate_resource(res_kwargs)
         return super().resume()
 
-    @timing
+    #@timing
     def stage(self):
         import itertools
         if self.cam.detector_state.get() != 0:
@@ -237,7 +241,7 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
                 else:
                     raise
 
-    @timing
+    #@timing
     def unstage(self, *args, **kwargs):
         import itertools
         #self._acquisition_signal.put(0, wait=True)
@@ -275,9 +279,12 @@ class Manta(SingleTrigger, AreaDetector):
         HDF5PluginWithFileStore,
         suffix="HDF1:",
         # write_path_template="/nsls2/data/fxi-new/legacy/Andor/%Y/%m/%d/",
-        write_path_template="/nsls2/data/fxi-new/legacy/Andor//%Y/%m/%d/",
-        # write_path_template = '/dev/shm/',
-        root="/nsls2/data/fxi-new/legacy/Andor/",
+        write_path_template="/nsls2/data/fxi-new/legacy/Oryx/%Y/%m/%d/",
+        # write_path_template='/tmp/test_2022/%Y/%m/%d/' ,
+        # write_path_template="/nsls2/data/fxi-new/assets/default/%Y/%m/%d/",
+        # write_path_template="/nsls2/data/fxi-new/legacy/Andor//%Y/%m/%d/",
+        # root="/nsls2/data/fxi-new/assets/default",
+        root="/nsls2/data/fxi-new/legacy/Oryx",
         # write_path_template='/tmp/',
         # root='/',
     )
@@ -362,6 +369,9 @@ for k in ("image", "trans1", "roi1", "proc1"):
     getattr(Andor, k).ensure_nonblocking()
 Andor.hdf5.time_stamp.name = "Andor_timestamps"
 
+#########################################
+''' comment away this section when Marana is disconnected 
+
 # added by XH
 Marana = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="Andor")
 Marana.cam.ensure_nonblocking()
@@ -378,6 +388,8 @@ for k in ("image", "trans1", "roi1", "proc1"):
     getattr(Marana, k).ensure_nonblocking()
 Marana.hdf5.time_stamp.name = "Andor_timestamps"
 
+'''
+#############################################
 # vlm = Manta("XF:18IDB-BI{VLM:1}", name="vlm")
 # detA1.read_attrs = ['hdf5', 'stats1', 'stats5']
 # detA1.read_attrs = ['hdf5']
@@ -386,6 +398,16 @@ Marana.hdf5.time_stamp.name = "Andor_timestamps"
 # detA1.stats5.read_attrs = ['total']
 # vlm.hdf5.read_attrs = []
 
+
+Oryx = Manta("XF:18IDB-ES{Det:Oryx1}", name="Oryx")
+#Oryx.cam.ensure_nonblocking()
+Oryx.read_attrs = ["hdf5"]
+#Oryx.stats1.read_attrs = ["total"]
+Oryx.hdf5.read_attrs = ["time_stamp"]
+Oryx.stage_sigs["cam.image_mode"] = 1
+for k in ("image", ):
+    getattr(Oryx, k).ensure_nonblocking()
+Oryx.hdf5.time_stamp.name = "Oryx_timestamps"
 
 #for det in [detA1, Andor]:
 for det in [detA1]:

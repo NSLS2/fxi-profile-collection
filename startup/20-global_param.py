@@ -24,3 +24,8 @@ CURRENT_MAG = {}
 CALIBER_FLAG = 1
 
 CALIBER = {}
+
+ZP_8keV = {"D": 244,
+           "dr": 30}
+ZP_9keV = {"D": 550, 
+           "dr": 50}

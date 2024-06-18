@@ -7,7 +7,7 @@ import matplotlib.pyplot as mplp
 import scipy.ndimage as sn
 from scipy.ndimage.filters import median_filter as medfilt
 from PIL import Image
-
+from matplotlib.widgets import Slider
 
 def pad(img, thick, direction):
 
@@ -19,7 +19,28 @@ def pad(img, thick, direction):
     img: 2d or 3d array
         2D or 3D images
     thick: int
-        padding thickness for all directions
+        padding thickness for all directionsdef plot3D(data,axis=0,index_init=None):
+    fig, ax = plt.subplots()
+    if index_init is None:
+        index_init = int(data.shape[axis]//2)
+    im = ax.imshow(data.take(index_init,axis=axis))
+    fig.subplots_adjust(bottom=0.15)
+    axslide = fig.add_axes([0.1, 0.03, 0.8, 0.03])
+    im_slider = Slider(
+        ax=axslide,
+        label='index',
+        valmin=0,
+        valmax=data.shape[axis] - 1,
+        valstep=1,
+        valinit=index_init,
+    )
+    def update(val):
+        im.set_data(data.take(val,axis=axis))
+        fig.canvas.draw_idle()
+   
+    im_slider.on_changed(update)
+    plt.show()
+    return im_slider
         if thick == odd, automatically increase it to thick+1
     direction: int
         0: padding in axes = 0 (2D or 3D image)
@@ -810,6 +831,31 @@ def rm_phase_ramp_manual_2d(array, x_shift, y_shift):
         )
     )
     return tmp
+
+
+
+def plot3D(data,axis=0,index_init=None):
+    fig, ax = plt.subplots()
+    if index_init is None:
+        index_init = int(data.shape[axis]//2)
+    im = ax.imshow(data.take(index_init,axis=axis))
+    fig.subplots_adjust(bottom=0.15)
+    axslide = fig.add_axes([0.1, 0.03, 0.8, 0.03])
+    im_slider = Slider(
+        ax=axslide,
+        label='index',
+        valmin=0,
+        valmax=data.shape[axis] - 1,
+        valstep=1,
+        valinit=index_init,
+    )
+    def update(val):
+        im.set_data(data.take(val,axis=axis))
+        fig.canvas.draw_idle()
+   
+    im_slider.on_changed(update)
+    plt.show()
+    return im_slider
 
 
 if __name__ == "__main__":

@@ -16,10 +16,15 @@ def test_scan(
     out_y=-100,
     out_z=0,
     out_r=0,
-    num_img=10,
-    num_bkg=10,
-    note="",
     period=0.1,
+    num_img=10,
+    #num_bkg=10,
+    relative_move_flag=False,    
+    sleep_time=0, 
+    rot_first_flag=1, 
+    close_shutter_in_scan=False,
+    note="",
+    
     simu=False,
     md=None,
 ):
@@ -46,6 +51,24 @@ def test_scan(
     yield from _set_andor_param(exposure_time, period, 1)
 
     detectors = [Andor]
+    motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
+
+    motor_x_ini = zps.sx.position
+    motor_y_ini = zps.sy.position
+    motor_z_ini = zps.sz.position
+    motor_r_ini = zps.pi_r.position
+    if relative_move_flag:
+        motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
+    else:
+        motor_x_out = out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = out_r if not (out_r is None) else motor_r_ini
+
+    '''
     y_ini = zps.sy.position
     y_out = y_ini + out_y if not (out_y is None) else y_ini
     x_ini = zps.sx.position
@@ -54,6 +77,8 @@ def test_scan(
     z_out = z_ini + out_z if not (out_z is None) else z_ini
     r_ini = zps.pi_r.position
     r_out = r_ini + out_r if not (out_r is None) else r_ini
+    '''
+
     _md = {
         "detectors": ["Andor"],
         "XEng": XEng.position,
@@ -64,7 +89,10 @@ def test_scan(
             "out_z": out_z,
             "out_r": out_r,
             "num_img": num_img,
-            "num_bkg": num_bkg,
+            #"num_bkg": num_bkg,
+            "relative_move_flag": relative_move_flag,
+            "close_shutter_in_scan":close_shutter_in_scan,
+            "sleep_time":sleep_time,
             "note": note if note else "None",
         },
         "plan_name": "test_scan",
@@ -82,34 +110,63 @@ def test_scan(
     @run_decorator(md=_md)
     def inner_scan():
         yield from _open_shutter(simu=simu)
-        """
-        yield from abs_set(shutter_open, 1, wait=True)
-        yield from bps.sleep(2)
-        yield from abs_set(shutter_open, 1, wait=True)
-        yield from bps.sleep(2)
-        """
+
         for i in range(num_img):
             yield from trigger_and_read(list(detectors))
+            if close_shutter_in_scan:
+                yield from _close_shutter(simu=simu)
+            print(f'sleep for {sleep_time} sec...')
+            yield from bps.sleep(sleep_time)
+            if close_shutter_in_scan:
+                yield from _open_shutter(simu=simu)
+
         # taking out sample and take background image
+        print(f'\nmove sample out and take 20 backgound image')
+        yield from _take_bkg_image(
+                motor_x_out,
+                motor_y_out,
+                motor_z_out,
+                motor_r_out,
+                detectors,
+                [],
+                num=1,
+                chunk_size=20,
+                rot_first_flag=rot_first_flag,
+                stream_name="flat",
+                simu=simu,
+                )
+        '''
         yield from mv(zps.pi_r, r_out)
         yield from mv(zps.sz, z_out)
-        yield from mv(zps.sx, x_out, zps.sy, y_out)
+        yield from mv(zps.sx, x_out, zps.sy, y_out)        
+        for i in range(num_bkg):
+            yield from trigger_and_read(list(detectors))
+        '''
+
+        print(f'\nclose shutter and take 20 dark image')
+        yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
+        '''
         for i in range(num_bkg):
             yield from trigger_and_read(list(detectors))
         # close shutter, taking dark image
         yield from _close_shutter(simu=simu)
-        """
-        yield from abs_set(shutter_close, 1, wait=True)
-        yield from bps.sleep(1)
-        yield from abs_set(shutter_close, 1, wait=True)
-        yield from bps.sleep(1)
-        """
-        for i in range(num_bkg):
-            yield from trigger_and_read(list(detectors))
+        '''
+        
+        print('move sample back to initial position')
+        yield from _move_sample_in(
+            motor_x_ini,
+            motor_y_ini,
+            motor_z_ini,
+            motor_r_ini,
+            trans_first_flag=rot_first_flag,
+            repeat=3,
+        )
+        '''
         yield from mv(zps.sz, z_ini)
         yield from mv(zps.pi_r, r_ini)
 
         yield from mv(zps.sx, x_ini, zps.sy, y_ini)
+        '''
         # yield from abs_set(shutter_open, 1, wait=True)
 
     uid = yield from inner_scan()
@@ -252,19 +309,22 @@ def test_scan2(
 
 
 def z_scan(
+    scan_motor='zp_z',
     start=-0.03,
     stop=0.03,
     steps=5,
     out_x=-100,
     out_y=-100,
+    out_z=0,
     chunk_size=10,
     exposure_time=0.1,
+    relative_move_flag=1,
     note="",
     md=None,
-    simu=False,
-    cam=Andor
 ):
     """
+
+
     scan the zone-plate to find best focus
     use as:
     z_scan(start=-0.03, stop=0.03, steps=5, out_x=-100, out_y=-100, chunk_size=10, exposure_time=0.1, fn='/home/xf18id/Documents/tmp/z_scan.h5', note='', md=None)
@@ -289,28 +349,60 @@ def z_scan(
 
     """
 
-    detectors = [cam]
-    motor = zp.z
-    z_ini = motor.position  # zp.z intial position
-    z_start = z_ini + start
-    z_stop = z_ini + stop
-    #    detectors = [cam]
+    detectors = [Andor]
+    motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
+
+    x_ini = zps.sx.position
+    y_ini = zps.sy.position
+    z_ini = zps.sz.position
+    r_ini = zps.pi_r.position
+
+    if relative_move_flag:
+        x_out = x_ini + out_x if not (out_x is None) else x_ini
+        y_out = y_ini + out_y if not (out_y is None) else y_ini
+        z_out = z_ini + out_z if not (out_z is None) else z_ini
+        
+    else:
+        x_out = out_x if not (out_x is None) else x_ini
+        y_out = out_y if not (out_y is None) else y_ini
+        z_out = out_z if not (out_z is None) else z_ini
+        
+
+    if scan_motor == 'zp_x':
+        zp_ini = zp.x.position  # zp.x intial position
+        real_motor = zp.x
+    if scan_motor == 'zp_y':
+        real_motor = zp.y
+        zp_ini = zp.y.position  # zp.y intial position
+    else:
+        zp_ini = zp.z.position  # zp.z intial position
+        real_motor = zp.z
+
+
+
+    zp_start = zp_ini + start
+    zp_stop = zp_ini + stop
+    '''
+    #    detectors = [Andor]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
     )  # sample y position (out-position)
     x_ini = zps.sx.position
     x_out = x_ini + out_x if not (out_x is None) else x_ini
-    yield from mv(cam.cam.acquire, 0)
-    yield from mv(cam.cam.image_mode, 0)
-    yield from mv(cam.cam.num_images, chunk_size)
-    yield from mv(cam.cam.acquire_time, exposure_time)
-    period_cor = max(exposure_time + 0.01, 0.05)
-    yield from mv(cam.cam.acquire_period, period_cor)
+    z_ini = zps.sz.position
+    z_out = z_ini if not (out_z is None) else z_ini
+    '''
+
+    period = max(exposure_time + 0.01, 0.05)
+
+    yield from _set_andor_param(
+        exposure_time=exposure_time, period=period, chunk_size=chunk_size
+    )
 
     _md = {
         "detectors": [det.name for det in detectors],
-        "motors": [motor.name],
+        "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "plan_args": {
             "start": start,
@@ -318,6 +410,7 @@ def z_scan(
             "steps": steps,
             "out_x": out_x,
             "out_y": out_y,
+            "out_z": out_z,
             "chunk_size": chunk_size,
             "exposure_time": exposure_time,
             "note": note if note else "None",
@@ -327,10 +420,10 @@ def z_scan(
         "plan_pattern_module": "numpy",
         "hints": {},
         "operator": "FXI",
-        "motor_pos": wh_pos(print_on_screen=0),
+        #'motor_pos': wh_pos(print_on_screen=0),
     }
     _md.update(md or {})
-    my_var = np.linspace(z_start, z_stop, steps)
+    my_var = np.linspace(zp_start, zp_stop, steps)
     try:
         dimensions = [(motor.hints["fields"], "primary")]
     except (AttributeError, KeyError):
@@ -338,46 +431,41 @@ def z_scan(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    @stage_decorator(list(detectors) + [motor])
+    @stage_decorator(list(detectors) + motor)
     @run_decorator(md=_md)
-    def inner_scan():
-        #        yield from abs_set(shutter_open, 1, wait=True)
-        #        yield from bps.sleep(1)
-        #        yield from abs_set(shutter_open, 1)
-        #        yield from bps.sleep(1)
-        yield from _open_shutter(simu=simu)
-        for x in my_var:
-            yield from mv(motor, x)
-            yield from trigger_and_read(list(detectors) + [motor])
-        # backgroud images
-        yield from mv(zps.sx, x_out)
-        yield from mv(zps.sy, y_out)
-        yield from mv(zps.sx, x_out, zps.sy, y_out)
-        yield from bps.sleep(0.5)
-        yield from trigger_and_read(list(detectors) + [motor])
-        yield from _close_shutter(simu=simu)
-        yield from bps.sleep(0.5)
-        yield from trigger_and_read(list(detectors) + [motor])
-        # dark images
-        #        yield from abs_set(shutter_close, 1, wait=True)
-        #        yield from bps.sleep(1)
-        #        yield from abs_set(shutter_close, 1)
-        #        yield from bps.sleep(1)
-        # move back zone_plate and sample y
-        yield from mv(zps.sx, x_ini)
-        yield from mv(zps.sy, y_ini)
-        yield from mv(zp.z, z_ini)
-        # yield from abs_set(shutter_open, 1, wait=True)
-        yield from mv(cam.cam.image_mode, 1)
+    def z_inner_scan():
 
-    uid = yield from inner_scan()
-    yield from mv(cam.cam.image_mode, 1)
-    yield from _close_shutter(simu=simu)
+        # take dark image
+        yield from _take_dark_image(detectors, motor)
+        yield from _open_shutter()
+        for pos in my_var:
+            yield from mv(zps.sx, x_ini, zps.sy, y_ini)
+            yield from mv(real_motor, pos)
+            yield from bps.sleep(0.1)
+            yield from mv(zps.sx, x_ini, zps.sy, y_ini)
+            yield from mv(real_motor, pos)
+            yield from bps.sleep(0.1)
+            yield from _take_image(detectors, motor=motor, num=1)
+        yield from _take_bkg_image(
+            out_x=x_out,
+            out_y=y_out,
+            out_z=z_out,
+            out_r=0,
+            detectors=detectors,
+            motor=motor,
+            chunk_size=chunk_size,
+        )
+
+        # move back zone_plate and sample y
+        yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini, zp.z, zp_ini)
+        # yield from abs_set(shutter_open, 1, wait=True)
+
+    yield from z_inner_scan()
+    yield from mv(Andor.cam.image_mode, 1)
+    yield from _close_shutter(simu=False)
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
-
-    return uid
 
 
 def z_scan2(
