@@ -586,7 +586,7 @@ def _xanes_3D_xh(
     enable_z=True,
 ):
     for eng in eng_list:
-        yield from move_zp_ccd(eng, move_flag=1)
+        yield from move_zp_ccd_xh(eng, move_flag=1)
         my_note = f"{note}@energy={eng}keV"
         yield from bps.sleep(1)
         print(f"current energy: {eng}")
@@ -718,7 +718,7 @@ def _multi_pos_xanes_3D_xh(
                     eng_list[int(eng_list.shape[0] / 2)],
                     eng_list[0],
                 ]:
-                    yield from move_zp_ccd(ii, move_flag=1)
+                    yield from move_zp_ccd_xh(ii, move_flag=1)
                     my_note = note + f"_ref_flat@energy={ii}keV"
                     yield from bps.sleep(1)
                     print(f"current energy: {ii}")
@@ -770,6 +770,7 @@ def _xanes_3D_zebra_xh(
     out_z=None,
     out_r=None,
     simu=False,
+    settle_time=0,
     rel_out_flag=1,
     note="",
     bin_fac=1,
@@ -778,9 +779,10 @@ def _xanes_3D_zebra_xh(
     flyer=tomo_flyer,
 ):
     for eng in eng_list:
-        yield from move_zp_ccd(eng, move_flag=1)
+        yield from move_zp_ccd_xh(eng, move_flag=1)
         my_note = f"{note}@energy={eng}keV"
         yield from bps.sleep(1)
+        yield from bps.sleep(settle_time)
         print(f"current energy: {eng}")
 
         yield from tomo_zfly(
@@ -828,6 +830,7 @@ def _multi_pos_xanes_3D_zebra_xh(
     rel_out_flag=1,
     note="",
     sleep_time=0,
+    settle_time=0,
     bin_fac=1,
     flts=[],
     repeat=1,
@@ -856,6 +859,7 @@ def _multi_pos_xanes_3D_zebra_xh(
                 trans_first_flag=1,
                 enable_z=True,
             )
+            yield from bps.sleep(settle_time)
             yield from _xanes_3D_zebra_xh(
                 eng_list,
                 exp_t=exp_t,
@@ -869,6 +873,7 @@ def _multi_pos_xanes_3D_zebra_xh(
                 out_z=out_z,
                 out_r=out_r,
                 simu=simu,
+                settle_time=settle_time,
                 rel_out_flag=rel_out_flag,
                 note=note,
                 bin_fac=bin_fac,
@@ -916,7 +921,7 @@ def _multi_pos_xanes_3D_zebra_xh(
                     eng_list[int(eng_list.shape[0] / 2)],
                     eng_list[0],
                 ]:
-                    yield from move_zp_ccd(ii, move_flag=1)
+                    yield from move_zp_ccd_xh(ii, move_flag=1)
                     my_note = f"{note}_ref_flat@energy={ii}keV"
                     yield from bps.sleep(1)
                     print(f"current energy: {ii}")
@@ -971,6 +976,7 @@ def _multi_pos_xanes_2D_xh(
     repeat_num=1,
     exposure_time=0.2,
     sleep_time=1,
+    settle_time=0,
     chunk_size=5,
     simu=False,
     relative_move_flag=True,
@@ -1157,7 +1163,7 @@ def _multi_pos_xanes_2D_xh(
             for rep in range(repeat_num):
                 print(f"repeat multi-pos xanes scan #{rep}")            
                 for eng in eng_list:
-                    yield from move_zp_ccd(eng, move_flag=1, info_flag=0)
+                    yield from move_zp_ccd_xh(eng, move_flag=1, info_flag=0)
                     yield from _open_shutter_xhx(simu)
                     # take image at multiple positions
                     for i in range(num):
@@ -1170,6 +1176,7 @@ def _multi_pos_xanes_2D_xh(
                             trans_first_flag=1,
                             enable_z=enable_z,
                         )
+                        yield from bps.sleep(settle_time)
                         yield from trigger_and_read(list(detectors) + motor)
                     yield from _take_bkg_image_xhx(
                         motor_x_out,
@@ -1215,6 +1222,7 @@ def _multi_pos_xanes_2D_xh(
                         trans_first_flag=1,
                         enable_z=enable_z,
                     )
+                    yield from bps.sleep(settle_time)
                     yield from trigger_and_read(list(detectors) + motor)
                 yield from _take_bkg_image_xhx(
                     motor_x_out,
@@ -1684,6 +1692,7 @@ def multi_edge_xanes_zebra(
     bulk_intgr=10,
     simu=False,
     sleep=0,
+    settle_time=0,
     repeat=None,
     ref_flat_scan=False,
     cam=Andor,
@@ -1721,7 +1730,6 @@ def multi_edge_xanes_zebra(
             else:
                 period = 0.05
                 print("Use default acquisition period 0.05 sec")
-        print(f"We are going to do 2D XANES of {elem} with exposure time {exposure} sec and acquisition period {period} sec; filters {flt} will be used.")
         eng_list = _mk_eng_list(edge_list[elem], bulk=False)
 
         if scan_type == "2D":
@@ -1742,6 +1750,7 @@ def multi_edge_xanes_zebra(
                 note=note,
                 md=None,
                 sleep_time=sleep,
+                settle_time=settle_time,
                 repeat_num=repeat,
                 binning=bin_fac,
                 flts=flt,
@@ -1768,6 +1777,7 @@ def multi_edge_xanes_zebra(
                 rel_out_flag=rel_out_flag,
                 note=note,
                 sleep_time=sleep,
+                settle_time=settle_time,
                 bin_fac=bin_fac,
                 flts=flt,
                 repeat=repeat,
@@ -1933,7 +1943,7 @@ def multi_edge_xanes(
                     eng_list[int(eng_list.shape[0] / 2)],
                     eng_list[-1],
                 ]:
-                    yield from move_zp_ccd(ii, move_flag=1)
+                    yield from move_zp_ccd_xh(ii, move_flag=1)
                     my_note = note + f"_ref_flat@energy={ii}keV"
                     yield from bps.sleep(1)
                     print(f"current energy: {ii}")
@@ -3186,8 +3196,7 @@ def cal_calib_pos():
     return calib_pos
 
 
-
-def update_th2():
+def update_th2_xh():
     calib = trans_calib()
     cur_eng = XEng.position
     cur_th2 = dcm.th2.position
@@ -3213,7 +3222,7 @@ def update_th2():
     return calib
 
 
-def update_CALIBER_th2():
+def update_CALIBER_th2_xh():
     global CALIBER
     _calib = trans_calib()
     _calib_th2 = update_th2()
@@ -3221,7 +3230,7 @@ def update_CALIBER_th2():
         CALIBER[f"th2_motor_{_calib[key]['pos']}"] = _calib_th2[key]["th2_motor"]
     
 
-def trans_calib():
+def trans_calib_xh():
     global CALIBER
     new_key1 = []
     new_key2 = []
@@ -3238,7 +3247,312 @@ def trans_calib():
             if key1 in k:
                 calib_dict[key2][k.strip("_"+ key1)] = CALIBER[k]
         calib_dict[key2]["pos"] = key1
+        calib_dict[key2]["mag"] = CALIBER["mag" + key1.strip("pos")]
     return calib_dict
+
+
+def lock_th2_xh():
+    cur_th2 = dcm.th2.position
+    yield from mv(dcm_th2.feedback_enable, 0)
+    yield from mv(dcm_th2.feedback, cur_th2)
+    yield from mv(dcm_th2.feedback_enable, 1)
+
+
+def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0, mag=None, zp_cfg=None):
+    """
+    move the zone_plate and ccd to the user-defined energy with constant magnification
+    use the function as:
+        move_zp_ccd_with_const_mag(eng_new=8.0, move_flag=1)
+    Note:
+        in the above commend, it will use two energy calibration points to calculate the motor
+        position of XEng=8.0 keV.
+        specfically, one of the calibration points is > 8keV, the other one is < 8keV
+
+    Inputs:
+    -------
+    eng_new:  float
+          User defined energy, in unit of keV
+    flag: int
+          0: Do calculation without moving real stages
+          1: Will move stages
+    """
+    global GLOBAL_VLM_MAG
+
+    def find_nearest(data, value):
+        data = np.array(data)
+        return np.abs(data - value).argmin()
+
+    eng_new = float(eng_new)  # keV, e.g. 9.0
+    if (eng_new < 5.0) or (eng_new > 15.0):
+        print("Target energy is out of allowed range [5.0, 15.0] keV.")
+        return -1
+
+    det = DetU  # upstream detector
+    eng_ini = XEng.position
+
+    
+    eng_lst1 = list(trans_calib_xh().keys())
+    eng_lst2 = list(trans_calib_xh().keys())
+    
+    idx = find_nearest(eng_new, eng_lst1)
+    eng1 = eng_lst1[idx]
+    print(f"{eng1=}")
+    id1 = trans_calib_xh()[eng1]["pos"].strip("pos")
+    mag1 = trans_calib_xh()[eng1]["mag"]
+
+    eng_lst2.pop(idx)
+    eng2 = eng_lst2[find_nearest(eng_new, eng_lst2)]
+    print(f"{eng2=}")
+    id2 = trans_calib_xh()[eng2]["pos"].strip("pos")
+    mag2 = trans_calib_xh()[eng2]["mag"]
+
+    if not (np.abs(mag1 / mag2 - 1) < 1e-3):
+        print(
+            f"mismatch in magfinication:\nmagnificatoin at {eng1:5f} keV = {mag1}\nmagnificatoin at {eng2:2.5f} keV = {mag2}\nwill not move"
+        )
+        return -1
+
+    zp_ini, det_ini, _, _, _ = cal_ccd_zp_xh(eng_ini, mag1/GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False)
+    zp_final, det_final, _, _, _ = cal_ccd_zp_xh(eng_new, mag1/GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False)
+    zp_delta = zp_final - zp_ini
+    det_delta = det_final - det_ini
+    
+    if (det_final < det.z.low_limit.value) or (det_final > det.z.high_limit.value): 
+        print(
+        "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
+            det_final, det.z.low_limit.value, det.z.high_limit.value
+            )
+        )
+        return -1
+
+    print(
+        f"using reference at {eng1:2.5f} keV and {eng2:2.5f} kev to interpolate\n"
+    )
+    dcm_chi2_eng1 = CALIBER[f"chi2_pos{id1}"]
+    zp_x_pos_eng1 = CALIBER[f"zp_x_pos{id1}"]
+    zp_y_pos_eng1 = CALIBER[f"zp_y_pos{id1}"]
+    th2_motor_eng1 = CALIBER[f"th2_motor_pos{id1}"]
+    clens_x_eng1 = CALIBER[f"clens_x_pos{id1}"]
+    clens_y1_eng1 = CALIBER[f"clens_y1_pos{id1}"]
+    clens_y2_eng1 = CALIBER[f"clens_y2_pos{id1}"]
+    clens_p_eng1 = CALIBER[f"clens_p_pos{id1}"]
+    DetU_x_eng1 = CALIBER[f"DetU_x_pos{id1}"]
+    DetU_y_eng1 = CALIBER[f"DetU_y_pos{id1}"]
+    aper_x_eng1 = CALIBER[f"aper_x_pos{id1}"]
+    aper_y_eng1 = CALIBER[f"aper_y_pos{id1}"]
+
+    dcm_chi2_eng2 = CALIBER[f"chi2_pos{id2}"]
+    zp_x_pos_eng2 = CALIBER[f"zp_x_pos{id2}"]
+    zp_y_pos_eng2 = CALIBER[f"zp_y_pos{id2}"]
+    th2_motor_eng2 = CALIBER[f"th2_motor_pos{id2}"]
+    clens_x_eng2 = CALIBER[f"clens_x_pos{id2}"]
+    clens_y1_eng2 = CALIBER[f"clens_y1_pos{id2}"]
+    clens_y2_eng2 = CALIBER[f"clens_y2_pos{id2}"]
+    clens_p_eng2 = CALIBER[f"clens_p_pos{id2}"]
+    DetU_x_eng2 = CALIBER[f"DetU_x_pos{id2}"]
+    DetU_y_eng2 = CALIBER[f"DetU_y_pos{id2}"]
+    aper_x_eng2 = CALIBER[f"aper_x_pos{id2}"]
+    aper_y_eng2 = CALIBER[f"aper_y_pos{id2}"]
+
+    chi2_motor_target = (eng_new - eng2) * (dcm_chi2_eng1 - dcm_chi2_eng2) / (
+        eng1 - eng2
+    ) + dcm_chi2_eng2
+
+    zp_x_target = (eng_new - eng2) * (zp_x_pos_eng1 - zp_x_pos_eng2) / (
+        eng1 - eng2
+    ) + zp_x_pos_eng2
+    zp_y_target = (eng_new - eng2) * (zp_y_pos_eng1 - zp_y_pos_eng2) / (
+        eng1 - eng2
+    ) + zp_y_pos_eng2
+
+    th2_motor_target = (eng_new - eng2) * (th2_motor_eng1 - th2_motor_eng2) / (
+        eng1 - eng2
+    ) + th2_motor_eng2
+    clens_x_target = (eng_new - eng2) * (clens_x_eng1 - clens_x_eng2) / (
+        eng1 - eng2
+    ) + clens_x_eng2
+    clens_y1_target = (eng_new - eng2) * (clens_y1_eng1 - clens_y1_eng2) / (
+        eng1 - eng2
+    ) + clens_y1_eng2
+    clens_y2_target = (eng_new - eng2) * (clens_y2_eng1 - clens_y2_eng2) / (
+        eng1 - eng2
+    ) + clens_y2_eng2
+    clens_p_target = (eng_new - eng2) * (clens_p_eng1 - clens_p_eng2) / (
+        eng1 - eng2
+    ) + clens_p_eng2
+    DetU_x_target = (eng_new - eng2) * (DetU_x_eng1 - DetU_x_eng2) / (
+        eng1 - eng2
+    ) + DetU_x_eng2
+    DetU_y_target = (eng_new - eng2) * (DetU_y_eng1 - DetU_y_eng2) / (
+        eng1 - eng2
+    ) + DetU_y_eng2
+    aper_x_target = (eng_new - eng2) * (aper_x_eng1 - aper_x_eng2) / (
+        eng1 - eng2
+    ) + aper_x_eng2
+    aper_y_target = (eng_new - eng2) * (aper_y_eng1 - aper_y_eng2) / (
+        eng1 - eng2
+    ) + aper_y_eng2
+
+    dcm_chi2_ini = dcm.chi2.position
+    zp_x_ini = zp.x.position
+    zp_y_ini = zp.y.position
+    th2_motor_ini = dcm.th2.position
+    clens_x_ini = clens.x.position
+    clens_y1_ini = clens.y1.position
+    clens_y2_ini = clens.y2.position
+    clens_p_ini = clens.p.position
+    DetU_x_ini = DetU.x.position
+    DetU_y_ini = DetU.y.position
+    aper_x_ini = aper.x.position
+    aper_y_ini = aper.y.position
+
+
+    if np.abs(eng1 - eng2) < 1e-5:  # difference less than 0.01 eV
+        print(
+            f'eng1({eng1:2.5f} eV) and eng2({eng2:2.5f} eV) in "CALIBER" are two close, will not move any motors...'
+        )
+        return -1
+    else:
+        if info_flag or (not move_flag):
+            if not move_flag:
+                print("This is calculation. No stages move")
+
+            print(
+                "Energy: {0:5.2f} keV --> {1:5.2f} keV".format(eng_ini, eng_new)
+            )
+            print(
+                "zone plate position: {0:2.4f} mm --> {1:2.4f} mm".format(
+                    zp_ini, zp_final
+                )
+            )
+            print(
+                "CCD position: {0:2.4f} mm --> {1:2.4f} mm".format(
+                    det_ini, det_final
+                )
+            )
+            print(
+                "move zp_x: ({0:2.4f} um --> {1:2.4f} um)".format(
+                    zp_x_ini, zp_x_target
+                )
+            )
+            print(
+                "move zp_y: ({0:2.4f} um --> {1:2.4f} um)".format(
+                    zp_y_ini, zp_y_target
+                )
+            )
+            print(
+                "move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)".format(
+                    th2_motor_ini, th2_motor_target
+                )
+            )
+            print(
+                "move aper_x_motor: ({0:2.4f} um --> {1:2.4f} um)".format(
+                    aper_x_ini, aper_x_target
+                )
+            )
+            print(
+                "move aper_y_motor: ({0:2.4f} um --> {1:2.4f} um)".format(
+                    aper_y_ini, aper_y_target
+                )
+            )
+            if move_clens_flag:
+                print(
+                    "move clens_x: ({0:2.4f} um --> {1:2.4f} um)".format(
+                        clens_x_ini, clens_x_target
+                    )
+                )
+                print(
+                    "move clens_y1: ({0:2.4f} um --> {1:2.4f} um)".format(
+                        clens_y1_ini, clens_y1_target
+                    )
+                )
+                print(
+                    "move clens_y2: ({0:2.4f} um --> {1:2.4f} um)".format(
+                        clens_y1_ini, clens_y2_target
+                    )
+                )
+                print(
+                    "move clens_p: ({0:2.4f} um --> {1:2.4f} um)".format(
+                        clens_p_ini, clens_p_target
+                    )
+                )
+
+                if move_det_flag:
+                    print(
+                        "move DetU_x: ({0:2.4f} um --> {1:2.4f} um)".format(
+                            DetU_x_ini, DetU_x_target
+                        )
+                    )
+                    print(
+                        "move DetU_y: ({0:2.4f} um --> {1:2.4f} um)".format(
+                            DetU_y_ini, DetU_y_target
+                        )
+                    )
+        if move_flag:  # move stages
+            print("Now moving stages ....")
+
+            yield from mv(dcm_th2.feedback_enable, 0)
+            yield from mv(dcm_th2.feedback, th2_motor_target)
+            yield from mv(dcm_th2.feedback_enable, 1)
+
+            yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
+            yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
+            yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)               
+
+            if move_clens_flag:
+                yield from mv(
+                    clens.x,
+                    clens_x_target,
+                    clens.y1,
+                    clens_y1_target,
+                    clens.y2,
+                    clens_y2_target,
+                )
+                yield from mv(clens.p, clens_p_target)
+            if move_det_flag:
+                yield from mv(DetU.x, DetU_x_target)
+                yield from mv(DetU.y, DetU_y_target)
+
+            yield from bps.sleep(0.5)
+            if abs(eng_new - eng_ini) >= 0.005:
+                t = 10 * abs(eng_new - eng_ini)
+                t = min(t, 2)
+                print(f"sleep for {t} sec")
+                yield from bps.sleep(t)
+        
+
+def record_calib_pos_new_xh(n):
+    global GLOBAL_MAG, CALIBER
+
+    CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
+    CALIBER[f"XEng_pos{n}"] = XEng.position
+    CALIBER[f"zp_x_pos{n}"] = zp.x.position
+    CALIBER[f"zp_y_pos{n}"] = zp.y.position
+    CALIBER[f"th2_motor_pos{n}"] = dcm.th2.position
+    CALIBER[f"clens_x_pos{n}"] = clens.x.position
+    CALIBER[f"clens_y1_pos{n}"] = clens.y1.position
+    CALIBER[f"clens_y2_pos{n}"] = clens.y2.position
+    CALIBER[f"clens_p_pos{n}"] = clens.p.position
+    CALIBER[f"DetU_y_pos{n}"] = DetU.y.position
+    CALIBER[f"DetU_x_pos{n}"] = DetU.x.position
+    CALIBER[f"aper_x_pos{n}"] = aper.x.position
+    CALIBER[f"aper_y_pos{n}"] = aper.y.position
+    #CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
+
+    mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
+    CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
+    GLOBAL_MAG = CALIBER[f"mag{n}"]
+
+    tmp = {}
+    for k in CALIBER.keys():
+        if str(n) in k:
+            tmp[k] = CALIBER[k]
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(tmp)
+    df = pd.DataFrame.from_dict(CALIBER, orient="index")
+    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
+    print(f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}')
 
 
 def grid_z_scan(
@@ -4024,6 +4338,7 @@ def multi_pos_radiography_record(
         repeat_num=1,
         exposure_time=0.2,
         sleep_time=1,
+        settle_time=0,
         chunk_size=5,
         simu=False,
         relative_move_flag=False,
@@ -4047,6 +4362,7 @@ def multi_pos_radiography_record(
         repeat_num=repeat_num,
         exposure_time=exposure_time,
         sleep_time=sleep_time,
+        settle_time=settle_time,
         chunk_size=chunk_size,
         simu=simu,
         relative_move_flag=relative_move_flag,
@@ -4239,7 +4555,7 @@ def multi_pos_2D_xanes_and_3D_tomo(
                 )
 
 
-def cal_ccd_zp_xh(eng, mag, zp_cfg=None):
+def cal_ccd_zp_xh(eng, mag, zp_cfg=None, show=True):
     """
     INPUT:
         eng: X-ray energy in keV
@@ -4264,8 +4580,14 @@ def cal_ccd_zp_xh(eng, mag, zp_cfg=None):
     p = f * (mag + 1) / mag  # object distance from zone plate in mm
     q = p * mag  # detector distance from zone plate in mm
     det_pos = p + q  # ccd detector distance from the sample in mm
-    print(f"obj-zp dist: {round(p, 4)} mm\ndet-sam dist: {round(det_pos, 4)} mm\nwavelength: {round(wl, 4)} nm\nNumerical aperture: {round(na, 4)} rad\nzp focal length: {round(f,4)} mm")
+    if show:
+        print(f"obj-zp dist: {round(p, 4)} mm\ndet-sam dist: {round(det_pos, 4)} mm\nwavelength: {round(wl, 4)} nm\nNumerical aperture: {round(na, 4)} rad\nzp focal length: {round(f,4)} mm")
     return p, det_pos, wl, na, f
+
+
+def set_ccd_zp_xh(eng, mag, zp_cfg=None):
+    p, det_pos, _, _, _ = cal_ccd_zp_xh(eng, mag, zp_cfg=zp_cfg)
+
 
 
 def z_scan_xh(
@@ -4689,7 +5011,7 @@ def diff_tomo(
 
     for jj in range(sam_in_pos_list.shape[0]):
         for ii in range(len(eng)):
-            yield from move_zp_ccd(
+            yield from move_zp_ccd_xh(
                 eng[ii], move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0
             )
             yield from mv(

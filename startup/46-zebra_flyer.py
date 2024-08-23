@@ -63,7 +63,7 @@ def tomo_zfly(
         _type_: _description_
     """
     global ZONE_PLATE
-    FXITomoFlyer.stop_det(cam)
+    yield from FXITomoFlyer.stop_det(cam)
     yield from bps.sleep(2)
     sleep_plan = _schedule_sleep(sleep, num_swing)
     if not sleep_plan:
@@ -135,7 +135,7 @@ def tomo_zfly(
     def inner_fly_plan():
         yield from select_filters(flts)
         
-        if flyer.scn_mode == "snaked: single file":
+        if flyer.scn_mode == "snaked: single file": # scn_mode = 2
             yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
             yield from bps.sleep(1)
             yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
@@ -195,7 +195,7 @@ def tomo_zfly(
                     return
             for mot in mots:
                 mot.unstage()
-        elif flyer.scn_mode == "standard":
+        elif flyer.scn_mode == "standard": # scn_mode = 0
             print(sleep_plan)
             for ii in range(scn_cfg["num_swing"]):
                 yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
@@ -300,7 +300,7 @@ def tomo_zfly(
                     print("\n")
                     yield from bps.sleep(sleep_plan[ii])
             yield from select_filters([])
-        elif flyer.scn_mode == "snaked: multiple files":
+        elif flyer.scn_mode == "snaked: multiple files": # scn_mode = 1
             yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
             yield from bps.sleep(1)
             for mot in mots:
@@ -419,6 +419,59 @@ def tomo_zfly(
     print("scan finished")
     # return uid
 
+
+def tomo_zfly_repeat(
+    scn_mode=0,
+    exp_t=0.05,
+    acq_p=0.05,
+    ang_s=0,
+    ang_e=180,
+    vel=3,
+    acc_t=1,
+    out_x=None,
+    out_y=None,
+    out_z=None,
+    out_r=None,
+    rel_out_flag=True,
+    flts=[],
+    rot_back_velo=30,
+    bin_fac=None,
+    note="",
+    md=None,
+    simu=False,
+    sleep=0,
+    repeat=1,
+    cam=Andor,
+    flyer=tomo_flyer,
+):
+    for ii in range(repeat):
+        yield from tomo_zfly(scn_mode=0,
+                            exp_t=exp_t,
+                            acq_p=acq_p,
+                            ang_s=ang_s,
+                            ang_e=ang_e,
+                            vel=vel,
+                            acc_t=acc_t,
+                            num_swing=1,
+                            out_x=out_x,
+                            out_y=out_y,
+                            out_z=out_z,
+                            out_r=out_r,
+                            rel_out_flag=rel_out_flag,
+                            flts=flts,
+                            rot_back_velo=rot_back_velo,
+                            bin_fac=bin_fac,
+                            note=note,
+                            md=md,
+                            simu=simu,
+                            sleep=0,
+                            cam=cam,
+                            flyer=flyer,)
+        if ii != repeat - 1:
+            print(f" Sleeping {sleep} seconds before {ii+2}th scan ... ".center(100, "#"))
+            print("\n")
+            yield from bps.sleep(sleep)
+        
 
 def tomo_grid_zfly(
     scn_mode=0,

@@ -3346,6 +3346,22 @@ def tomo_mosaic_scan(
     if z_ini is None:
         z_ini = zps.sz.position
 
+    if x_step_size is None or x_step_size <1:
+        print('x_step_size should > 1')
+        return 0
+    if y_step_size is None or y_step_size <1:
+        print('y_step_size should > 1')
+        return 0
+    if z_step_size is None or z_step_size <1:
+        print('z_step_size should > 1')
+        return 0
+    if x_num_steps is None:
+        x_num_steps = 1
+    if y_num_steps is None:
+        y_num_steps = 1
+    if z_num_steps is None:
+        z_num_steps = 1
+
     y_list = np.arange(y_ini, y_ini + y_step_size * y_num_steps - 1, y_step_size)
     x_list = np.arange(x_ini, x_ini + x_step_size * x_num_steps - 1, x_step_size)
     z_list = np.arange(z_ini, z_ini + z_step_size * z_num_steps - 1, z_step_size)

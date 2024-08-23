@@ -1064,24 +1064,24 @@ class FXITomoFlyer(Device):
 
     @staticmethod
     def prime_det(det):
-        if not list(det.hdf5.array_size.get()):
-            if det.cam.trigger_mode.get() != 0:
-                yield from abs_set(det.cam.trigger_mode, 0, wait=True)
-            if det.cam.image_mode.get() != 0:
-                yield from abs_set(det.cam.image_mode, 0, wait=True)
-            yield from abs_set(det.cam.num_images, 5, wait=True)
-            yield from abs_set(det.cam.acquire, 1, wait=False)
+        if det.cam.trigger_mode.get() != 0:
+            yield from abs_set(det.cam.trigger_mode, 0, wait=True)
+        if det.cam.image_mode.get() != 0:
+            yield from abs_set(det.cam.image_mode, 0, wait=True)
+        yield from abs_set(det.cam.num_images, 5, wait=True)
+        yield from abs_set(det.cam.acquire, 1, wait=False)
 
     @staticmethod
     def stop_det(det):
-        for _ in range(5):
+        while det.cam.acquire.value != 0:
             yield from abs_set(det.cam.acquire, 0, wait=True)
-        yield from abs_set(det.hdf5.capture, 0, wait=True)
+        while det.hdf5.capture.value != 0:
+            yield from abs_set(det.hdf5.capture, 0, wait=True)
 
     @staticmethod
     def bin_det(det, bin_fac):
         if det.binning.value != bin_fac:
-            yield from abs_set(det.cam.acquire, 0, wait=False)
+            yield from FXITomoFlyer.stop_det(det)
             if bin_fac is None:
                 bin_fac = 0
             if int(bin_fac) not in [0, 1, 2, 3, 4]:
@@ -1122,14 +1122,9 @@ class FXITomoFlyer(Device):
     def init_mot_r(scn_cfg):
         cur_pos = zps.pi_r.position
         yield from abs_set(zps.pi_r.offset_freeze_switch, 1)
-        ang_max = max(scn_cfg["ang_s"], scn_cfg["ang_e"])
-
-        if ang_max > 0:
-            yield from abs_set(zps.pi_r.user_offset, np.ceil(ang_max / 360) * 360)
-
-        if abs(scn_cfg["ang_s"] - cur_pos) > 360:
-            cur_pos = scn_cfg["ang_s"] // 360 * 360 + cur_pos % 360
-            zps.pi_r.set_current_position(cur_pos)
+        cur_pos = (np.sign((scn_cfg["ang_s"])) * (abs(scn_cfg["ang_s"])//360)) * 360 \
+            + np.sign(cur_pos) * (abs(cur_pos)%360)    
+        zps.pi_r.set_current_position(cur_pos)
         yield from abs_set(zps.pi_r.acceleration, 1, wait=True)
         yield from abs_set(zps.pi_r.velocity, scn_cfg["mb_vel"], wait=True)
         yield from abs_set(zps.pi_r, scn_cfg["ang_s"], wait=True)

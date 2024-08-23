@@ -77,16 +77,18 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
             try:
                 custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath)
                 db.reg.clear_process_cache()
-            except:
+            except Exception as err:
                 print(f'fail to export {item}')
+                print(err)
     else:
         for i in range(scan_id, scan_id_end + 1):
             try:
                 # export_single_scan(int(i), binning)
                 custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath)
                 db.reg.clear_process_cache()
-            except:
+            except Exception as err:
                 print(f'fail to export {i}')
+                print(err)
 
 def custom_export(scan_id, binning=4, date_end_by=None, fpath=None):
     """
@@ -832,8 +834,9 @@ def export_test_scan(h, fpath=None):
 
     try:
         write_lakeshore_to_file(h, fname)
-    except:
+    except Exception as err:
         print("fails to write lakeshore info into {fname}")
+        print(str)
 
     del (
         img_dark,
@@ -1253,9 +1256,13 @@ def export_raster_2D(h, binning=4, fpath=None):
             )
             index = index + 1
     s = img_patch.shape
-    img_patch_bin = bin_ndarray(
-        img_patch, new_shape=(1, int(s[1] / binning), int(s[2] / binning))
-    )
+    try:
+        img_patch_bin = bin_ndarray(
+            img_patch, new_shape=(1, int(s[1] / binning), int(s[2] / binning))
+        )
+    except:
+        img_patch_bin = img_patch
+        binning = 1
     fout_h5 = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.h5"
     fout_tiff = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.tiff"
     fout_txt = fpath + f"raster2D_scan_{scan_id}_cord.txt"

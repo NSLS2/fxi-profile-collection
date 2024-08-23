@@ -75,17 +75,69 @@ def cal_global_mag(x1, y1, x2, y2, nominal_dist=10000):
 
 
 ###################### new record caliber position function ################3
+def update_th2():
+    calib = trans_calib()
+    cur_eng = XEng.position
+    cur_th2 = dcm.th2.position
+
+    calib_eng = np.array(list(calib.keys()))
+    above = sorted(list(calib_eng[calib_eng > cur_eng]), reverse=True)
+    below = sorted(list(calib_eng[calib_eng <= cur_eng]), reverse=True)
+    if len(above) == 0:
+        eng1 = below[0]
+        eng2 = below[1]
+    elif len(below) == 0:
+        eng1 = above[-1]
+        eng2 = above[-2]
+    else:
+        eng1 = above[-1]
+        eng2 = below[0]
+    old_th2 = (cur_eng - eng2) * (calib[eng1]["th2_motor"] - calib[eng2]["th2_motor"]) / (
+                eng1 - eng2
+            ) + calib[eng2]["th2_motor"]
+    delta_th2 = cur_th2 - old_th2
+    for key in calib.keys():
+        calib[key]["th2_motor"] += delta_th2
+    print(f'For all energy calibrition point, offset DCM_th2 by {delta_th2}')
+    return calib
+
+
+def update_CALIBER_th2():
+    global CALIBER
+    _calib = trans_calib()
+    _calib_th2 = update_th2()
+    for key in _calib.keys():
+        CALIBER[f"th2_motor_{_calib[key]['pos']}"] = _calib_th2[key]["th2_motor"]
+    
+
+def trans_calib():
+    global CALIBER
+    new_key1 = []
+    new_key2 = []
+
+    for key in CALIBER.keys():
+        if "XEng" in key:
+            new_key1.append(key.split("_")[-1] )
+            new_key2.append(CALIBER[key])
+
+    calib_dict = {}
+    for key1, key2 in zip(new_key1, new_key2):
+        calib_dict[key2] = {}
+        for k in CALIBER.keys():
+            if key1 in k:
+                calib_dict[key2][k.strip("_"+ key1)] = CALIBER[k]
+        calib_dict[key2]["pos"] = key1
+    return calib_dict
+
 
 
 def record_calib_pos_new(n):
     global GLOBAL_MAG, CALIBER
 
-    # CALIBER[f'chi2_pos{n}'] = pzt_dcm_chi2.pos.value
     CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
     CALIBER[f"XEng_pos{n}"] = XEng.position
     CALIBER[f"zp_x_pos{n}"] = zp.x.position
     CALIBER[f"zp_y_pos{n}"] = zp.y.position
-    #CALIBER[f"th2_motor_pos{n}"] = th2_motor.position
     CALIBER[f"th2_motor_pos{n}"] = dcm.th2.position
     CALIBER[f"clens_x_pos{n}"] = clens.x.position
     CALIBER[f"clens_y1_pos{n}"] = clens.y1.position
@@ -110,9 +162,7 @@ def record_calib_pos_new(n):
     df = pd.DataFrame.from_dict(CALIBER, orient="index")
     df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
     # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
-    print(
-        f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}'
-    )
+    print(f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}')
 
 
 def remove_caliber_pos(n):
@@ -122,7 +172,8 @@ def remove_caliber_pos(n):
     CALIBER_backup = CALIBER.copy()
     try:
         for k in CALIBER_backup.keys():
-            if k[-1] == str(n):
+            if str(n) in k:
+            #if k[-1] == str(n):
                 del CALIBER[k]
         df = pd.DataFrame.from_dict(CALIBER, orient="index")
         # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
@@ -183,7 +234,7 @@ def read_calib_file_new(return_flag=0):
         return CALIBER
 
 
-def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0):
+def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0, mag=None):
     """
     move the zone_plate and ccd to the user-defined energy with constant magnification
     use the function as:
@@ -210,9 +261,10 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
     eng_ini = XEng.position
     check_eng_range([eng_ini])
     zp_ini, det_ini, zp_delta, det_delta, zp_final, det_final = cal_zp_ccd_position(
-        eng_new, eng_ini, print_flag=0
+        eng_new, eng_ini, print_flag=0, mag=mag
     )
 
+    
     assert (det_final) > det.z.low_limit.value and (det_final) < det.z.high_limit.value, print(
         "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
             det_final, det.z.low_limit.value, det.z.high_limit.value
@@ -294,12 +346,15 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
             chi2_motor_target = (eng_new - eng2) * (dcm_chi2_eng1 - dcm_chi2_eng2) / (
                 eng1 - eng2
             ) + dcm_chi2_eng2
+        
             zp_x_target = (eng_new - eng2) * (zp_x_pos_eng1 - zp_x_pos_eng2) / (
                 eng1 - eng2
             ) + zp_x_pos_eng2
             zp_y_target = (eng_new - eng2) * (zp_y_pos_eng1 - zp_y_pos_eng2) / (
                 eng1 - eng2
             ) + zp_y_pos_eng2
+
+
             th2_motor_target = (eng_new - eng2) * (th2_motor_eng1 - th2_motor_eng2) / (
                 eng1 - eng2
             ) + th2_motor_eng2
@@ -368,11 +423,11 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
                         )
                     )
                     # print ('move pzt_dcm_th2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_th2_ini, pzt_dcm_th2_target))
-                    print(
-                        "move dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)".format(
-                            dcm_chi2_ini, chi2_motor_target
-                        )
-                    )
+                    #print(
+                    #    "move dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)".format(
+                    #        dcm_chi2_ini, chi2_motor_target
+                    #    )
+                    #)
                     print(
                         "move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)".format(
                             th2_motor_ini, th2_motor_target
@@ -421,19 +476,18 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
                             )
                         )
 
-                yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
                 yield from mv(dcm_th2.feedback_enable, 0)
                 yield from mv(dcm_th2.feedback, th2_motor_target)
                 yield from mv(dcm_th2.feedback_enable, 1)
 
-                yield from mv(dcm_chi2.feedback_enable, 0)
-                yield from mv(dcm_chi2.feedback, chi2_motor_target)
-                yield from mv(dcm_chi2.feedback_enable, 1)
+                #yield from mv(dcm_chi2.feedback_enable, 0)
+                #yield from mv(dcm_chi2.feedback, chi2_motor_target)
+                #yield from mv(dcm_chi2.feedback_enable, 1)
 
                 yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
+                yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
                 yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
 
-                #yield from mv(DetU.x, DetU_x_ini + (det_final-det_ini)/400*0.15)
                 if move_clens_flag:
                     yield from mv(
                         clens.x,
@@ -447,8 +501,6 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
                 if move_det_flag:
                     yield from mv(DetU.x, DetU_x_target)
                     yield from mv(DetU.y, DetU_y_target)
-                # yield from mv(pzt_dcm_th2.setpos, pzt_dcm_th2_target, pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
-                # yield from mv(pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
 
                 yield from bps.sleep(0.5)
                 if abs(eng_new - eng_ini) >= 0.005:
@@ -493,12 +545,11 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
                         aper_y_ini, aper_y_target
                     )
                 )
-                # print ('will move pzt_dcm_th2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_th2_ini, pzt_dcm_th2_target))
-                print(
-                    "will move dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)".format(
-                        dcm_chi2_ini, chi2_motor_target
-                    )
-                )
+                #print(
+                #    "will move dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)".format(
+                #        dcm_chi2_ini, chi2_motor_target
+                #    )
+                #)
                 print(
                     "will move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)".format(
                         th2_motor_ini, th2_motor_target
@@ -539,6 +590,212 @@ def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_f
             return 1
 
 
+###############################
+def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0, mag=None):
+    """
+    move the zone_plate and ccd to the user-defined energy with constant magnification
+    use the function as:
+        move_zp_ccd_with_const_mag(eng_new=8.0, move_flag=1)
+    Note:
+        in the above commend, it will use two energy calibration points to calculate the motor
+        position of XEng=8.0 keV.
+        specfically, one of the calibration points is > 8keV, the other one is < 8keV
+
+    Inputs:
+    -------
+    eng_new:  float
+          User defined energy, in unit of keV
+    flag: int
+          0: Do calculation without moving real stages
+          1: Will move stages
+    """
+    def find_nearest(data, value):
+        data = np.array(data)
+        return np.abs(data - value).argmin()
+
+    eng_new = float(eng_new)  # eV, e.g. 9.0
+    det = DetU  # upstream detector
+    eng_ini = XEng.position
+    check_eng_range([eng_ini])
+    zp_ini, det_ini, zp_delta, det_delta, zp_final, det_final = cal_zp_ccd_position(
+        eng_new, eng_ini, print_flag=0, mag=mag
+    )
+
+    
+    assert (det_final) > det.z.low_limit.value and (det_final) < det.z.high_limit.value, print(
+        "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
+            det_final, det.z.low_limit.value, det.z.high_limit.value
+        )
+    )
+
+    ENG_val = []
+    ENG_idx = []
+    for k in CALIBER.keys():
+        if "XEng" in k:
+            ENG_val.append(CALIBER[k])
+            ENG_idx.append(int(k[-1]))
+    t = find_nearest(eng_new, ENG_val)
+    eng1 = ENG_val.pop(t)
+    id1 = ENG_idx.pop(t)
+
+    ENG_val_copy = np.array(ENG_val.copy())
+    ENG_idx_copy = np.array(ENG_idx.copy())
+    if eng_new >= eng1:
+        idx = ENG_val_copy > eng_new
+    else:
+        idx = ENG_val_copy < eng_new
+
+    ENG_val_copy = ENG_val_copy[idx]
+    ENG_idx_copy = ENG_idx_copy[idx]
+    if len(ENG_val_copy):
+        t = find_nearest(eng_new, ENG_val_copy)
+        eng2 = ENG_val_copy[t]
+        id2 = ENG_idx_copy[t]
+    else:
+        t = find_nearest(eng_new, ENG_val)
+        eng2 = ENG_val[t]
+        id2 = ENG_idx[t]
+
+    mag1 = CALIBER[f"mag{id1}"]
+    mag2 = CALIBER[f"mag{id2}"]
+
+    if mag is None:
+        mag = mag1 / 10.0  # e.g. mag = 32.5
+
+    _, _, _, _, zp_z1, _ = cal_zp_ccd_position(eng1, print_flag=0, mag=mag)
+    _, _, _, _, zp_z2, _ = cal_zp_ccd_position(eng2, print_flag=0, mag=mag)
+
+    if not (np.abs(mag1 / mag2 - 1) < 1e-3):
+        print("mismatch in magfinication:")        
+        print(f"magnificatoin at {eng1:2.5f} keV = {mag1}")
+        print(f"magnificatoin at {eng2:2.5f} keV = {mag2}")
+        print("stage will not move")
+        return 0
+    else:
+        print(f"using reference at {eng1:2.5f} keV and {eng2:2.5f} kev to interpolate\n")
+        dcm_chi2_eng1 =  CALIBER[f"chi2_pos{id1}"]
+        zp_x_pos_eng1 =  CALIBER[f"zp_x_pos{id1}"]
+        zp_y_pos_eng1 =  CALIBER[f"zp_y_pos{id1}"]
+        th2_motor_eng1 = CALIBER[f"th2_motor_pos{id1}"]
+        clens_x_eng1 =   CALIBER[f"clens_x_pos{id1}"]
+        clens_y1_eng1 =  CALIBER[f"clens_y1_pos{id1}"]
+        clens_y2_eng1 =  CALIBER[f"clens_y2_pos{id1}"]
+        clens_p_eng1 =   CALIBER[f"clens_p_pos{id1}"]
+        DetU_x_eng1 =    CALIBER[f"DetU_x_pos{id1}"]
+        DetU_y_eng1 =    CALIBER[f"DetU_y_pos{id1}"]
+        aper_x_eng1 =    CALIBER[f"aper_x_pos{id1}"]
+        aper_y_eng1 =    CALIBER[f"aper_y_pos{id1}"]
+
+        dcm_chi2_eng2 =  CALIBER[f"chi2_pos{id2}"]
+        zp_x_pos_eng2 =  CALIBER[f"zp_x_pos{id2}"]
+        zp_y_pos_eng2 =  CALIBER[f"zp_y_pos{id2}"]
+        th2_motor_eng2 = CALIBER[f"th2_motor_pos{id2}"]
+        clens_x_eng2 =   CALIBER[f"clens_x_pos{id2}"]
+        clens_y1_eng2 =  CALIBER[f"clens_y1_pos{id2}"]
+        clens_y2_eng2 =  CALIBER[f"clens_y2_pos{id2}"]
+        clens_p_eng2 =   CALIBER[f"clens_p_pos{id2}"]
+        DetU_x_eng2 =    CALIBER[f"DetU_x_pos{id2}"]
+        DetU_y_eng2 =    CALIBER[f"DetU_y_pos{id2}"]
+        aper_x_eng2 =    CALIBER[f"aper_x_pos{id2}"]
+        aper_y_eng2 =    CALIBER[f"aper_y_pos{id2}"]
+
+        if np.abs(eng1 - eng2) < 1e-5:  # difference less than 0.01 eV
+            print(
+                f'eng1({eng1:2.5f} keV) and eng2({eng2:2.5f} keV) in "CALIBER" are two close, will not move any motors...'
+            )
+        else:
+            slope_eng = (eng_new - eng2) / (eng1 - eng2)
+            slope_zp_z = (zp_final - zp_z2) / (zp_z1 - zp_z2)
+
+            zp_x_target = slope_zp_z * (zp_x_pos_eng1 - zp_x_pos_eng2) + zp_x_pos_eng2
+            zp_y_target = slope_zp_z * (zp_y_pos_eng1 - zp_y_pos_eng2) + zp_y_pos_eng2
+            aper_x_target = slope_zp_z * (aper_x_eng1 - aper_x_eng2) + aper_x_eng2
+            aper_y_target = slope_zp_z * (aper_y_eng1 - aper_y_eng2) + aper_y_eng2
+
+            chi2_motor_target = slope_eng * (dcm_chi2_eng1 - dcm_chi2_eng2) + dcm_chi2_eng2
+            th2_motor_target = slope_eng * (th2_motor_eng1 - th2_motor_eng2) + th2_motor_eng2
+            clens_x_target = slope_eng * (clens_x_eng1 - clens_x_eng2) + clens_x_eng2
+            clens_y1_target = slope_eng * (clens_y1_eng1 - clens_y1_eng2) + clens_y1_eng2
+            clens_y2_target = slope_eng * (clens_y2_eng1 - clens_y2_eng2) + clens_y2_eng2
+            clens_p_target = slope_eng * (clens_p_eng1 - clens_p_eng2) + clens_p_eng2
+            DetU_x_target = slope_eng * (DetU_x_eng1 - DetU_x_eng2) + DetU_x_eng2
+            DetU_y_target = slope_eng * (DetU_y_eng1 - DetU_y_eng2) + DetU_y_eng2
+            
+
+            dcm_chi2_ini = dcm.chi2.position
+            zp_x_ini = zp.x.position
+            zp_y_ini = zp.y.position
+            th2_motor_ini = dcm.th2.position
+            clens_x_ini = clens.x.position
+            clens_y1_ini = clens.y1.position
+            clens_y2_ini = clens.y2.position
+            clens_p_ini = clens.p.position
+            DetU_x_ini = DetU.x.position
+            DetU_y_ini = DetU.y.position
+            aper_x_ini = aper.x.position
+            aper_y_ini = aper.y.position
+
+            if info_flag or (not move_flag):
+                if (not move_flag):
+                    print("This is calculation. No stages move\n")
+
+                print(f"At Magnification = {mag * 10}\n")
+                print(f"Energy: {eng_ini:5.2f} keV --> {eng_new:5.2f} keV")
+                print(f"zone plate position: {zp_ini:2.4f} mm --> {zp_final:2.4f} mm")
+                print(f"CCD position: {det_ini:2.4f} mm --> {det_final:2.4f} mm")
+                print(f"move zp_x: ({zp_x_ini:2.4f} um --> {zp_x_target:2.4f} um)")
+                print(f"move zp_y: ({zp_y_ini:2.4f} um --> {zp_y_target:2.4f} um)")
+                print(f"move dcm_chi2: ({dcm_chi2_ini:2.4f} um --> {chi2_motor_target:2.4f} um)")
+                print(f"move th2_motor: ({th2_motor_ini:2.6f} deg --> {th2_motor_target:2.6f} deg)")
+                print(f"move aper_x_motor: ({aper_x_ini:2.4f} um --> {aper_x_target:2.4f} um)")
+                print(f"move aper_y_motor: ({aper_y_ini:2.4f} um --> {aper_y_target:2.4f} um)")
+                if move_clens_flag:
+                    print(f"move clens_x: ({clens_x_ini:2.4f} um --> {clens_x_target:2.4f} um)")
+                    print(f"move clens_y1: ({clens_y1_ini:2.4f} um --> {clens_y1_target:2.4f} um)")
+                    print(f"move clens_y2: ({clens_y1_ini:2.4f} um --> {clens_y2_target:2.4f} um)")
+                    print(f"move clens_p: ({clens_p_ini:2.4f} um --> {clens_p_target:2.4f} um)")
+                if move_det_flag:
+                    print(f"move DetU_x: ({DetU_x_ini:2.4f} um --> {DetU_x_target:2.4f} um)")
+                    print(f"move DetU_y: ({DetU_y_ini:2.4f} um --> {DetU_y_target:2.4f} um)")
+
+            if move_flag:  # move stages
+                print(f"Now moving stages at Magnification = {mag * 10}....")
+
+                yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
+                yield from mv(dcm_th2.feedback_enable, 0)
+                yield from mv(dcm_th2.feedback, th2_motor_target)
+                yield from mv(dcm_th2.feedback_enable, 1)
+
+                yield from mv(dcm_chi2.feedback_enable, 0)
+                yield from mv(dcm_chi2.feedback, chi2_motor_target)
+                yield from mv(dcm_chi2.feedback_enable, 1)
+
+                yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
+                yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
+
+                #yield from mv(DetU.x, DetU_x_ini + (det_final-det_ini)/400*0.15)
+                if move_clens_flag:
+                    yield from mv(
+                        clens.x,
+                        clens_x_target,
+                        clens.y1,
+                        clens_y1_target,
+                        clens.y2,
+                        clens_y2_target,
+                    )
+                    yield from mv(clens.p, clens_p_target)
+                if move_det_flag:
+                    yield from mv(DetU.x, DetU_x_target)
+                    yield from mv(DetU.y, DetU_y_target)
+                yield from bps.sleep(0.5)
+                if abs(eng_new - eng_ini) >= 0.005:
+                    t = 10 * abs(eng_new - eng_ini)
+                    t = min(t, 2)
+                    print(f"sleep for {t} sec")
+                    yield from bps.sleep(t)
+ 
+            return 1
+
 ################################
 
 
@@ -564,13 +821,16 @@ def show_global_para():
 ################################################################
 
 
-def new_user(*, new_pi_name=None, new_proposal_id=None):
+def new_user(new_pi_name=None, new_proposal_id=None):
     """
     The function creates directory structure for a new user. If ``new_pi_name`` and/or
     ``new_proposal_id`` are ``None``, the function asks the user to type PI name and/or
     Proposal ID.
     """
-    now = datetime.datetime.now()
+    try:
+        now = datetime.datetime.now()
+    except:
+        now = datetime.now()
     year = np.str(now.year)
 
     # this is really cycle not quarter
@@ -717,7 +977,7 @@ def cal_parameter(eng, print_flag=1):
         return wave_length, focal_length, na, dof
 
 
-def cal_zp_ccd_position(eng_new, eng_ini=0, print_flag=1):
+def cal_zp_ccd_position(eng_new, eng_ini=0, print_flag=1, mag=None):
 
     """
     calculate the delta amount of movement for zone_plate and CCD whit change energy from ene_ini to eng_new while keeping same magnification
@@ -761,11 +1021,15 @@ def cal_zp_ccd_position(eng_new, eng_ini=0, print_flag=1):
     check_eng_range([eng_new, eng_ini])
 
     h = 6.6261e-34
-    c = 3e8
-    ec = 1.602e-19
+    c = 299792458
+    ec = 1.6021766e-19
 
     det = DetU  # read current energy and motor position
-    mag = GLOBAL_MAG / GLOBAL_VLM_MAG
+    try:
+        if mag is None or mag > 45 or mag < 20:
+            mag = GLOBAL_MAG / GLOBAL_VLM_MAG
+    except:
+        mag = GLOBAL_MAG / GLOBAL_VLM_MAG
 
     zp_ini = zp.z.position  # zone plate position in unit of mm
     zps_ini = zps.sz.position  # sample position in unit of mm
@@ -802,161 +1066,6 @@ def cal_zp_ccd_position(eng_new, eng_ini=0, print_flag=1):
     else:
         return zp_ini, det_ini, zp_delta, det_delta, zp_final, det_final
 
-
-'''
-def move_zp_ccd(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0):
-    """
-    move the zone_plate and ccd to the user-defined energy with constant magnification
-    use the function as:
-        move_zp_ccd_with_const_mag(eng_new=8.0, move_flag=1):
-
-    Inputs:
-    -------
-    eng_new:  float
-          User defined energy, in unit of keV
-    flag: int
-          0: Do calculation without moving real stages
-          1: Will move stages
-    """
-    global CALIBER_FLAG
-    if CALIBER_FLAG:
-        eng_new = float(eng_new) # eV, e.g. 9.0
-        det = DetU # upstream detector
-        eng_ini = XEng.position
-        check_eng_range([eng_ini])
-        zp_ini, det_ini, zp_delta, det_delta, zp_final, det_final = cal_zp_ccd_position(eng_new, eng_ini, print_flag=0)
-
-        assert ((det_final) > det.z.low_limit and (det_final) < det.z.high_limit), print ('Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.'.format(det_final, det.z.low_limit, det.z.high_limit))
-
-        eng1 = CALIBER['XEng_pos1']
-        eng2 = CALIBER['XEng_pos2']
-
-        #pzt_dcm_th2_eng1 = CALIBER['th2_pos1']
-        dcm_chi2_eng1 = CALIBER['chi2_pos1']
-        zp_x_pos_eng1 = CALIBER['zp_x_pos1']
-        zp_y_pos_eng1 = CALIBER['zp_y_pos1']
-        th2_motor_eng1 = CALIBER['th2_motor_pos1']
-        clens_x_eng1 = CALIBER['clens_x_pos1']
-        clens_y1_eng1 = CALIBER['clens_y1_pos1']
-        clens_y2_eng1 = CALIBER['clens_y2_pos1']
-        clens_p_eng1 = CALIBER['clens_p_pos1']
-        DetU_x_eng1 = CALIBER['DetU_x_pos1']
-        DetU_y_eng1 = CALIBER['DetU_y_pos1']
-        aper_x_eng1 = CALIBER['aper_x_pos1']
-        aper_y_eng1 = CALIBER['aper_y_pos1']
-
-        #pzt_dcm_th2_eng2 = CALIBER['th2_pos2']
-        pzt_dcm_chi2_eng2 = CALIBER['chi2_pos2']
-        zp_x_pos_eng2 = CALIBER['zp_x_pos2']
-        zp_y_pos_eng2 = CALIBER['zp_y_pos2']
-        th2_motor_eng2 = CALIBER['th2_motor_pos2']
-        clens_x_eng2 = CALIBER['clens_x_pos2']
-        clens_y1_eng2 = CALIBER['clens_y1_pos2']
-        clens_y2_eng2 = CALIBER['clens_y2_pos2']
-        clens_p_eng2 = CALIBER['clens_p_pos2']
-        DetU_x_eng2 = CALIBER['DetU_x_pos2']
-        DetU_y_eng2 = CALIBER['DetU_y_pos2']
-        aper_x_eng2 = CALIBER['aper_x_pos2']
-        aper_y_eng2 = CALIBER['aper_y_pos2']
-
-        if np.abs(eng1 - eng2) < 1e-5: # difference less than 0.01 eV
-            print(f'eng1({eng1:2.5f} eV) and eng2({eng2:2.5f} eV) in "CALIBER" are two close, will not move any motors...')
-        else:
-            #pzt_dcm_th2_target = (eng_new - eng2) * (pzt_dcm_th2_eng1 - pzt_dcm_th2_eng2) / (eng1-eng2) + pzt_dcm_th2_eng2
-            pzt_dcm_chi2_target = (eng_new - eng2) * (dcm_chi2_eng1 - dcm_chi2_eng2) / (eng1-eng2) + pzt_dcm_chi2_eng2
-            zp_x_target = (eng_new - eng2)*(zp_x_pos_eng1 - zp_x_pos_eng2)/(eng1 - eng2) + zp_x_pos_eng2
-            zp_y_target = (eng_new - eng2)*(zp_y_pos_eng1 - zp_y_pos_eng2)/(eng1 - eng2) + zp_y_pos_eng2
-            th2_motor_target = (eng_new - eng2) * (th2_motor_eng1 -th2_motor_eng2) / (eng1-eng2) + th2_motor_eng2
-            clens_x_target = (eng_new - eng2)*(clens_x_eng1 - clens_x_eng2)/(eng1 - eng2) + clens_x_eng2
-            clens_y1_target = (eng_new - eng2)*(clens_y1_eng1 - clens_y1_eng2)/(eng1 - eng2) + clens_y1_eng2
-            clens_y2_target = (eng_new - eng2)*(clens_y2_eng1 - clens_y2_eng2)/(eng1 - eng2) + clens_y2_eng2
-            clens_p_target = (eng_new - eng2)*(clens_p_eng1 - clens_p_eng2)/(eng1 - eng2) + clens_p_eng2
-            DetU_x_target = (eng_new - eng2)*(DetU_x_eng1 - DetU_x_eng2)/(eng1 - eng2) + DetU_x_eng2
-            DetU_y_target = (eng_new - eng2)*(DetU_y_eng1 - DetU_y_eng2)/(eng1 - eng2) + DetU_y_eng2
-            aper_x_target = (eng_new - eng2)*(aper_x_eng1 - aper_x_eng2)/(eng1 - eng2) + aper_x_eng2
-            aper_y_target = (eng_new - eng2)*(aper_y_eng1 - aper_y_eng2)/(eng1 - eng2) + aper_y_eng2
-            #pzt_dcm_th2_ini = (yield from bps.rd(pzt_dcm_th2.pos))
-            pzt_dcm_chi2_ini = (yield from bps.rd(pzt_dcm_chi2.pos.value))
-            zp_x_ini = zp.x.position
-            zp_y_ini = zp.y.position
-            th2_motor_ini = th2_motor.position
-            clens_x_ini = clens.x.position
-            clens_y1_ini = clens.y1.position
-            clens_y2_ini = clens.y2.position
-            clens_p_ini = clens.p.position
-            DetU_x_ini = DetU.x.position
-            DetU_y_ini = DetU.y.position
-            aper_x_ini = aper.x.position
-            aper_y_ini = aper.y.position
-
-            if move_flag: # move stages
-                print ('Now moving stages ....')
-                if info_flag:
-                    print ('Energy: {0:5.2f} keV --> {1:5.2f} keV'.format(eng_ini, eng_new))
-                    print ('zone plate position: {0:2.4f} mm --> {1:2.4f} mm'.format(zp_ini, zp_final))
-                    print ('CCD position: {0:2.4f} mm --> {1:2.4f} mm'.format(det_ini, det_final))
-                    print ('move zp_x: ({0:2.4f} um --> {1:2.4f} um)'.format(zp_x_ini, zp_x_target))
-                    print ('move zp_y: ({0:2.4f} um --> {1:2.4f} um)'.format(zp_y_ini, zp_y_target))
-                    #print ('move pzt_dcm_th2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_th2_ini, pzt_dcm_th2_target))
-                    print ('move pzt_dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_chi2_ini, pzt_dcm_chi2_target))
-                    print ('move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)'.format(th2_motor_ini, th2_motor_target))
-                    print ('move aper_x_motor: ({0:2.4f} um --> {1:2.4f} um)'.format(aper_x_ini, aper_x_target))
-                    print ('move aper_y_motor: ({0:2.4f} um --> {1:2.4f} um)'.format(aper_y_ini, aper_y_target))
-                    if move_clens_flag:
-                        print ('move clens_x: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_x_ini, clens_x_target))
-                        print ('move clens_y1: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_y1_ini, clens_y1_target))
-                        print ('move clens_y2: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_y1_ini, clens_y2_target))
-                        print ('move clens_p: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_p_ini, clens_p_target))
-                    if move_det_flag:
-                        print ('move DetU_x: ({0:2.4f} um --> {1:2.4f} um)'.format(DetU_x_ini, DetU_x_target))
-                        print ('move DetU_y: ({0:2.4f} um --> {1:2.4f} um)'.format(DetU_y_ini, DetU_y_target))
-
-                yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
-#                yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
-                yield from mv(dcm_th2.feedback_enable, 0)
-                yield from mv(dcm_th2.feedback, th2_motor_target)
-                yield from mv(dcm_th2.feedback_enable, 1)
-                yield from mv(zp.z, zp_final,det.z, det_final, XEng, eng_new)
-                yield from mv(aper.x,  aper_x_target, aper.y, aper_y_target)
-                if move_clens_flag:
-                    yield from mv(clens.x, clens_x_target, clens.y1, clens_y1_target, clens.y2, clens_y2_target)
-                    yield from mv(clens.p, clens_p_target)
-                if move_det_flag:
-                    yield from mv(DetU.x, DetU_x_target)
-                    yield from mv(DetU.y, DetU_y_target)
-                #yield from mv(pzt_dcm_th2.setpos, pzt_dcm_th2_target, pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
-                #yield from mv(pzt_dcm_chi2.setpos, pzt_dcm_chi2_target)
-
-                yield from bps.sleep(0.1)
-                if abs(eng_new - eng_ini) >= 0.005:
-                    t = 10 * abs(eng_new - eng_ini)
-                    t = min(t, 2)
-                    print(f'sleep for {t} sec')
-                    yield from bps.sleep(t)
-            else:
-                print ('This is calculation. No stages move')
-                print ('Will move Energy: {0:5.2f} keV --> {1:5.2f} keV'.format(eng_ini, eng_new))
-                print ('will move zone plate down stream by: {0:2.4f} mm ({1:2.4f} mm --> {2:2.4f} mm)'.format(zp_delta, zp_ini, zp_final))
-                print ('will move CCD down stream by: {0:2.4f} mm ({1:2.4f} mm --> {2:2.4f} mm)'.format(det_delta, det_ini, det_final))
-                print ('will move zp_x: ({0:2.4f} um --> {1:2.4f} um)'.format(zp_x_ini, zp_x_target))
-                print ('will move zp_y: ({0:2.4f} um --> {1:2.4f} um)'.format(zp_y_ini, zp_y_target))
-                print ('will move aper_x: ({0:2.4f} um --> {1:2.4f} um)'.format(aper_x_ini, aper_x_target))
-                print ('will move aper_y: ({0:2.4f} um --> {1:2.4f} um)'.format(aper_y_ini, aper_y_target))
-                #print ('will move pzt_dcm_th2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_th2_ini, pzt_dcm_th2_target))
-                print ('will move pzt_dcm_chi2: ({0:2.4f} um --> {1:2.4f} um)'.format(pzt_dcm_chi2_ini, pzt_dcm_chi2_target))
-                print ('will move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)'.format(th2_motor_ini, th2_motor_target))
-                if move_clens_flag:
-                    print ('will move clens_x: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_x_ini, clens_x_target))
-                    print ('will move clens_y1: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_y1_ini, clens_y1_target))
-                    print ('will move clens_y2: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_y1_ini, clens_y2_target))
-                    print ('will move clens_p: ({0:2.4f} um --> {1:2.4f} um)'.format(clens_p_ini, clens_p_target))
-                if move_det_flag:
-                    print ('will move DetU_x: ({0:2.6f} mm --> {1:2.6f} mm)'.format(DetU_x_ini, DetU_x_target))
-                    print ('will move DetU_y: ({0:2.6f} mm --> {1:2.6f} mm)'.format(DetU_y_ini, DetU_y_target))
-    else:
-        print('record_calib_pos1() or record_calib_pos2() not excuted successfully...\nWill not move anything')
-
-'''
 
 # def cal_phase_ring_position(eng_new, eng_ini=0, print_flag=1):
 #    '''
