@@ -399,15 +399,18 @@ Marana.hdf5.time_stamp.name = "Andor_timestamps"
 # vlm.hdf5.read_attrs = []
 
 
-Oryx = Manta("XF:18IDB-ES{Det:Oryx1}", name="Oryx")
-#Oryx.cam.ensure_nonblocking()
-Oryx.read_attrs = ["hdf5"]
-#Oryx.stats1.read_attrs = ["total"]
-Oryx.hdf5.read_attrs = ["time_stamp"]
-Oryx.stage_sigs["cam.image_mode"] = 1
-for k in ("image", ):
-    getattr(Oryx, k).ensure_nonblocking()
-Oryx.hdf5.time_stamp.name = "Oryx_timestamps"
+#############################################
+# turn off Oryx when it is not used
+# Oryx = Manta("XF:18IDB-ES{Det:Oryx1}", name="Oryx")
+# #Oryx.cam.ensure_nonblocking()
+# Oryx.read_attrs = ["hdf5"]
+# #Oryx.stats1.read_attrs = ["total"]
+# Oryx.hdf5.read_attrs = ["time_stamp"]
+# Oryx.stage_sigs["cam.image_mode"] = 1
+# for k in ("image", ):
+#     getattr(Oryx, k).ensure_nonblocking()
+# Oryx.hdf5.time_stamp.name = "Oryx_timestamps"
+#############################################
 
 #for det in [detA1, Andor]:
 for det in [detA1]:
