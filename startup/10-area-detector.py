@@ -178,23 +178,22 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
     roi4 = Cpt(ROIPlugin, "ROI4:")
     proc1 = Cpt(ProcessPlugin, "Proc1:")
 
+    def cam_name(self):
+        print(self.prefix.split("{")[1].strip("}").split(":")[1])
+        
+    root_path = "/nsls2/data/fxi-new/legacy/Andor"
     hdf5 = Cpt(
         HDF5PluginWithFileStore,
         suffix="HDF1:",
-        write_path_template="/nsls2/data/fxi-new/legacy/Andor/%Y/%m/%d/",
-        # write_path_template='/tmp/test_2022/%Y/%m/%d/' ,
-        # write_path_template="/nsls2/data/fxi-new/assets/default/%Y/%m/%d/",
-        # write_path_template="/nsls2/data/fxi-new/legacy/Andor//%Y/%m/%d/",
-        # root="/nsls2/data/fxi-new/assets/default",
-        root="/nsls2/data/fxi-new/legacy/Andor",
-        # root = "/tmp/test_2022",
-        # root="/nsls2/data/fxi-new/legacy/Andor/",
-        # write_path_template='/tmp/',
-        # root='/dev/shm',
+        write_path_template=f"{root_path}/%Y/%m/%d/",
+        root=root_path,
     )
 
     ac_period = Cpt(EpicsSignal, "cam1:AcquirePeriod")
     binning = Cpt(EpicsSignal, "cam1:A3Binning")
+    pre_amp = Cpt(EpicsSignal, "cam1:PreAmpGain")
+    rd_rate = Cpt(EpicsSignal, "cam1:ReadoutRate")
+    pxl_encoding = Cpt(EpicsSignal, "cam1:PixelEncoding")
 
     def stop(self):
         self.hdf5.capture.put(0)
@@ -353,7 +352,9 @@ Andor.stats1.read_attrs = ['total']
 Andor.hdf5.read_attrs = []
 """
 
-
+"""
+Comment out this section when Andor Neo2 is not connected
+#---- added by xh
 Andor = AndorKlass("XF:18IDB-BI{Det:Neo2}", name="Andor")
 Andor.cam.ensure_nonblocking()
 # Andor.read_attrs = ['hdf5', 'stats1', 'stats5']
@@ -368,27 +369,19 @@ Andor.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "trans1", "roi1", "proc1"):
     getattr(Andor, k).ensure_nonblocking()
 Andor.hdf5.time_stamp.name = "Andor_timestamps"
+"""
 
 #########################################
-''' comment away this section when Marana is disconnected 
-
 # added by XH
-Marana = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="Andor")
-Marana.cam.ensure_nonblocking()
-# Andor.read_attrs = ['hdf5', 'stats1', 'stats5']
-Marana.read_attrs = ['hdf5']
-#Andor.read_attrs = ["hdf5", "stats1"]
-#Andor.stats1.read_attrs = ["total"]
-# Andor.stats5.read_attrs = ['total']
-Marana.hdf5.read_attrs = ["time_stamp"]
-Marana.stage_sigs["cam.image_mode"] = 0
-#for k in ("image", "stats1", "trans1", "roi1", "proc1"):
-#    getattr(Andor, k).ensure_nonblocking()
+MaranaU = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="Andor")
+MaranaU.cam.ensure_nonblocking()
+MaranaU.read_attrs = ['hdf5']
+MaranaU.hdf5.read_attrs = ["time_stamp"]
+MaranaU.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "trans1", "roi1", "proc1"):
-    getattr(Marana, k).ensure_nonblocking()
-Marana.hdf5.time_stamp.name = "Andor_timestamps"
+    getattr(MaranaU, k).ensure_nonblocking()
+MaranaU.hdf5.time_stamp.name = "Andor_timestamps"
 
-'''
 #############################################
 # vlm = Manta("XF:18IDB-BI{VLM:1}", name="vlm")
 # detA1.read_attrs = ['hdf5', 'stats1', 'stats5']
@@ -417,4 +410,26 @@ for det in [detA1]:
     det.stats1.total.kind = "hinted"
     # It does not work since it's not defined in the class, commenting out:
     # det.stats5.total.kind = 'hinted'
+
+#############################################
+# added by XH
+CAM_RD_CFG = {
+    "MARANA-4BV6X": {
+        "rd_time": {
+            '12-bit (low noise)': 0.011, 
+            '16-bit (high dynamic rang': 0.014, 
+            '11-bit (high speed)': 0.007
+        },
+        "pxl_encoding": {
+            '12-bit (low noise)': 'Mono12', 
+            '16-bit (high dynamic rang': 'Mono16', 
+            '11-bit (high speed)': 'Mono12'},
+        "image_mode": MaranaU.cam.image_mode.metadata["enum_strs"],
+        "trigger_mode": MaranaU.cam.trigger_mode.metadata["enum_strs"],
+    },
+}
+
+def cfg_cam_encoding(cam):
+    cam_model = cam.cam.model.value
+    yield from abs_set(cam.pxl_encoding, CAM_RD_CFG[cam_model]["pxl_encoding"][cam.pre_amp.enum_strs[cam.pre_amp.value]], wait=True)
 

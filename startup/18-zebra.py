@@ -18,13 +18,13 @@ from bluesky.plan_stubs import abs_set
 
 # minimum detector acquisition period in second for full frame size
 # will move this definition to areaDetector.py
-DET_MIN_AP = {"Andor": 0.05, "Marana": 0.01, "Oryx": 0.005}
+DET_MIN_AP = {"Andor": 0.05, "MaranaU": 0.01, "Oryx": 0.005}
 
 # default velocity for rotating rotary stage back to starting position
 # will move this definition to motors.py
 ROT_BACK_VEL = 30
 
-BIN_FACS = {"Andor": {0: 1, 1: 2, 2: 3, 3: 4, 4: 8}, "Marana": {}, "Oryx": {}}
+BIN_FACS = {"Andor": {0: 1, 1: 2, 2: 3, 3: 4, 4: 8}, "MaranaU": {}, "Oryx": {}}
 
 
 class ZebraPositionCaptureData(Device):
@@ -275,7 +275,7 @@ class FXITomoFlyer(Device):
     read_path_template = f"zebra/%Y/%m/%d/"
     reg_root = f"zebra/"
 
-    KNOWN_DETS = {"Andor", "Marana", "Oryx"}
+    KNOWN_DETS = {"Andor", "MaranaU", "Oryx"}
     rot_axis = zps.pi_r
     # dummy_axis = ophyd.sim.SynAxis(name="TOMO_DUMMY")
 
@@ -287,6 +287,7 @@ class FXITomoFlyer(Device):
 
     dft_pulse_wid = {"ms": 0.002, "s": 0.0005, "10s": 0.003}  # 0: ms  # 1: s  # 2: 10s
     pc_trig_dir = {1: 0, -1: 1}  # 1: positive, -1: negative
+    rot_var = 0.002
     scan_cfg = {}
     pc_cfg = {}
     _staging_delay = 0.010
@@ -825,6 +826,7 @@ class FXITomoFlyer(Device):
 
     def preset_flyer(self, scn_cfg):
         yield from FXITomoFlyer.bin_det(self.detectors[0], scn_cfg["bin_fac"])
+        yield from FXITomoFlyer.prime_det(self.detectors[0])
         yield from FXITomoFlyer.init_mot_r(scn_cfg)
         # yield from FXITomoFlyer.set_cam_mode(self.detectors[0], stage="pre-scan")
         scn_cfg = FXITomoFlyer.cal_cam_rot_params(self.detectors[0], scn_cfg)
@@ -844,7 +846,7 @@ class FXITomoFlyer(Device):
         """_summary_
 
         Args:
-            det (str): choose from the set {"Andor", "Marana", "Oryx"}
+            det (str): choose from the set {"Andor", "MaranaU", "Oryx"}
             scn_cfg (dict): scan configuration parameters composed of
                 'scn_mode': choose between {
                         0: "standard", # a single scan in a given angle range
@@ -865,16 +867,17 @@ class FXITomoFlyer(Device):
             dict: scan_cfg
         """
         ############### calculate detector parameters ###############
-        acq_p = FXITomoFlyer.check_cam_exp(det, scn_cfg["acq_p"], scn_cfg["bin_fac"])
+        acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(det, scn_cfg["acq_p"], scn_cfg["bin_fac"])
+        print(f"acq_p: {acq_p}, acq_min: {acq_min}")
 
         if acq_p > scn_cfg["acq_p"]:
             print(
                 "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
             )
-            scn_cfg["acq_p"] = acq_p
+        scn_cfg["acq_p"] = acq_p
 
-        if scn_cfg["exp_t"] > acq_p - 0.002:
-            scn_cfg["exp_t"] = acq_p - 0.002
+        if scn_cfg["exp_t"] > (acq_p - acq_min):
+            scn_cfg["exp_t"] = acq_p - acq_min
 
         ############### calculate rotary stage parameters ###############
         if scn_cfg["tacc"] <= 0:
@@ -922,7 +925,7 @@ class FXITomoFlyer(Device):
                 return None
 
         scn_cfg["taxi_dist"] = taxi_dist
-        scn_cfg["ang_step"] = scn_cfg["vel"] * scn_cfg["acq_p"]
+        scn_cfg["ang_step"] = scn_cfg["vel"] * (scn_cfg["acq_p"] + FXITomoFlyer.rot_var)
         if cls.scn_modes[scn_cfg["scn_mode"]] == "snaked: single file":
             scn_cfg["num_images"] = int(
                 int(
@@ -947,14 +950,18 @@ class FXITomoFlyer(Device):
             scn_cfg["rot_dir"] = 1
         else:
             scn_cfg["rot_dir"] = -1
-
+        print(f"scn_cfg: {scn_cfg}")
         return scn_cfg
 
     @staticmethod
-    def check_cam_exp(det, acq_p, bin_fac):
+    def check_cam_acq_p(det, acq_p, bin_fac):
+        cam_model = det.cam.model.value
         acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
-        acq_p = max(acq_min, acq_p)
-        return acq_p
+        if cam_model == "MARANA-4BV6X":
+            full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][det.pre_amp.enum_strs[det.pre_amp.value]]
+            acq_min = full_acq_min * (det.cam.size.size_y.value / 2048)
+            acq_p = max(acq_min + 0.002, acq_p) - FXITomoFlyer.rot_var  # accounting vel variation in rot vel 
+        return acq_p, acq_min
 
     @classmethod
     def cal_zebra_pc_params(cls, scn_cfg):
@@ -1063,13 +1070,14 @@ class FXITomoFlyer(Device):
         return scn_cfg
 
     @staticmethod
-    def prime_det(det):
-        if det.cam.trigger_mode.get() != 0:
-            yield from abs_set(det.cam.trigger_mode, 0, wait=True)
-        if det.cam.image_mode.get() != 0:
-            yield from abs_set(det.cam.image_mode, 0, wait=True)
+    def do_prime(det):
+        if CAM_RD_CFG[det.cam.model.value]["trigger_mode"][det.cam.trigger_mode.value] != "Internal":
+            yield from abs_set(det.cam.trigger_mode, "Internal", timeout=5, settle_time=1, wait=True)
+        if CAM_RD_CFG[det.cam.model.value]["image_mode"][det.cam.image_mode.value] != "Fixed":
+            yield from abs_set(det.cam.image_mode, "Fixed", timeout=5, settle_time=1, wait=True)
         yield from abs_set(det.cam.num_images, 5, wait=True)
-        yield from abs_set(det.cam.acquire, 1, wait=False)
+        yield from abs_set(det.cam.acquire, 1, wait=True)
+        print(f"{det.name} is primed!")
 
     @staticmethod
     def stop_det(det):
@@ -1087,7 +1095,13 @@ class FXITomoFlyer(Device):
             if int(bin_fac) not in [0, 1, 2, 3, 4]:
                 raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
             yield from abs_set(det.binning, bin_fac, wait=True)
-            FXITomoFlyer.prime_det(det)
+            return bin_fac
+            # FXITomoFlyer.do_prime(det)
+
+    @staticmethod
+    def prime_det(det):
+        if (det.cam.array_size.array_size_x.value != det.hdf5.array_size.width.value) or (det.cam.array_size.array_size_y.value != det.hdf5.array_size.height.value):
+            yield from FXITomoFlyer.do_prime(det)
 
     @staticmethod
     def def_abs_out_pos(
@@ -1148,14 +1162,20 @@ class FXITomoFlyer(Device):
     @staticmethod
     def set_cam_mode(cam, stage="pre-scan"):
         if stage == "pre-scan":
-            yield from abs_set(cam.cam.image_mode, 0, wait=True)
-            yield from abs_set(cam.cam.trigger_mode, 4, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Fixed":
+                yield from abs_set(cam.cam.image_mode, "Fixed", timeout=5, settle_time=0.5, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "External":
+                yield from abs_set(cam.cam.trigger_mode, "External", timeout=5, settle_time=0.5, wait=True)
         elif stage == "ref-scan":
-            yield from abs_set(cam.cam.image_mode, 0, wait=True)
-            yield from abs_set(cam.cam.trigger_mode, 0, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Fixed":
+                yield from abs_set(cam.cam.image_mode, "Fixed", timeout=5, settle_time=0.5, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "Internal":
+                yield from abs_set(cam.cam.trigger_mode, "Internal", timeout=5, settle_time=0.5, wait=True)
         elif stage == "post-scan":
-            yield from abs_set(cam.cam.image_mode, 1, wait=True)
-            yield from abs_set(cam.cam.trigger_mode, 0, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Continuous":
+                yield from abs_set(cam.cam.image_mode, "Continuous", timeout=5, settle_time=0.5, wait=True)
+            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "Internal":
+                yield from abs_set(cam.cam.trigger_mode, "Internal", timeout=5, settle_time=0.5, wait=True)
 
 
 Zebra = FXIZebra(
@@ -1165,7 +1185,7 @@ Zebra = FXIZebra(
 )
 
 tomo_flyer = FXITomoFlyer(
-    list((Andor,)),
+    list((MaranaU,)),
     Zebra,
     name="tomo_flyer",
 )

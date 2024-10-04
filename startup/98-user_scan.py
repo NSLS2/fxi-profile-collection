@@ -270,13 +270,13 @@ def user_fly_scan(
     motor_r_ini = zps.pi_r.position
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r, zps.pi_x]
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     taxi_ang = -2.0 * rs
     cur_rot_ang = zps.pi_r.position
 
     #  tgt_rot_ang = cur_rot_ang + rel_rot_ang
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -455,7 +455,7 @@ def mosaic_fly_scan(
                 except:
                     count += 1
                     RE.abort()
-                    Andor.unstage()
+                    MaranaU.unstage()
                     print("sleeping for 30 sec")
                     RE(bps.sleep(30))
                     txt = f"Redo scan at x={x_list[i]}, y={y_list[i]}, z={z_list[i]} for {count} times"
@@ -538,7 +538,7 @@ def _open_shutter_xhx(simu=False):
                 raise Exception("fails to open shutter")
                 break
             yield from abs_set(shutter_open, 1, wait=True)
-            print(f"try opening {i} time(s) ...")
+            print(f"try opening shutter {i} time(s) ...")
             yield from bps.sleep(1)
             i += 1
             reading = yield from bps.rd(shutter_status)
@@ -562,7 +562,7 @@ def _close_shutter_xhx(simu=False):
             yield from abs_set(shutter_close, 1, wait=True)
             yield from bps.sleep(1)
             i += 1
-            print(f"try closing {i} time(s) ...")
+            print(f"try closing shutter {i} time(s) ...")
             reading = yield from bps.rd(shutter_status)
 
 
@@ -610,7 +610,7 @@ def _xanes_3D_xh(
             enable_z=enable_z,
         )
         yield from bps.sleep(1)
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
 
 
 def _multi_pos_xanes_3D_xh(
@@ -775,7 +775,7 @@ def _xanes_3D_zebra_xh(
     note="",
     bin_fac=1,
     flts=[],
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     for eng in eng_list:
@@ -835,7 +835,7 @@ def _multi_pos_xanes_3D_zebra_xh(
     flts=[],
     repeat=1,
     ref_flat_scan=False,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     yield from select_filters(flts)
@@ -1057,12 +1057,12 @@ def _multi_pos_xanes_2D_xh(
     yield from select_filters(flts)
     # yield from _bin_cam(binning)
 
-    detectors = [Andor, ic3, ic4]
+    detectors = [MaranaU, ic3, ic4]
     # print(f"{exposure_time=}")
     # period = yield from _exp_t_sanity_check(exposure_time, binning=binning)
     # print('444:', period)
     period = exposure_time
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     yield from _set_andor_param(exposure_time, period=period, chunk_size=chunk_size)
 
     eng_ini = XEng.position
@@ -1358,7 +1358,7 @@ def _exp_t_sanity_check(exp_t, binning=None):
     return period
 
 
-def _bin_cam(binning, cam=Andor):
+def _bin_cam(binning, cam=MaranaU):
     if cam.binning.value != binning:
         yield from abs_set(cam.cam.acquire, 0, wait=True)
         if binning is None:
@@ -1463,7 +1463,7 @@ def _move_sample_in_xhx(
 
 
 def _take_dark_image_xhx(
-    detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False, cam=Andor
+    detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False, cam=MaranaU
 ):
     yield from _close_shutter_xhx(simu)
     original_num_images = yield from rd(cam.cam.num_images)
@@ -1485,7 +1485,7 @@ def _take_bkg_image_xhx(
     stream_name="flat",
     simu=False,
     enable_z=False,
-    cam=Andor,
+    cam=MaranaU,
 ):
     yield from _move_sample_out_xhx(
         out_x,
@@ -1511,7 +1511,7 @@ def _set_Andor_chunk_size_xhx(detectors, chunk_size, cam):
 
 
 def _set_andor_param_xhx(
-    exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=Andor
+    exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=MaranaU
 ):
     yield from abs_set(cam.cam.acquire, 0, wait=True)
     yield from abs_set(cam.cam.image_mode, 0, wait=True)
@@ -1542,7 +1542,7 @@ def multi_edge_xanes_zebra_legacy(
     sleep=0,
     repeat=None,
     ref_flat_scan=False,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer
 ):
     yield from mv(cam.cam.acquire, 0)
@@ -1574,7 +1574,7 @@ def multi_edge_xanes_zebra_legacy(
                     print("use default exposure time 0.05s")
             for key in acq_p.keys():
                 if elem.split("_")[0] == key.split("_")[0]:
-                    yield from mv(Andor.cam.acquire_time, exposure)
+                    yield from mv(MaranaU.cam.acquire_time, exposure)
                     yield from bps.sleep(2)
                     break
             eng_list = _mk_eng_list(elem, bulk=False)
@@ -1606,9 +1606,9 @@ def multi_edge_xanes_zebra_legacy(
             bin_fac = 1
         bin_fac = yield from _bin_cam(bin_fac)
 
-        yield from abs_set(Andor.cam.image_mode, 0, wait=True)
-        yield from abs_set(Andor.cam.num_images, 5, wait=True)
-        yield from abs_set(Andor.cam.acquire, 1, wait=False)
+        yield from abs_set(MaranaU.cam.image_mode, 0, wait=True)
+        yield from abs_set(MaranaU.cam.num_images, 5, wait=True)
+        yield from abs_set(MaranaU.cam.acquire, 1, wait=False)
 
         x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
         for elem in elems:
@@ -1695,7 +1695,7 @@ def multi_edge_xanes_zebra(
     settle_time=0,
     repeat=None,
     ref_flat_scan=False,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer
 ):
     yield from mv(cam.cam.acquire, 0)
@@ -1815,7 +1815,7 @@ def multi_edge_xanes(
     ref_flat_scan=False,
     enable_z=True,
 ):
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
     for elem in elements:
         for key in flts.keys():
@@ -1838,7 +1838,7 @@ def multi_edge_xanes(
                 binning = 0
             if int(binning) not in [0, 1, 2, 3, 4]:
                 raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
-            yield from mv(Andor.binning, binning)
+            yield from mv(MaranaU.binning, binning)
 
             yield from _multi_pos_xanes_2D_xh(
                 eng_list,
@@ -1865,7 +1865,7 @@ def multi_edge_xanes(
                 binning = 1
             if int(binning) not in [0, 1, 2, 3, 4]:
                 raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
-            yield from mv(Andor.binning, binning)
+            yield from mv(MaranaU.binning, binning)
 
             yield from _multi_pos_xanes_3D_xh(
                 eng_list,
@@ -2005,7 +2005,7 @@ def multi_edge_xanes2(
     ref_flat_scan=False,
     enable_z=True,
 ):
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     if repeat is None:
         repeat = 1
     repeat = int(repeat)
@@ -2037,10 +2037,10 @@ def multi_edge_xanes2(
                     print("use default exposure time 0.05s")
             for key in period_time.keys():
                 if elem.split("_")[0] == key.split("_")[0]:
-                    yield from mv(Andor.cam.acquire_time, exposure)
+                    yield from mv(MaranaU.cam.acquire_time, exposure)
                     yield from bps.sleep(2)
-                    # yield from mv(Andor.cam.acquire_period, period_time[key])
-                    # period = yield from rd(Andor.cam.acquire_period)
+                    # yield from mv(MaranaU.cam.acquire_period, period_time[key])
+                    # period = yield from rd(MaranaU.cam.acquire_period)
                     # period = yield from _exp_t_sanity_check(period, binning=binning)
                     # print(elem, f"{period=}")
                     break
@@ -2073,9 +2073,9 @@ def multi_edge_xanes2(
             binning = 1
         binning = yield from _bin_cam(binning)
 
-        yield from mv(Andor.cam.image_mode, 0)
-        yield from mv(Andor.cam.num_images, 5)
-        yield from mv(Andor.cam.acquire, 1)
+        yield from mv(MaranaU.cam.image_mode, 0)
+        yield from mv(MaranaU.cam.num_images, 5)
+        yield from mv(MaranaU.cam.acquire, 1)
 
         x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
         for elem in elements:
@@ -2097,11 +2097,11 @@ def multi_edge_xanes2(
                 print(f"{period_time=}\n{key=}")
                 if elem.split("_")[0] == key.split("_")[0]:
                     print(f"{exposure=}")
-                    yield from mv(Andor.cam.acquire_time, exposure)
+                    yield from mv(MaranaU.cam.acquire_time, exposure)
                     yield from bps.sleep(2)
                     print(f"{period_time[key]=}")
-                    # yield from mv(Andor.cam.acquire_period, period_time[key])
-                    # period = yield from rd(Andor.cam.acquire_period)
+                    # yield from mv(MaranaU.cam.acquire_period, period_time[key])
+                    # period = yield from rd(MaranaU.cam.acquire_period)
                     # period = _exp_t_sanity_check(period, binning)
                     # print(elem, f"{period=}")
                     break
@@ -2176,7 +2176,7 @@ def multi_edge_xanes3(
     ref_flat_scan=False,
     enable_z=True,
 ):
-    yield from abs_set(Andor.cam.acquire, 0)
+    yield from abs_set(MaranaU.cam.acquire, 0)
     if repeat is None:
         repeat = 1
     repeat = int(repeat)
@@ -2208,10 +2208,10 @@ def multi_edge_xanes3(
                     print("use default exposure time 0.05s")
             for key in period_time.keys():
                 if elem.split("_")[0] == key.split("_")[0]:
-                    yield from abs_set(Andor.cam.acquire_time, exposure)
+                    yield from abs_set(MaranaU.cam.acquire_time, exposure)
                     yield from bps.sleep(2)
-                    # yield from mv(Andor.cam.acquire_period, period_time[key])
-                    # period = yield from rd(Andor.cam.acquire_period)
+                    # yield from mv(MaranaU.cam.acquire_period, period_time[key])
+                    # period = yield from rd(MaranaU.cam.acquire_period)
                     # period = yield from _exp_t_sanity_check(period, binning=binning)
                     # print(elem, f"{period=}")
                     break
@@ -2244,10 +2244,10 @@ def multi_edge_xanes3(
             binning = 1
         binning = yield from _bin_cam(binning)
 
-        yield from abs_set(Andor.cam.image_mode, 0)
-        yield from abs_set(Andor.cam.trigger_mode, 0)
-        yield from abs_set(Andor.cam.num_images, 5)
-        yield from abs_set(Andor.cam.acquire, 1)
+        yield from abs_set(MaranaU.cam.image_mode, 0)
+        yield from abs_set(MaranaU.cam.trigger_mode, 0)
+        yield from abs_set(MaranaU.cam.num_images, 5)
+        yield from abs_set(MaranaU.cam.acquire, 1)
 
         x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
         for elem in elements:
@@ -2269,7 +2269,7 @@ def multi_edge_xanes3(
                 print(f"{period_time=}\n{key=}")
                 if elem.split("_")[0] == key.split("_")[0]:
                     print(f"{exposure=}")
-                    yield from abs_set(Andor.cam.acquire_time, exposure)
+                    yield from abs_set(MaranaU.cam.acquire_time, exposure)
                     yield from bps.sleep(2)
                     print(f"{period_time[key]=}")
                     break
@@ -2338,7 +2338,7 @@ def fly_scan2(
     move_to_ini_pos=True,
     simu=False,
     enable_z=True,
-    cam=Andor,
+    cam=MaranaU,
 ):
     """
     Inputs:
@@ -2427,7 +2427,7 @@ def fly_scan2(
     cur_rot_ang = zps.pi_r.position
     tgt_rot_ang = cur_rot_ang + rel_rot_ang
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -2571,7 +2571,7 @@ def fly_scan3(
     noDark=False,
     noFlat=False,
     enable_z=True,
-    cam=Andor,
+    cam=MaranaU,
 ):
     """
     Inputs:
@@ -2653,7 +2653,7 @@ def fly_scan3(
     cur_rot_ang = zps.pi_r.position
     tgt_rot_ang = cur_rot_ang + rel_rot_ang
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -2847,14 +2847,14 @@ def rock_scan(
         False: will really close/open shutter
 
     """
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     global ZONE_PLATE
 
     if binning is None:
         binning = 0
     if int(binning) not in [0, 1, 2, 3, 4]:
         raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
-    yield from mv(Andor.binning, binning)
+    yield from mv(MaranaU.binning, binning)
 
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -2880,10 +2880,10 @@ def rock_scan(
     rev = int(np.ceil(t_span / (2 * rel_rot_ang / rs))) + 1
     mots = [zps.pi_r]
 
-    dets = [Andor]
+    dets = [MaranaU]
     tgt_ang = start_angle + rel_rot_ang
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in mots],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -2927,7 +2927,7 @@ def rock_scan(
         _md["hints"].setdefault("dimensions", dimensions)
 
     yield from _set_andor_param(exposure_time=exp_t, period=period, chunk_size=20)
-    true_period = yield from rd(Andor.cam.acquire_period)
+    true_period = yield from rd(MaranaU.cam.acquire_period)
     num_img = int(t_span / true_period) + 2
 
     yield from _set_rotation_speed(rs=np.abs(rs))
@@ -2955,13 +2955,13 @@ def rock_scan(
 
         # modified based on trigger_and_read
         tgt, old_tgt = tgt_ang, start_angle
-        yield from trigger(Andor, group="Andor", wait=False)
+        yield from trigger(MaranaU, group="Andor", wait=False)
         for ii in range(rev):
             yield from mv(zps.pi_r, tgt)
             old_tgt, tgt = tgt, old_tgt
         yield from bps.wait(group="Andor")
         yield from bps.create("primary")
-        yield from bps.read(Andor)
+        yield from bps.read(MaranaU)
         yield from bps.save()
 
         # bkg images
@@ -2997,7 +2997,7 @@ def rock_scan(
         yield from select_filters([])
 
     uid = yield from rock_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     return uid
 
@@ -3159,7 +3159,7 @@ def mosaic_zfly_scan_xh(
     md=None,
     simu=simu,
     sleep=sleep,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 )
         if ii < int(repeat) - 1:
@@ -3585,34 +3585,34 @@ def grid_z_scan(
 
     out_y: float, relative amount to move sample out for zps.sy
 
-    chunk_size: int, number of images per each subscan (for Andor camera)
+    chunk_size: int, number of images per each subscan (for MaranaU camera)
 
     exposure_time: float, exposure time for each image
 
     note: str, experiment notes
 
     """
-    yield from mv(Andor.cam.acquire, 0)
-    dets = [Andor]
+    yield from mv(MaranaU.cam.acquire, 0)
+    dets = [MaranaU]
     motor = zp.z
     z_ini = motor.position  # zp.z intial position
     z_start = z_ini + zstart
     z_stop = z_ini + zstop
     zp_x_ini = zp.x.position
     zp_y_ini = zp.y.position
-    #    dets = [Andor]
+    #    dets = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
     )  # sample y position (out-position)
     x_ini = zps.sx.position
     x_out = x_ini + out_x if not (out_x is None) else x_ini
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.image_mode, 0)
-    yield from mv(Andor.cam.num_images, chunk_size)
-    yield from mv(Andor.cam.acquire_time, exposure_time)
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.image_mode, 0)
+    yield from mv(MaranaU.cam.num_images, chunk_size)
+    yield from mv(MaranaU.cam.acquire_time, exposure_time)
     period_cor = max(exposure_time + 0.01, 0.05)
-    # yield from mv(Andor.cam.acquire_period, period_cor)
+    # yield from mv(MaranaU.cam.acquire_period, period_cor)
 
     _md = {
         "detectors": [det.name for det in dets],
@@ -3672,10 +3672,10 @@ def grid_z_scan(
         yield from mv(zps.sy, y_ini)
         yield from mv(zp.z, z_ini)
         yield from mv(zp.x, zp_x_ini, zp.y, zp_y_ini, wait=True)
-        yield from mv(Andor.cam.image_mode, 1)
+        yield from mv(MaranaU.cam.image_mode, 1)
 
     uid = yield from inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter_xhx(simu=simu)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -3879,20 +3879,20 @@ def mosaic_2D_rel_grid_xh(
     md=None,
     simu=False,
 ):
-    yield from mv(Andor.cam.acquire, 0)
-    dets = [Andor]
+    yield from mv(MaranaU.cam.acquire, 0)
+    dets = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
     )  # sample y position (out-position)
     x_ini = zps.sx.position
     x_out = x_ini + out_x if not (out_x is None) else x_ini
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.image_mode, 0)
-    yield from mv(Andor.cam.num_images, chunk_size)
-    yield from mv(Andor.cam.acquire_time, exp_time)
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.image_mode, 0)
+    yield from mv(MaranaU.cam.num_images, chunk_size)
+    yield from mv(MaranaU.cam.acquire_time, exp_time)
     period_cor = max(exp_time + 0.01, 0.05)
-    # yield from mv(Andor.cam.acquire_period, period_cor)
+    # yield from mv(MaranaU.cam.acquire_period, period_cor)
 
     _md = {
         "detectors": [det.name for det in dets],
@@ -3937,20 +3937,20 @@ def mosaic_2D_rel_grid_xh(
         mot2_snake,
     )
     yield from mv(zps.sx, x_out, zps.sy, y_out, wait=True)
-    yield from stage(Andor)
+    yield from stage(MaranaU)
     yield from bps.sleep(1)
     yield from trigger_and_read(list(dets) + [mot1, mot2], name="flat")
     yield from mv(zps.sx, x_ini, zps.sy, y_ini, wait=True)
     yield from bps.sleep(1)
     yield from _close_shutter_xhx(simu=simu)
-    yield from stage(Andor)
+    yield from stage(MaranaU)
     yield from bps.sleep(1)
     yield from trigger_and_read(list(dets) + [mot1, mot2], name="dark")
 
     yield from mv(zps.sx, x_ini)
     yield from mv(zps.sy, y_ini)
-    yield from unstage(Andor)
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from unstage(MaranaU)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter_xhx(simu=simu)
 
 
@@ -3974,7 +3974,7 @@ def mosaic_2D_xh(
     md=None,
     enable_z=True,
 ):
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     # zp_z_pos = zp.z.position
     # DetU_z_pos = DetU.z.position
     # M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -3986,7 +3986,7 @@ def mosaic_2D_xh(
         motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     else:
         motor = [zps.sx, zps.sy, zps.pi_r]
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=1
     )
@@ -4141,7 +4141,7 @@ def dummy_scan(
     rot_back_velo=30,
     repeat=1,
 ):
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
@@ -4164,17 +4164,17 @@ def dummy_scan(
     # motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     motors = [zps.sx, zps.sy, zps.pi_r]
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     taxi_ang = -2 * rs
     cur_rot_ang = zps.pi_r.position
 
     tgt_rot_ang = cur_rot_ang + rel_rot_ang
     _md = {"dummy scan": "dummy scan"}
 
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     yield from _set_andor_param(exposure_time=exposure_time, period=period)
-    yield from mv(Andor.cam.image_mode, 1)
-    yield from mv(Andor.cam.acquire, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.acquire, 1)
 
     @stage_decorator(motors)
     @bpp.monitor_during_decorator([zps.pi_r])
@@ -4226,35 +4226,65 @@ def radiographic_record(
     simu=False,
     rot_first_flag=1,
     relative_move_flag=1,
+    cam=MaranaU,
 ):
-    if binning is None:
-        binning = 0
-    if int(binning) not in [0, 1, 2, 3, 4]:
-        raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
-    yield from mv(Andor.binning, binning)
+    (motor_x_ini,
+     motor_y_ini,
+     motor_z_ini,
+     motor_r_ini) = FXITomoFlyer.get_txm_cur_pos()
 
-    yield from mv(Andor.cam.acquire, 0)
-    motor_x_ini = zps.sx.position
-    motor_y_ini = zps.sy.position
-    motor_z_ini = zps.sz.position
-    motor_r_ini = zps.pi_r.position
+    (motor_x_out,
+     motor_y_out,
+     motor_z_out,
+     motor_r_out) = FXITomoFlyer.def_abs_out_pos(out_x,
+                                                 out_y,
+                                                 out_z,
+                                                 out_r,
+                                                 relative_move_flag,)
 
-    if relative_move_flag:
-        motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
-        motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
-        motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
-        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
-    else:
-        motor_x_out = out_x if not (out_x is None) else motor_x_ini
-        motor_y_out = out_y if not (out_y is None) else motor_y_ini
-        motor_z_out = out_z if not (out_z is None) else motor_z_ini
-        motor_r_out = out_r if not (out_r is None) else motor_r_ini
+    yield from FXITomoFlyer.stop_det(cam)
+    binning = yield from FXITomoFlyer.bin_det(cam, binning)
+    yield from FXITomoFlyer.prime_det(cam)
+    yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
+
+    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period, binning)
+    if acq_p > period:
+        print(
+              "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
+             )
+        period = acq_p
+        
+        if exp_t > (acq_p - acq_min):
+            exp_t = acq_p - acq_min
+
+    # FXITomoFlyer.get_txm_cur_pos()
+    # if binning is None:
+    #     binning = 0
+    # if int(binning) not in [0, 1, 2, 3, 4]:
+    #     raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
+    # yield from mv(cam.binning, binning)
+
+    # yield from mv(cam.cam.acquire, 0)
+    # motor_x_ini = zps.sx.position
+    # motor_y_ini = zps.sy.position
+    # motor_z_ini = zps.sz.position
+    # motor_r_ini = zps.pi_r.position
+
+    # if relative_move_flag:
+    #    motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
+    #    motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
+    #    motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
+    #    motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
+    # else:
+    #    motor_x_out = out_x if not (out_x is None) else motor_x_ini
+    #    motor_y_out = out_y if not (out_y is None) else motor_y_ini
+    #    motor_z_out = out_z if not (out_z is None) else motor_z_ini
+    #    motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-
-    dets = [Andor, ic3]
+    dets = [cam, ic3]
     _md = {
-        "detectors": ["Andor"],
+        "detectors": [cam.name],
         #        "motors": [mot.name for mot in motors],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -4282,10 +4312,11 @@ def radiographic_record(
     }
     _md.update(md or {})
 
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(cam.cam.acquire, 0)
     yield from _set_andor_param(exposure_time=exp_t, period=period)
-    yield from mv(Andor.cam.image_mode, 0)
+    yield from mv(cam.cam.image_mode, 0)
 
+    
     @stage_decorator(list(dets))
     @run_decorator(md=_md)
     def rad_record_inner():
@@ -4293,8 +4324,14 @@ def radiographic_record(
         yield from select_filters(flts)
         yield from bps.sleep(1)
 
-        yield from mv(Andor.cam.num_images, int(t_span / period))
-        yield from trigger_and_read([Andor], name="primary")
+        scn_cfg = {}
+        scn_cfg["exp_t"] = exp_t
+        scn_cfg["num_images"] = int(t_span / period)
+        scn_cfg["num_images"] = int(t_span / period)
+        yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
+
+        # yield from mv(cam.cam.num_images, int(t_span / period))
+        yield from trigger_and_read([cam], name="primary")
 
         yield from mv(
             zps.sx,
@@ -4306,8 +4343,8 @@ def radiographic_record(
             zps.pi_r,
             motor_r_out,
         )
-        yield from mv(Andor.cam.num_images, 20)
-        yield from trigger_and_read([Andor], name="flat")
+        yield from mv(cam.cam.num_images, 10)
+        yield from trigger_and_read([cam], name="flat")
         yield from _close_shutter_xhx(simu=simu)
         yield from mv(
             zps.sx,
@@ -4319,11 +4356,12 @@ def radiographic_record(
             zps.pi_r,
             motor_r_ini,
         )
-        yield from trigger_and_read([Andor], name="dark")
-        yield from mv(Andor.cam.image_mode, 1)
+        yield from trigger_and_read([cam], name="dark")
+        yield from mv(cam.cam.image_mode, 1)
         yield from select_filters([])
-
+        
     yield from rad_record_inner()
+    yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 
 
 def multi_pos_radiography_record(
@@ -4433,6 +4471,75 @@ def multi_pos_2D_and_3D_xanes(
             if ii < repeat_num - 1:
                 yield from bps.sleep(sleep_time)
 
+#### function "multi_pos_xanes_3D" is moved from 41-scans.py 
+def multi_pos_xanes_3D(
+    eng_list,
+    x_list,
+    y_list,
+    z_list,
+    r_list,
+    start_angle=None,
+    exposure_time=0.05,
+    relative_rot_angle=185,
+    period=0.05,
+    out_x=0,
+    out_y=0,
+    out_z=0,
+    out_r=0,
+    rs=2,
+    simu=False,
+    relative_move_flag=1,
+    rot_first_flag=1,
+    note="",
+    sleep_time=0,
+    binning=[2, 2],
+    repeat=1,
+):
+    n = len(x_list)
+    for rep in range(repeat):
+        for i in range(n):
+            if x_list[i] is None:
+                x_list[i] = zps.sx.position
+            if y_list[i] is None:
+                y_list[i] = zps.sy.position
+            if z_list[i] is None:
+                z_list[i] = zps.sz.position
+            if r_list[i] is None:
+                r_list[i] = zps.pi_r.position
+            yield from mv(
+                zps.sx,
+                x_list[i],
+                zps.sy,
+                y_list[i],
+                zps.sz,
+                z_list[i],
+                zps.pi_r,
+                r_list[i],
+            )
+            txt = f"start xanes_3D at pos1: x={x_list[i]}, y={y_list[i]}, z={z_list[i]}\nrepeat:{rep}"
+            insert_text(txt)
+            print(f"{txt}\n##########################\n\n\n\n")
+            yield from xanes_3D(
+                eng_list,
+                exposure_time=exposure_time,
+                start_angle=start_angle,
+                relative_rot_angle=relative_rot_angle,
+                period=period,
+                out_x=out_x,
+                out_y=out_y,
+                out_z=out_z,
+                out_r=out_r,
+                rs=rs,
+                simu=simu,
+                relative_move_flag=relative_move_flag,
+                rot_first_flag=rot_first_flag,
+                note=note,
+                binning=[2, 2],
+            )
+        print(f"sleep for {sleep_time} sec\n\n\n\n")
+        yield from bps.sleep(sleep_time)
+
+
 
 def multi_pos_2D_xanes_and_3D_tomo(
     elements=["Ni"],
@@ -4449,7 +4556,7 @@ def multi_pos_2D_xanes_and_3D_tomo(
     relative_move_flag=0,
     simu=False,
 ):
-    yield from mv(Andor.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
     sam_in_pos_list_2D = np.asarray(sam_in_pos_list_2D)
     sam_out_pos_list_2D = np.asarray(sam_out_pos_list_2D)
     sam_in_pos_list_3D = np.asarray(sam_in_pos_list_3D)
@@ -4623,7 +4730,7 @@ def z_scan_xh(
 
     out_y: float, relative amount to move sample out for zps.sy
 
-    chunk_size: int, number of images per each subscan (for Andor camera)
+    chunk_size: int, number of images per each subscan (for MaranaU camera)
 
     exposure_time: float, exposure time for each image
 
@@ -4631,7 +4738,7 @@ def z_scan_xh(
 
     """
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
 
     x_ini = zps.sx.position
@@ -4663,7 +4770,7 @@ def z_scan_xh(
     zp_start = zp_ini + start
     zp_stop = zp_ini + stop
     '''
-    #    detectors = [Andor]
+    #    detectors = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
@@ -4741,7 +4848,7 @@ def z_scan_xh(
         # yield from abs_set(shutter_open, 1, wait=True)
 
     yield from z_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter(simu=False)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -4787,7 +4894,7 @@ def zps_motor_scan_with_Andor(
     md=None,
 ):
     global ZONE_PLATE
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
 
     #    if len(out_x) != len(motors):
     #        out_x = [out_x[0]] * len(motors)
@@ -4802,11 +4909,11 @@ def zps_motor_scan_with_Andor(
     #        out_r = [out_r[0]] * len(motors)
 
     def _set_andor_param():
-        yield from mv(Andor.cam.acquire, 0)
-        yield from mv(Andor.cam.image_mode, 0)
-        yield from mv(Andor.cam.num_images, chunk_size)
-        yield from mv(Andor.cam.acquire_time, exposure_time)
-        # yield from mv(Andor.cam.acquire_period, exposure_time)
+        yield from mv(MaranaU.cam.acquire, 0)
+        yield from mv(MaranaU.cam.image_mode, 0)
+        yield from mv(MaranaU.cam.num_images, chunk_size)
+        yield from mv(MaranaU.cam.acquire_time, exposure_time)
+        # yield from mv(MaranaU.cam.acquire_period, exposure_time)
 
     if exposure_time is not None:
         yield from _set_andor_param()
@@ -4972,7 +5079,7 @@ def zps_motor_scan_with_Andor(
         yield from _close_shutter(simu)
 
     yield from zps_motor_scan_inner()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
@@ -5163,7 +5270,7 @@ def user_fly_scan(
         period of taking images, "period" should >= "exposure_time"
 
     chunk_size: int, default setting is 20
-        number of images taken for each trigger of Andor camera
+        number of images taken for each trigger of MaranaU camera
 
     out_x: float, default is 0
         relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
@@ -5211,13 +5318,13 @@ def user_fly_scan(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     taxi_ang = -0.5 * rs
     cur_rot_ang = zps.pi_r.position
 
     tgt_rot_ang = cur_rot_ang + rel_rot_ang
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -5315,7 +5422,7 @@ def user_fly_scan(
         yield from select_filters([])
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -5343,13 +5450,13 @@ def user_fly_only(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     # taxi_ang = 0 #-0.5 * rs * np.sign(rel_rot_ang)
     cur_rot_ang = zps.pi_r.position
 
     tgt_rot_ang = end_rot_angle
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -5398,7 +5505,7 @@ def user_fly_only(
             yield from trigger_and_read(list(dets) + motor)
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     # yield from _set_rotation_speed(rs=30)
     txt = get_scan_parameter(print_flag=0)
@@ -5416,7 +5523,7 @@ def user_dark_only(exposure_time=0.1, chunk_size=20, note="", simu=False, md=Non
     exposure_time: float, in unit of sec
 
     chunk_size: int, default setting is 20
-        number of images taken for each trigger of Andor camera
+        number of images taken for each trigger of MaranaU camera
 
     note: string
         adding note to the scan
@@ -5428,11 +5535,11 @@ def user_dark_only(exposure_time=0.1, chunk_size=20, note="", simu=False, md=Non
     """
     global ZONE_PLATE
     period = exposure_time  # default to exposure time for backgrounds
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     motor = []
 
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
         "plan_args": {
@@ -5472,7 +5579,7 @@ def user_dark_only(exposure_time=0.1, chunk_size=20, note="", simu=False, md=Non
         yield from _take_dark_image(dets, motor, num_dark=1, simu=simu)
 
     uid = yield from inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("dark finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -5501,7 +5608,7 @@ def user_bkg_only(
     exposure_time: float, in unit of sec
 
     chunk_size: int, default setting is 20
-        number of images taken for each trigger of Andor camera
+        number of images taken for each trigger of MaranaU camera
 
     out_x: float, default is 0
         relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
@@ -5547,11 +5654,11 @@ def user_bkg_only(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
     cur_rot_ang = zps.pi_r.position
 
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -5615,7 +5722,7 @@ def user_bkg_only(
         )
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("bkg finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -5751,7 +5858,7 @@ def trim_points_to_polygon(xyz_list, poly):
             xyz_list_out.append((x, y, z))
     return xyz_list_out
 
-
+'''
 def qingchao_scan(
     eng_list,
     x_list1,
@@ -5807,7 +5914,7 @@ def qingchao_scan(
         )
         print(f"sleep for {sleep_time} sec ...")
         yield from bps.sleep(sleep_time)
-
+'''
 
 def scan_change_expo_time(
     x_range,
@@ -5835,7 +5942,7 @@ def scan_change_expo_time(
     motor_z_ini = zps.sz.position
     motor_r_ini = zps.pi_r.position
 
-    dets = [Andor, ic3]
+    dets = [MaranaU, ic3]
 
     if relative_move_flag:
         motor_x_out = motor_x_ini + out_x if out_x else motor_x_ini

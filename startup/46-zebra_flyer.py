@@ -23,7 +23,7 @@ def tomo_zfly(
     md=None,
     simu=False,
     sleep=0,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     """_summary_
@@ -51,7 +51,7 @@ def tomo_zfly(
         note (str, optional): _description_. Defaults to "".
         md (dict, optional): _description_. Defaults to None.
         simu (bool, optional): _description_. Defaults to False.
-        cam (ophyd.Device, optional): detector; choose between Andor, Marana, and Oryx.
+        cam (ophyd.Device, optional): detector; choose between Andor, MaranaU, and Oryx.
 
     Raises:
         ValueError: _description_
@@ -92,7 +92,6 @@ def tomo_zfly(
     (mot_x_out, mot_y_out, mot_z_out, mot_r_out) = FXITomoFlyer.def_abs_out_pos(
         out_x, out_y, out_z, out_r, rel_out_flag
     )
-
     _md = {
         "detectors": [flyer.detectors[0].name],
         "motors": [mot.name for mot in mots],
@@ -135,67 +134,7 @@ def tomo_zfly(
     def inner_fly_plan():
         yield from select_filters(flts)
         
-        if flyer.scn_mode == "snaked: single file": # scn_mode = 2
-            yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
-            yield from bps.sleep(1)
-            yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
-            yield from bps.sleep(1)
-            yield from FXITomoFlyer.set_mot_r_step_for_scan(scn_cfg)
-            yield from _open_shutter_xhx(simu)
-            for d in flyer.detectors:
-                try:
-                    d.stage()
-                except:
-                    d.unstage()
-                    d.stage()
-            for mot in mots:
-                mot.stage()
-
-            st = yield from kickoff(flyer, wait=True, scn_cfg=scn_cfg)
-            st.wait(timeout=10)
-
-            det_stream = short_uid("dets")
-            for d in flyer.detectors:
-                yield from bps.trigger(d, group=det_stream)
-            wait(det_stream)
-
-            yield from abs_set(flyer.encoder.pc.arm, 1, wait=True)
-
-            t0 = ttime.monotonic()
-            for ii in range(scn_cfg["num_swing"]):
-                yield from abs_set(
-                    zps.pi_r,
-                    scn_cfg["ang_e"] + scn_cfg["rot_dir"] * scn_cfg["taxi_dist"],
-                    wait=True,
-                )
-                (scn_cfg["ang_s"], scn_cfg["ang_e"]) = (
-                    scn_cfg["ang_e"],
-                    scn_cfg["ang_s"],
-                )
-                scn_cfg["rot_dir"] *= -1
-                if ii == scn_cfg["num_swing"] - 1:
-                    set_and_wait(flyer.encoder.pc.disarm, 1)
-
-            t1 = ttime.monotonic()
-            while int(flyer.encoder.pc.gated.get()):
-                if ttime.monotonic() - t1 > 60:
-                    print("Scan finished abnormally. Quit!")
-                    return
-                yield from bps.sleep(flyer._staging_delay)
-                # print(ttime.time())
-            print(f"Scan # {ii} takes {ttime.monotonic() - t0} seconds.")
-            st = yield from complete(flyer, wait=True)
-            st.wait(timeout=10)
-            yield from collect(flyer)
-            for d in flyer.detectors:
-                try:
-                    d.unstage()
-                except:
-                    print(f"Cannot unstage detector {d.name}")
-                    return
-            for mot in mots:
-                mot.unstage()
-        elif flyer.scn_mode == "standard": # scn_mode = 0
+        if flyer.scn_mode == "standard": # scn_mode = 0
             print(sleep_plan)
             for ii in range(scn_cfg["num_swing"]):
                 yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
@@ -316,8 +255,6 @@ def tomo_zfly(
                     except:
                         d.unstage()
                         d.stage()
-                # for mot in mots:
-                #     mot.stage()
 
                 st = yield from kickoff(flyer, wait=True, scn_cfg=scn_cfg)
                 st.wait(timeout=10)
@@ -345,7 +282,6 @@ def tomo_zfly(
                         print("Scan finished abnormally. Quit!")
                         return
                     yield from bps.sleep(flyer._staging_delay)
-                    # print(ttime.time())
                 print(f"Scan # {ii} takes {ttime.monotonic() - t0} seconds.")
                 st = yield from complete(flyer, wait=True)
                 st.wait(timeout=10)
@@ -356,8 +292,6 @@ def tomo_zfly(
                     except:
                         print(f"Cannot unstage detector {d.name}")
                         return None
-                # for mot in mots:
-                #     mot.unstage()
 
                 if scn_cfg["num_swing"] > 1:
                     (scn_cfg["ang_s"], scn_cfg["ang_e"]) = (
@@ -413,11 +347,70 @@ def tomo_zfly(
                 repeat=2,
             )
             yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+        elif flyer.scn_mode == "snaked: single file": # scn_mode = 2
+            yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
+            yield from bps.sleep(1)
+            yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
+            yield from bps.sleep(1)
+            yield from FXITomoFlyer.set_mot_r_step_for_scan(scn_cfg)
+            yield from _open_shutter_xhx(simu)
+            for d in flyer.detectors:
+                try:
+                    d.stage()
+                except:
+                    d.unstage()
+                    d.stage()
+            for mot in mots:
+                mot.stage()
+
+            st = yield from kickoff(flyer, wait=True, scn_cfg=scn_cfg)
+            st.wait(timeout=10)
+
+            det_stream = short_uid("dets")
+            for d in flyer.detectors:
+                yield from bps.trigger(d, group=det_stream)
+            wait(det_stream)
+
+            yield from abs_set(flyer.encoder.pc.arm, 1, wait=True)
+
+            t0 = ttime.monotonic()
+            for ii in range(scn_cfg["num_swing"]):
+                yield from abs_set(
+                    zps.pi_r,
+                    scn_cfg["ang_e"] + scn_cfg["rot_dir"] * scn_cfg["taxi_dist"],
+                    wait=True,
+                )
+                (scn_cfg["ang_s"], scn_cfg["ang_e"]) = (
+                    scn_cfg["ang_e"],
+                    scn_cfg["ang_s"],
+                )
+                scn_cfg["rot_dir"] *= -1
+                if ii == scn_cfg["num_swing"] - 1:
+                    set_and_wait(flyer.encoder.pc.disarm, 1)
+
+            t1 = ttime.monotonic()
+            while int(flyer.encoder.pc.gated.get()):
+                if ttime.monotonic() - t1 > 60:
+                    print("Scan finished abnormally. Quit!")
+                    return
+                yield from bps.sleep(flyer._staging_delay)
+                # print(ttime.time())
+            print(f"Scan # {ii} takes {ttime.monotonic() - t0} seconds.")
+            st = yield from complete(flyer, wait=True)
+            st.wait(timeout=10)
+            yield from collect(flyer)
+            for d in flyer.detectors:
+                try:
+                    d.unstage()
+                except:
+                    print(f"Cannot unstage detector {d.name}")
+                    return
+            for mot in mots:
+                mot.unstage()
         yield from select_filters([])
 
     yield from inner_fly_plan()
     print("scan finished")
-    # return uid
 
 
 def tomo_zfly_repeat(
@@ -441,11 +434,11 @@ def tomo_zfly_repeat(
     simu=False,
     sleep=0,
     repeat=1,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     for ii in range(repeat):
-        yield from tomo_zfly(scn_mode=0,
+        yield from tomo_zfly(scn_mode=scn_mode,
                             exp_t=exp_t,
                             acq_p=acq_p,
                             ang_s=ang_s,
@@ -495,7 +488,7 @@ def tomo_grid_zfly(
     md=None,
     sleep=0,
     simu=False,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     """_summary_
@@ -526,7 +519,7 @@ def tomo_grid_zfly(
         note (str, optional): _description_. Defaults to "".
         md (dict, optional): _description_. Defaults to None.
         simu (bool, optional): _description_. Defaults to False.
-        cam (ophyd.Device, optional): detector; choose between Andor, Marana, and Oryx.
+        cam (ophyd.Device, optional): detector; choose between Andor, MaranaU, and Oryx.
 
     Raises:
         ValueError: _description_
@@ -880,7 +873,7 @@ def tomo_grid_zfly2(
     md=None,
     sleep=0,
     simu=False,
-    cam=Andor,
+    cam=MaranaU,
     flyer=tomo_flyer,
 ):
     """_summary_
@@ -911,7 +904,7 @@ def tomo_grid_zfly2(
         note (str, optional): _description_. Defaults to "".
         md (dict, optional): _description_. Defaults to None.
         simu (bool, optional): _description_. Defaults to False.
-        cam (ophyd.Device, optional): detector; choose between Andor, Marana, and Oryx.
+        cam (ophyd.Device, optional): detector; choose between Andor, MaranaU, and Oryx.
 
     Raises:
         ValueError: _description_

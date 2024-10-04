@@ -15,25 +15,32 @@ def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
     z_out = out_z
     r_out = out_r
 
+    r_ini = zps.pi_r.position
+
     for i in range(repeat):
         if rot_first_flag:
-            yield from mv(zps.pi_r, r_out)
+            if np.abs(r_ini - r_out) > 0.02:
+                yield from mv(zps.pi_r, r_out)
             yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
         else:
             yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
-            yield from mv(zps.pi_r, r_out)
+            if np.abs(r_ini - r_out) > 0.02:
+                yield from mv(zps.pi_r, r_out)
 
 
 def _move_sample_in(in_x, in_y, in_z, in_r, repeat=1, trans_first_flag=1):
     """
     move in at absolute position
     """
+    r_ini = zps.pi_r.position
     for i in range(repeat):
         if trans_first_flag:
             yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
-            yield from mv(zps.pi_r, in_r)
+            if np.abs(r_ini - in_r) > 0.02:
+                yield from mv(zps.pi_r, in_r)
         else:
-            yield from mv(zps.pi_r, in_r)
+            if np.abs(r_ini - in_r) > 0.02:
+                yield from mv(zps.pi_r, in_r)
             yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
 
 
@@ -49,7 +56,7 @@ def _take_image(detectors, motor, num, stream_name="primary"):
 def _set_Andor_chunk_size(detectors, chunk_size):
     for detector in detectors:
         yield from unstage(detector)
-    yield from abs_set(Andor.cam.num_images, chunk_size, wait=True)
+    yield from abs_set(MaranaU.cam.num_images, chunk_size, wait=True)
     for detector in detectors:
         yield from stage(detector)
 
@@ -58,7 +65,7 @@ def _take_dark_image(
     detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False
 ):
     yield from _close_shutter(simu)
-    original_num_images = yield from rd(Andor.cam.num_images)
+    original_num_images = yield from rd(MaranaU.cam.num_images)
     yield from _set_Andor_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
     yield from _set_Andor_chunk_size(detectors, original_num_images)
@@ -80,20 +87,23 @@ def _take_bkg_image(
     yield from _move_sample_out(
         out_x, out_y, out_z, out_r, repeat=2, rot_first_flag=rot_first_flag
     )
-    original_num_images = yield from rd(Andor.cam.num_images)
+    original_num_images = yield from rd(MaranaU.cam.num_images)
     yield from _set_Andor_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
     yield from _set_Andor_chunk_size(detectors, original_num_images)
 
 
 def _set_andor_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1]):
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.image_mode, 0)
-    yield from mv(Andor.cam.num_images, chunk_size)
-    period_cor = period
-    yield from mv(Andor.cam.acquire_time, exposure_time)
-    # yield from abs_set(Andor.cam.acquire_period, period_cor)
-    Andor.cam.acquire_period.put(period_cor)
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.image_mode, 0)
+    yield from mv(MaranaU.cam.num_images, chunk_size)
+    period_cor = max(period, exposure_time+0.013)    
+    
+    yield from mv(MaranaU.cam.acquire_time, exposure_time)
+    yield from bps.sleep(1)
+    yield from abs_set(MaranaU.cam.acquire_period, period_cor)
+    yield from bps.sleep(1)
 
 
 def _xanes_per_step(
@@ -104,9 +114,10 @@ def _xanes_per_step(
     move_clens_flag=1,
     info_flag=0,
     stream_name="primary",
+    mag=None,
 ):
-    yield from move_zp_ccd(
-        eng, move_flag=move_flag, move_clens_flag=move_clens_flag, info_flag=info_flag
+    yield from move_zp_ccd_TEST(
+        eng, move_flag=move_flag, move_clens_flag=move_clens_flag, info_flag=info_flag, mag=mag,
     )
     yield from bps.sleep(0.1)
     if not (type(detectors) == list):
@@ -211,7 +222,7 @@ def _take_ref_image(
     yield from _take_image(cams, [], num, stream_name=stream_name)
 
 
-def _prime_cam(cam=Andor):
+def _prime_cam(cam=MaranaU):
     yield from abs_set(cam.cam.image_mode, 0, wait=True)
     yield from abs_set(cam.cam.num_images, 5, wait=True)
     yield from abs_set(cam.cam.acquire, 1, wait=True)

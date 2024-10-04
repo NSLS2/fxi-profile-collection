@@ -572,7 +572,7 @@ def test_Andor_stage_unstage(n=500):
         #Andor.stage()
         #Andor.unstage()
         #uid = RE_test(count([Andor], 1))[0]
-        uid = RE(count([Andor], 5))[0]
+        uid = RE(count([MaranaU], 5))[0]
         sid = db[-1].start['scan_id']
         uid_list.append(sid)
         print(f'save {fsave_ts}')

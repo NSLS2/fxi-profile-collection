@@ -73,7 +73,7 @@ def tomo_scan(
     """
     global ZONE_PLATE
 
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=20
     )
@@ -176,7 +176,7 @@ def tomo_scan(
     yield from tomo_inner_scan()
     print("tomo-scan finishes")
 
-
+'''
 def fly_scan(
     exposure_time=0.05,
     start_angle=None,
@@ -261,13 +261,13 @@ def fly_scan(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     #offset_angle = -1 * rs
     offset_angle = 0
     current_rot_angle = zps.pi_r.position
     target_rot_angle = current_rot_angle + relative_rot_angle
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -330,7 +330,7 @@ def fly_scan(
         )
 
         # open shutter, tomo_images
-        true_period = yield from rd(Andor.cam.acquire_period)
+        true_period = yield from rd(MaranaU.cam.acquire_period)
         rot_time = np.abs(relative_rot_angle) / np.abs(rs)
         num_img = int(rot_time / true_period) + 2
 
@@ -382,14 +382,15 @@ def fly_scan(
             yield from mv(flt, 0)
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
     print(txt)
     return uid
+'''
 
-def fly_scan_test(
+def fly_scan(
     exposure_time=0.05,
     start_angle=None,
     relative_rot_angle=180,
@@ -445,6 +446,12 @@ def fly_scan_test(
     rs: float, default is 1
         rotation speed in unit of deg/sec
 
+    take_bkg_img: bool, default is True,
+        check if need to take background image (without sample)        
+
+    take_dark_img: bool, default is True,=True,
+        check if need to take dark image (shutter closed)
+
     note: string
         adding note to the scan
 
@@ -455,7 +462,7 @@ def fly_scan_test(
     """
     global ZONE_PLATE
 
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     offset_angle = -1 * rs
     current_rot_angle = zps.pi_r.position
     target_rot_angle = current_rot_angle + relative_rot_angle
@@ -486,7 +493,7 @@ def fly_scan_test(
 
     
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -552,7 +559,7 @@ def fly_scan_test(
             )
 
         # open shutter, tomo_images
-        true_period = yield from rd(Andor.cam.acquire_period)
+        true_period = yield from rd(MaranaU.cam.acquire_period)
         rot_time = np.abs(relative_rot_angle) / np.abs(rs)
         num_img = int(rot_time / true_period) + 2
 
@@ -601,7 +608,7 @@ def fly_scan_test(
             yield from mv(flt, 0)
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -623,6 +630,7 @@ def xanes_scan2(
     rot_first_flag=1,
     simu=False,
     return_ini=True,
+    mag=None,
     md=None,
 ):
     """
@@ -668,7 +676,7 @@ def xanes_scan2(
 
     """
     global ZONE_PLATE
-    detectors = [Andor, ic3, ic4]
+    detectors = [MaranaU, ic3, ic4]
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_andor_param(exposure_time, period, chunk_size)
     motor_eng = XEng
@@ -707,6 +715,7 @@ def xanes_scan2(
         "exposure_time": exposure_time,
         "eng_list": eng_list,
         "XEng": XEng.position,
+        "mag":mag,
         "plan_args": {
             "eng_list": "eng_list",
             "exposure_time": exposure_time,
@@ -769,6 +778,7 @@ def xanes_scan2(
                 move_clens_flag=0,
                 info_flag=0,
                 stream_name="primary",
+                mag=mag,
             )
             if len(filters):
                 for filt in filters:
@@ -811,7 +821,7 @@ def xanes_scan2(
                 yield from bps.sleep(0.5)
 
     yield from xanes_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     txt1 = get_scan_parameter()
     eng_list = np.round(eng_list, 5)
     if len(eng_list) > 10:
@@ -879,7 +889,7 @@ def xanes_scan(
 
     """
     global ZONE_PLATE
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_andor_param(exposure_time, period, chunk_size)
     motor_eng = XEng
@@ -1055,7 +1065,7 @@ def xanes_scan_img_only(
 
     """
     global ZONE_PLATE
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_andor_param(exposure_time, period, chunk_size)
     motor_eng = XEng
@@ -1164,8 +1174,6 @@ def mv_stage(motor, pos):
 
 
 
-
-
 @parameter_annotation_decorator(
     {
         "parameters": {
@@ -1177,7 +1185,7 @@ def mv_stage(motor, pos):
         }
     }
 )
-def eng_scan_basic(
+def _eng_scan_basic(
     start, stop=None, num=1, detectors=[ic3, ic4], delay_time=1, note="", md=None
 ):
     """
@@ -1190,7 +1198,7 @@ def eng_scan_basic(
 
     num: int, number of energies
 
-    detectors: list, detector list, e.g.[ic3, ic4, Andor]
+    detectors: list, detector list, e.g.[ic3, ic4, MaranaU]
 
     delay_time: float, delay time after moving motors, in sec
 
@@ -1225,7 +1233,7 @@ def eng_scan_basic(
         # "motors": [motor_x.name],
         "motors": [motor_x.name, motor_y.name],
         "XEng": XEng.position,
-        "plan_name": "eng_scan_basic",
+        "plan_name": "_eng_scan_basic",
         "plan_args": {
             "start": start,
             "stop": stop,
@@ -1376,6 +1384,25 @@ class EngScanPlot(QtAwareCallback):
 def eng_scan(
     start, stop=None, num=1, detectors=[], delay_time=1, note="", md=None
 ):
+    """
+    Scan the energy (XEng) and record signals from the assigned "detectors"
+
+    Input:
+    ----------
+    start: float, energy start in keV
+
+    end: float, energy stop in keV
+
+    num: int, number of energies
+
+    detectors: list, detector list, e.g.[ic3, ic4, MaranaU]
+
+    delay_time: float, delay time after moving motors, in sec
+
+    note: string
+
+    """
+
     if len(detectors) < 2:
         detectors = [ic3, ic4]
     load_cell_force = yield from bps.rd(pzt_cm_loadcell)
@@ -1386,11 +1413,11 @@ def eng_scan(
                         load_cell_force=load_cell_force, bender_pos=None
                     )
     eng_scan_with_plot = subs_wrapper(
-                    eng_scan_basic(
+                    _eng_scan_basic(
                         start,
                         stop,
                         num,
-                        detectors=[ic3, ic4],
+                        detectors=detectors,
                         delay_time=delay_time,
                     ),
                     [engscan_plot],
@@ -1427,12 +1454,12 @@ def grid2D_rel(
 ):
     # detectors=[ic3, ic4]
     global ZONE_PLATE
-    detectors = [Andor, ic3]
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.image_mode, 0)
-    yield from mv(Andor.cam.num_images, 1)
+    detectors = [MaranaU, ic3]
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.image_mode, 0)
+    yield from mv(MaranaU.cam.num_images, 1)
     yield from mv(detectors[0].cam.acquire_time, exposure_time)
-    yield from mv(Andor.cam.acquire_period, exposure_time)
+    yield from mv(MaranaU.cam.acquire_period, exposure_time)
 
     motor1_ini = motor1.position
     motor2_ini = motor2.position
@@ -1589,7 +1616,7 @@ def delay_scan(
 
     Inputs:
     ---------
-    detectors: list of dectectors, e.g., [Andor, ic3]
+    detectors: list of dectectors, e.g., [MaranaU, ic3]
 
     motor: list of motors, e.g., zps.sx
 
@@ -1611,7 +1638,7 @@ def delay_scan(
 
     """
     global ZONE_PLATE
-    if Andor in detectors:
+    if MaranaU in detectors:
         yield from _set_andor_param(exposure_time, period=exposure_time, chunk_size=1)
 
     # motor = dcm.th2
@@ -1721,8 +1748,8 @@ def raster_2D_scan(
     out_y=None,
     out_z=None,
     out_r=None,
-    img_sizeX=2560,
-    img_sizeY=2160,
+    img_sizeX=2048,
+    img_sizeY=2040,
     pxl=20,
     simu=False,
     relative_move_flag=1,
@@ -1733,7 +1760,12 @@ def raster_2D_scan(
     md=None,
 ):
     """
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for Andor camera at full resolution (2160 x 2560)
+    !!! Note:
+
+    Filters will be inserted at all time, including: img, img_bkg, and img_dark    
+    
+
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
     
     
@@ -1762,9 +1794,9 @@ def raster_2D_scan(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2560, it is the pixel number for Andor camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
 
-    img_sizeY: int, default is 2160, it is the pixel number for Andor camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -1781,7 +1813,7 @@ def raster_2D_scan(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=1
     )
@@ -1924,8 +1956,8 @@ def raster_2D_scan_filter_bkg(
     out_y=None,
     out_z=None,
     out_r=None,
-    img_sizeX=2560,
-    img_sizeY=2160,
+    img_sizeX=2048,
+    img_sizeY=2040,
     pxl=20,
     simu=False,
     relative_move_flag=1,
@@ -1936,7 +1968,13 @@ def raster_2D_scan_filter_bkg(
     md=None,
 ):
     """
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for Andor camera at full resolution (2160 x 2560)
+
+    !!! Note:
+
+    Filters will ONLY be inserted when taking background image   
+
+
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Inputs:
@@ -1964,9 +2002,9 @@ def raster_2D_scan_filter_bkg(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2560, it is the pixel number for Andor camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
 
-    img_sizeY: int, default is 2160, it is the pixel number for Andor camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -1983,7 +2021,7 @@ def raster_2D_scan_filter_bkg(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=1
     )
@@ -2123,7 +2161,7 @@ def raster_2D_scan_filter_bkg(
     print(txt)
 
 
-def raster_2D_scan2(
+def raster_2D_scan_individal_bkg(
     x_range=[-1, 1],
     y_range=[-1, 1],
     exposure_time=0.1,
@@ -2131,8 +2169,8 @@ def raster_2D_scan2(
     out_y=0,
     out_z=0,
     out_r=0,
-    img_sizeX=2560,
-    img_sizeY=2160,
+    img_sizeX=2048,
+    img_sizeY=2040,
     pxl=17.2,
     num_bkg=1,
     simu=False,
@@ -2143,7 +2181,7 @@ def raster_2D_scan2(
     md=None,
 ):
     """
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for Andor camera at full resolution (2160 x 2560)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Different from raster_2D_scan that this scan will take backgound image for every movement
@@ -2173,9 +2211,9 @@ def raster_2D_scan2(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2560, it is the pixel number for Andor camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
 
-    img_sizeY: int, default is 2160, it is the pixel number for Andor camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2192,7 +2230,7 @@ def raster_2D_scan2(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=1
     )
@@ -2332,7 +2370,7 @@ def raster_2D_scan2(
     insert_text(txt)
     print(txt)
 
-
+'''
 def multipos_2D_xanes_scan(
     eng_list,
     x_list,
@@ -2392,7 +2430,7 @@ def multipos_2D_xanes_scan(
         zps.sx, x_list[0], zps.sy, y_list[0], zps.sz, z_list[0], zps.pi_r, r_list[0]
     )
     insert_text("Finished the multipos_2D_xanes_scan")
-
+'''
 
 def multipos_2D_xanes_scan2(
     eng_list,
@@ -2484,10 +2522,10 @@ def multipos_2D_xanes_scan2(
     global ZONE_PLATE
     txt = "starting multipos_2D_xanes_scan2:"
     insert_text(txt)
-    detectors = [Andor, ic3, ic4]
+    detectors = [MaranaU, ic3, ic4]
     period = max(0.05, exposure_time)
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.bin_y, binning[0], Andor.cam.bin_x, binning[1])
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.bin_y, binning[0], MaranaU.cam.bin_x, binning[1])
     yield from _set_andor_param(exposure_time, period=period, chunk_size=chunk_size)
 
     eng_ini = XEng.position
@@ -2719,7 +2757,7 @@ def multipos_2D_xanes_scan3(
     global ZONE_PLATE
     txt = "starting multipos_2D_xanes_scan3"
     insert_text(txt)
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     period = max(0.05, exposure_time)
     yield from _set_andor_param(exposure_time, period=period, chunk_size=chunk_size)
     eng_ini = XEng.position
@@ -2869,8 +2907,8 @@ def raster_2D_xanes2(
     out_y=None,
     out_z=None,
     out_r=None,
-    img_sizeX=2560,
-    img_sizeY=2160,
+    img_sizeX=2048,
+    img_sizeY=2040,
     pxl=20,
     simu=False,
     relative_move_flag=1,
@@ -2878,6 +2916,10 @@ def raster_2D_xanes2(
     note="",
     md=None,
 ):
+
+    '''
+    take 2D-xanes at defined grid position, using "multipos_2D_xanes_scan2" 
+    '''
 
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -2927,7 +2969,7 @@ def raster_2D_xanes2(
     )
     insert_text("finished raster_2D_xanes2")
 
-
+'''
 def raster_2D_xanes3(
     eng_list,
     x_range=[-1, 1],
@@ -2937,8 +2979,8 @@ def raster_2D_xanes3(
     out_y=None,
     out_z=None,
     out_r=None,
-    img_sizeX=2560,
-    img_sizeY=2160,
+    img_sizeX=2048,
+    img_sizeY=2040,
     pxl=20,
     simu=False,
     relative_move_flag=1,
@@ -2972,7 +3014,7 @@ def raster_2D_xanes3(
         )
 
     insert_text("finished raster_2D_xanes3")
-
+'''
 
 """
 def repeat_multipos_2D_xanes_scan2(eng_list, x_list, y_list, z_list, r_list, out_x=0, out_y=0, out_z=0, out_r=0, exposure_time=0.2,  chunk_size=5, repeat_num=1, sleep_time=60, simu=False, relative_move_flag=1, note='', md=None):
@@ -3007,11 +3049,11 @@ def multipos_count(
     md=None,
 ):
     global ZONE_PLATE
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": "zps_sx, zps_sy, zps_sz",
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -3055,7 +3097,7 @@ def multipos_count(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    @stage_decorator(list([Andor, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r])
+    @stage_decorator(list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r])
     @run_decorator(md=_md)
     def inner_scan():
         print("\nshutter closed, taking 10 dark images...")
@@ -3087,12 +3129,12 @@ def multipos_count(
                     z_target = out_z if not (out_z is None) else z_ini
                     r_target = out_r if not (out_r is None) else r_ini
                 yield from trigger_and_read(
-                    list([Andor, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
+                    list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
                 )
                 yield from mv(zps.pi_r, r_target)
                 yield from mv(zps.sx, x_target, zps.sy, y_target, zps.sz, z_target)
                 yield from trigger_and_read(
-                    list([Andor, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
+                    list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
                 )
                 yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
                 yield from mv(zps.pi_r, r_ini)
@@ -3150,10 +3192,10 @@ def xanes_3D(
             binning=binning,
         )
         yield from bps.sleep(1)
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     export_pdf(1)
 
-
+'''
 def fly_scan_repeat(
     exposure_time=0.03,
     start_angle=None,
@@ -3245,8 +3287,8 @@ def fly_scan_repeat(
                 if i != repeat - 1:
                     yield from bps.sleep(sleep_time)
             export_pdf(1)
-
-
+'''
+'''
 def multi_pos_xanes_3D(
     eng_list,
     x_list,
@@ -3313,7 +3355,7 @@ def multi_pos_xanes_3D(
             )
         print(f"sleep for {sleep_time} sec\n\n\n\n")
         yield from bps.sleep(sleep_time)
-
+'''
 
 def tomo_mosaic_scan(
     x_ini,
@@ -3347,14 +3389,11 @@ def tomo_mosaic_scan(
         z_ini = zps.sz.position
 
     if x_step_size is None or x_step_size <1:
-        print('x_step_size should > 1')
-        return 0
+        x_step_size = 1e-3
     if y_step_size is None or y_step_size <1:
-        print('y_step_size should > 1')
-        return 0
+        y_step_size = 1e-3
     if z_step_size is None or z_step_size <1:
-        print('z_step_size should > 1')
-        return 0
+        z_step_size = 1e-3
     if x_num_steps is None:
         x_num_steps = 1
     if y_num_steps is None:

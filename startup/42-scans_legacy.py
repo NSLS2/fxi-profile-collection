@@ -75,7 +75,7 @@ def tomo_scan_legacy(
     """
     global ZONE_PLATE
 
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     yield from _set_andor_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=chunk_size
     )
@@ -211,7 +211,7 @@ def fly_scan_legacy(
         period of taking images, "period" should >= "exposure_time"
 
     chunk_size: int, default setting is 20
-        number of images taken for each trigger of Andor camera
+        number of images taken for each trigger of MaranaU camera
 
     out_x: float, default is 0
         relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
@@ -263,13 +263,13 @@ def fly_scan_legacy(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     offset_angle = -1 * rs
     current_rot_angle = zps.pi_r.position
 
     target_rot_angle = current_rot_angle + relative_rot_angle
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -310,8 +310,8 @@ def fly_scan_legacy(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.bin_y, binning[0], Andor.cam.bin_x, binning[1])
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.bin_y, binning[0], MaranaU.cam.bin_x, binning[1])
     yield from _set_andor_param(
         exposure_time=exposure_time, period=period, chunk_size=chunk_size
     )
@@ -367,7 +367,7 @@ def fly_scan_legacy(
             yield from mv(flt, 0)
 
     uid = yield from fly_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -430,7 +430,7 @@ def xanes_scan_legacy(
 
     """
     global ZONE_PLATE
-    detectors = [Andor, ic3]
+    detectors = [MaranaU, ic3]
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_andor_param(exposure_time, period, chunk_size)
     motor_eng = XEng
@@ -609,7 +609,7 @@ def xanes_scan2_legacy(
 
     """
     global ZONE_PLATE
-    detectors = [Andor, ic3, ic4]
+    detectors = [MaranaU, ic3, ic4]
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_andor_param(exposure_time, period, chunk_size)
     motor_eng = XEng
@@ -728,7 +728,7 @@ def xanes_scan2_legacy(
         yield from _close_shutter(simu=simu)
 
     yield from xanes_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     txt1 = get_scan_parameter()
     eng_list = np.round(eng_list, 5)
     if len(eng_list) > 10:
@@ -855,8 +855,8 @@ def xanes_3D_legacy(
 ):
     txt = "start 3D xanes scan, containing following fly_scan:\n"
     insert_text(txt)
-    yield from mv(Andor.cam.acquire, 0)
-    yield from mv(Andor.cam.bin_y, binning[0], Andor.cam.bin_x, binning[1])
+    yield from mv(MaranaU.cam.acquire, 0)
+    yield from mv(MaranaU.cam.bin_y, binning[0], MaranaU.cam.bin_x, binning[1])
     for eng in eng_list:
         yield from move_zp_ccd(eng, move_flag=1)
         my_note = note + f"_energy={eng}"
@@ -880,7 +880,7 @@ def xanes_3D_legacy(
             rot_first_flag=rot_first_flag,
         )
         yield from bps.sleep(1)
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     export_pdf(1)
 
 
@@ -959,7 +959,7 @@ def multi_pos_xanes_3D_legacy(
 #        period of taking images, "period" should >= "exposure_time"
 #
 #    chunk_size: int, default setting is 20
-#        number of images taken for each trigger of Andor camera
+#        number of images taken for each trigger of MaranaU camera
 #
 #    out_x: float, default is 0
 #        relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
@@ -1007,12 +1007,12 @@ def multi_pos_xanes_3D_legacy(
 #
 #    motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 #
-#    detectors = [Andor, ic3]
+#    detectors = [MaranaU, ic3]
 #    offset_angle = -0.5 * rs
 #    current_rot_angle = zps.pi_r.position
 #
 #    target_rot_angle = current_rot_angle + relative_rot_angle
-#    _md = {'detectors': ['Andor'],
+#    _md = {'detectors': ['MaranaU'],
 #           'motors': [mot.name for mot in motor],
 #           'XEng': XEng.position,
 #           'ion_chamber': ic3.name,
@@ -1082,7 +1082,7 @@ def multi_pos_xanes_3D_legacy(
 #        for flt in filters:
 #            yield from mv(flt, 0)
 #    uid = yield from fly_inner_scan()
-#    yield from mv(Andor.cam.image_mode, 1)
+#    yield from mv(MaranaU.cam.image_mode, 1)
 #    print('scan finished')
 #    txt = get_scan_parameter(print_flag=0)
 #    insert_text(txt)

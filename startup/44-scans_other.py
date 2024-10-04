@@ -5,7 +5,7 @@
 
 
 def test_test():
-    yield from count([Andor], 2)
+    yield from count([MaranaU], 2)
     h = db[-1]
     print(h.start["scan_id"])
 
@@ -29,7 +29,7 @@ def test_scan(
     md=None,
 ):
     """
-    Take multiple images (Andor camera)
+    Take multiple images (MaranaU camera)
 
     Input:
     ------------
@@ -50,7 +50,7 @@ def test_scan(
 
     yield from _set_andor_param(exposure_time, period, 1)
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
     motor_x_ini = zps.sx.position
@@ -80,7 +80,7 @@ def test_scan(
     '''
 
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "XEng": XEng.position,
         "plan_args": {
             "exposure_time": exposure_time,
@@ -170,7 +170,7 @@ def test_scan(
         # yield from abs_set(shutter_open, 1, wait=True)
 
     uid = yield from inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter(simu=simu)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -195,7 +195,7 @@ def test_scan2(
     md=None,
 ):
     """
-    Take multiple images (Andor camera)
+    Take multiple images (MaranaU camera)
 
     Input:
     ------------
@@ -214,7 +214,7 @@ def test_scan2(
 
     yield from _set_andor_param(exposure_time, period_time, 1)
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
@@ -235,7 +235,7 @@ def test_scan2(
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
     _md = {
-        "detectors": ["Andor"],
+        "detectors": ["MaranaU"],
         "motors": [mot.name for mot in motors],
         "XEng": XEng.position,
         "plan_args": {
@@ -300,7 +300,7 @@ def test_scan2(
         )
 
     uid = yield from inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     #yield from _close_shutter(simu=simu)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -341,7 +341,7 @@ def z_scan(
 
     out_y: float, relative amount to move sample out for zps.sy
 
-    chunk_size: int, number of images per each subscan (for Andor camera)
+    chunk_size: int, number of images per each subscan (for MaranaU camera)
 
     exposure_time: float, exposure time for each image
 
@@ -349,7 +349,7 @@ def z_scan(
 
     """
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
 
     x_ini = zps.sx.position
@@ -383,7 +383,7 @@ def z_scan(
     zp_start = zp_ini + start
     zp_stop = zp_ini + stop
     '''
-    #    detectors = [Andor]
+    #    detectors = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
@@ -461,7 +461,7 @@ def z_scan(
         # yield from abs_set(shutter_open, 1, wait=True)
 
     yield from z_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter(simu=False)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -497,7 +497,7 @@ def z_scan2(
 
     out_y: float, relative amount to move sample out for zps.sy
 
-    chunk_size: int, number of images per each subscan (for Andor camera)
+    chunk_size: int, number of images per each subscan (for MaranaU camera)
 
     exposure_time: float, exposure time for each image
 
@@ -505,12 +505,12 @@ def z_scan2(
 
     """
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
     zp_ini = zp.z.position  # zp.z intial position
     zp_start = zp_ini + start
     zp_stop = zp_ini + stop
-    #    detectors = [Andor]
+    #    detectors = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini
@@ -584,7 +584,7 @@ def z_scan2(
         # yield from abs_set(shutter_open, 1, wait=True)
 
     yield from z_inner_scan()
-    yield from mv(Andor.cam.image_mode, 1)
+    yield from mv(MaranaU.cam.image_mode, 1)
     yield from _close_shutter(simu=False)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -619,7 +619,7 @@ def z_scan3(
 
     out_y: float, relative amount to move sample out for zps.sy
 
-    chunk_size: int, number of images per each subscan (for Andor camera)
+    chunk_size: int, number of images per each subscan (for MaranaU camera)
 
     exposure_time: float, exposure time for each image
 
@@ -627,10 +627,10 @@ def z_scan3(
 
     """
 
-    detectors = [Andor]
+    detectors = [MaranaU]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
 
-    #    detectors = [Andor]
+    #    detectors = [MaranaU]
     y_ini = zps.sy.position  # sample y position (initial)
     y_out = (
         y_ini + out_y if not (out_y is None) else y_ini

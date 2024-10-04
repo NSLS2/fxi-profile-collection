@@ -131,7 +131,7 @@ def trans_calib():
 
 
 
-def record_calib_pos_new(n):
+def record_calib_pos_new(n, record_th2_only=False):
     global GLOBAL_MAG, CALIBER
 
     CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
@@ -149,9 +149,19 @@ def record_calib_pos_new(n):
     CALIBER[f"aper_y_pos{n}"] = aper.y.position
     #CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
 
-    mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
-    CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
-    GLOBAL_MAG = CALIBER[f"mag{n}"]
+    if record_th2_only:
+        calib_mag = GLOBAL_MAG
+        keys = list(CALIBER.keys())
+        if len(keys):
+            for k in keys:
+                if 'mag' in k:
+                    calib_mag = CALIBER[k]
+                    break
+        CALIBER[f"mag{n}"] = calib_mag 
+    else:
+        mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
+        CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
+        GLOBAL_MAG = CALIBER[f"mag{n}"]
 
     tmp = {}
     for k in CALIBER.keys():
@@ -807,7 +817,7 @@ def show_global_para():
     for k in CALIBER.keys():
         if "mag" in k:
             print(f"{k} = {CALIBER[k]} X")
-    print(f"\nFor Andor camera, current pixel size = {6500./GLOBAL_MAG:3.1f} nm")
+    print(f"\nFor MaranaU camera, current pixel size = {6500./GLOBAL_MAG:3.1f} nm")
     print("\nChange parameters if necessary.\n\n")
 
 
@@ -1246,12 +1256,12 @@ def plot_ic(scan_id=[-1], ics=[]):
 
 def plot2dsum(scan_id=-1, fn="Det_Image", save_flag=0):
     """
-    valid only if the scan using Andor or detA1 camera
+    valid only if the scan using MaranaU or detA1 camera
     """
     h = db[scan_id]
     if scan_id == -1:
         scan_id = h.start["scan_id"]
-    if "Andor" in h.start["detectors"]:
+    if "MaranaU" in h.start["detectors"]:
         det = "Andor_image"
         find_areaDet = 1
     elif "detA1" in h.start["detectors"]:
@@ -1316,7 +1326,7 @@ def plot1d(scan_id=-1, detectors=[], plot_time_stamp=0, return_flag=0):
     y_sig = {}
     for i in range(n):
         det_name = detectors[i]
-        if det_name == "detA1" or det_name == "Andor":
+        if det_name == "detA1" or det_name == "MaranaU":
             det_name = det_name + "_stats1_total"
         y = np.abs(np.array(list(h.data(det_name))))
         title_txt = f"scan#{scan_id}:   {det_name}"
@@ -1423,7 +1433,7 @@ def print_baseline_list():
             i += 1
 
 
-def get_img(h, det="Andor", sli=[]):
+def get_img(h, det="MaranaU", sli=[]):
     "Take in a Header and return a numpy array of detA1 image(s)."
     det_name = f"{det}_image"
     if len(sli) == 2:
@@ -1515,7 +1525,7 @@ def get_scan_file_name(scan_id):
     fpath_root = res_doc["root"]
     fpath_relative = res_doc["resource_path"]
     fpath = fpath_root + "/" + fpath_relative
-    fpath_remote = "/nsls2/xf18id1/backup/DATA/Andor/" + fpath_relative
+    fpath_remote = "/nsls2/xf18id1/backup/DATA/MaranaU/" + fpath_relative
     return print(f"local path: {fpath}\nremote path: {fpath_remote}")
 
 

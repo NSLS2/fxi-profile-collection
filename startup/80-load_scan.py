@@ -66,7 +66,7 @@ def write_lakeshore_to_file(h, fname):
             break
 
 
-def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=None):
+def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=None, reverse=False):
     """
     e.g. load_scan([0001, 0002])
     """
@@ -75,7 +75,7 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
             scan_id = [scan_id]
         for item in scan_id:
             try:
-                custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath)
+                custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
                 db.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {item}')
@@ -84,20 +84,20 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
         for i in range(scan_id, scan_id_end + 1):
             try:
                 # export_single_scan(int(i), binning)
-                custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath)
+                custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
                 db.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {i}')
                 print(err)
 
-def custom_export(scan_id, binning=4, date_end_by=None, fpath=None):
+def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=False):
     """
     date_end_by: string, e.g., '2020-01-20'
     """
     tmp = list(db(scan_id=scan_id))
     n = len(tmp)
     if date_end_by is None:
-        export_single_scan(scan_id, binning)
+        export_single_scan(scan_id, binning, reverse=reverse)
     else:
         for sid in tmp:
             uid = sid.start["uid"]
@@ -105,11 +105,11 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None):
             ts = pd.to_datetime(timestamp, unit="s").tz_localize("US/Eastern")
             date_end = pd.Timestamp(date_end_by,).tz_localize('US/Eastern')
             if ts < date_end:
-                export_single_scan(uid, binning)
+                export_single_scan(uid, binning, reverse=reverse)
                 break
 
 
-def export_single_scan(scan_id=-1, binning=4, fpath=None):
+def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
     import datetime
     h = db[scan_id]
     scan_id = h.start["scan_id"]
@@ -179,10 +179,10 @@ def export_single_scan(scan_id=-1, binning=4, fpath=None):
         export_grid2D_rel(h, fpath)
     elif scan_type == "raster_2D":
         print("exporting raster_2D: #{}".format(scan_id))
-        export_raster_2D(h, binning)
+        export_raster_2D(h, binning, reverse=reverse)
     elif scan_type == "raster_2D_2":
         print("exporting raster_2D_2: #{}".format(scan_id))
-        export_raster_2D(h, binning, fpath)
+        export_raster_2D(h, binning, fpath, reverse=reverse)
     elif scan_type == "count" or scan_type == "delay_count":
         print("exporting count: #{}".format(scan_id))
         export_count_img(h, fpath)
@@ -265,6 +265,7 @@ def export_fly_scan(h, fpath=None):
     y_pos = h.table("baseline")["zps_sy"][1]
     z_pos = h.table("baseline")["zps_sz"][1]
     r_pos = h.table("baseline")["zps_pi_r"][1]
+    relative_rot_angle = h.start['plan_args']['relative_rot_angle']
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -272,6 +273,8 @@ def export_fly_scan(h, fpath=None):
 
     x_eng = h.start["XEng"]
     img_angle = get_fly_scan_angle(uid)
+    id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
+
 
     img_tomo = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
     s = img_tomo.shape
@@ -286,6 +289,9 @@ def export_fly_scan(h, fpath=None):
 
     img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
     img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
+
+    img_tomo = img_tomo[:id_stop]
+    img_angle = img_angle[:id_stop]
 
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
 
@@ -922,7 +928,7 @@ def export_test_scan2(h, fpath=None):
 
 def export_count_img(h, fpath=None):
     """
-    load images (e.g. RE(count([Andor], 10)) ) and save to .h5 file
+    load images (e.g. RE(count([MaranaU], 10)) ) and save to .h5 file
     """
     if fpath is None:
         fpath = "./"
@@ -976,7 +982,7 @@ def export_delay_scan(h, fpath=None):
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
-    if det == "detA1" or det == "Andor":
+    if det == "detA1" or det == "MaranaU":
         img = get_img(h, det)
         fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
         with h5py.File(fname, "w") as hf:
@@ -1196,7 +1202,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
         print(f"fails to write lakeshore info into {fn_h5_save}")
 
 
-def export_raster_2D(h, binning=4, fpath=None):
+def export_raster_2D(h, binning=4, fpath=None, reverse=False):
     import tifffile
 
     if fpath is None:
@@ -1226,6 +1232,12 @@ def export_raster_2D(h, binning=4, fpath=None):
     img_raw = np.squeeze(np.array(list(h.data("Andor_image"))))
     img_dark_avg = np.mean(img_raw[:num_dark], axis=0, keepdims=True)
     img_bkg_avg = np.mean(img_raw[-num_bkg:], axis=0, keepdims=True)
+
+    if reverse:
+        img_raw = img_raw[:, ::-1, ::-1]
+        img_dark_avg = img_dark_avg[:, ::-1, ::-1]
+        img_bkg_avg = img_bkg_avg[:, ::-1, ::-1]
+
     img = img_raw[num_dark:-num_bkg]
     s = img.shape
     img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
