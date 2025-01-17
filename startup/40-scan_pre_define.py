@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
     """
     move out by relative distance

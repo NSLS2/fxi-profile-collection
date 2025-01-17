@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 import os
 import h5py
 import datetime
@@ -286,7 +288,7 @@ class FXITomoFlyer(Device):
     }
 
     dft_pulse_wid = {"ms": 0.002, "s": 0.0005, "10s": 0.003}  # 0: ms  # 1: s  # 2: 10s
-    min_exp = {"MARANA-4BV6X": 0.001, "Neo": 0.001, "Oryx": 0.001}
+    min_exp = {"MARANA-4BV6X": 0.001, "SONA-4BV6X": 0.001, "Neo": 0.001, "Oryx": 0.001}
     pc_trig_dir = {1: 0, -1: 1}  # 1: positive, -1: negative
     rot_var = 0.002
     scan_cfg = {}
@@ -312,74 +314,147 @@ class FXITomoFlyer(Device):
         self.shutter_delay = 0.1  # unit: deg; _shutter_delay/rot_vel > unibliz shutter opening time 1.5ms
         self.use_shutter = True
 
-        set_and_wait(self._encoder.pc.block_state_reset, 1)
+
+        _timeout = 10
+
+        self._encoder.pc.block_state_reset.set(1).wait(_timeout)
 
         ############### Zebra Setup ###############
         ## PC Tab
-        set_and_wait(self._encoder.pc.data.cap_enc1_bool, 1)
-        set_and_wait(self._encoder.pc.data.cap_enc2_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_enc3_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_enc4_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_filt1_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_filt2_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_div1_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_div2_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_div3_bool, 0)
-        set_and_wait(self._encoder.pc.data.cap_div4_bool, 0)
+        self._encoder.pc.data.cap_enc1_bool.set(1).wait(_timeout)
+        self._encoder.pc.data.cap_enc2_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_enc3_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_enc4_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_filt1_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_filt2_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_div1_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_div2_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_div3_bool.set(0).wait(_timeout)
+        self._encoder.pc.data.cap_div4_bool.set(0).wait(_timeout)
 
-        set_and_wait(self._encoder.pc.enc, 0)  # 0: Enc1, 1: Enc2, 2: Enc3, 3: Enc4,
-        set_and_wait(self._encoder.pc.dir, 0)  # 0: Positive, 1: Negative
-        set_and_wait(self._encoder.pc.tspre, 1)  # 0: ms, 1: s, 2: 10s
+        self._encoder.pc.enc.set(0).wait(_timeout)  # 0: Enc1, 1: Enc2, 2: Enc3, 3: Enc4,
+        self._encoder.pc.dir.set(0).wait(_timeout)  # 0: Positive, 1: Negative
+        self._encoder.pc.tspre.set(1).wait(_timeout)  # 0: ms, 1: s, 2: 10s
 
         ## AND tab -- can be used for external triggering
-        set_and_wait(self._encoder.and1.use1, 0)  # 0: No, 1: Yes
-        set_and_wait(self._encoder.and1.use2, 0)
-        set_and_wait(self._encoder.and1.use3, 0)
-        set_and_wait(self._encoder.and1.use4, 0)
-        set_and_wait(self._encoder.and1.input_source1, 0)
-        set_and_wait(self._encoder.and1.input_source2, 0)
-        set_and_wait(self._encoder.and1.input_source3, 0)
-        set_and_wait(self._encoder.and1.input_source4, 0)
-        set_and_wait(self._encoder.and1.invert1, 0)  # 0: No, 1: Yes
-        set_and_wait(self._encoder.and1.invert2, 0)
-        set_and_wait(self._encoder.and1.invert3, 0)
-        set_and_wait(self._encoder.and1.invert4, 0)
+        self._encoder.and1.use1.set(0).wait(_timeout)  # 0: No, 1: Yes
+        self._encoder.and1.use2.set(0).wait(_timeout)
+        self._encoder.and1.use3.set(0).wait(_timeout)
+        self._encoder.and1.use4.set(0).wait(_timeout)
+        self._encoder.and1.input_source1.set(0).wait(_timeout)
+        self._encoder.and1.input_source2.set(0).wait(_timeout)
+        self._encoder.and1.input_source3.set(0).wait(_timeout)
+        self._encoder.and1.input_source4.set(0).wait(_timeout)
+        self._encoder.and1.invert1.set(0).wait(_timeout)  # 0: No, 1: Yes
+        self._encoder.and1.invert2.set(0).wait(_timeout)
+        self._encoder.and1.invert3.set(0).wait(_timeout)
+        self._encoder.and1.invert4.set(0).wait(_timeout)
 
         ## OR Tab -- can be used for diagnose
-        set_and_wait(self._encoder.or1.use1, 0)  # 0: No, 1: Yes
-        set_and_wait(self._encoder.or1.use2, 0)
-        set_and_wait(self._encoder.or1.use3, 0)
-        set_and_wait(self._encoder.or1.use4, 0)
-        set_and_wait(self._encoder.or1.input_source1, 0)
-        set_and_wait(self._encoder.or1.input_source2, 0)
-        set_and_wait(self._encoder.or1.input_source3, 0)
-        set_and_wait(self._encoder.or1.input_source4, 0)
-        set_and_wait(self._encoder.or1.invert1, 0)  # 0 = No, 1 = Yes
-        set_and_wait(self._encoder.or1.invert2, 0)
-        set_and_wait(self._encoder.or1.invert3, 0)
-        set_and_wait(self._encoder.or1.invert4, 0)
+        self._encoder.or1.use1.set(0).wait(_timeout)  # 0: No, 1: Yes
+        self._encoder.or1.use2.set(0).wait(_timeout)
+        self._encoder.or1.use3.set(0).wait(_timeout)
+        self._encoder.or1.use4.set(0).wait(_timeout)
+        self._encoder.or1.input_source1.set(0).wait(_timeout)
+        self._encoder.or1.input_source2.set(0).wait(_timeout)
+        self._encoder.or1.input_source3.set(0).wait(_timeout)
+        self._encoder.or1.input_source4.set(0).wait(_timeout)
+        self._encoder.or1.invert1.set(0).wait(_timeout)  # 0 = No, 1 = Yes
+        self._encoder.or1.invert2.set(0).wait(_timeout)
+        self._encoder.or1.invert3.set(0).wait(_timeout)
+        self._encoder.or1.invert4.set(0).wait(_timeout)
 
         ## PULSE tab -- set for fast shutter
-        set_and_wait(self._encoder.pulse1.input_addr, 31)
-        set_and_wait(self._encoder.pulse1.input_edge, 0)  # 0 = rising, 1 = falling
-        set_and_wait(self._encoder.pulse1.delay, 0)
-        set_and_wait(self._encoder.pulse2.input_addr, 31)
-        set_and_wait(self._encoder.pulse2.input_edge, 1)  # 0 = rising, 1 = falling
-        set_and_wait(self._encoder.pulse2.delay, 0)
+        self._encoder.pulse1.input_addr.set(31).wait(_timeout)
+        self._encoder.pulse1.input_edge.set(0).wait(_timeout)  # 0 = rising, 1 = falling
+        self._encoder.pulse1.delay.set(0).wait(_timeout)
+        self._encoder.pulse2.input_addr.set(31).wait(_timeout)
+        self._encoder.pulse2.input_edge.set(1).wait(_timeout)  # 0 = rising, 1 = falling
+        self._encoder.pulse2.delay.set(0).wait(_timeout)
 
         ## ENC tab
-        set_and_wait(self._encoder.pc.enc_pos1_sync, 1)
-        set_and_wait(self._encoder.pc.enc_pos2_sync, 0)
-        set_and_wait(self._encoder.pc.enc_pos3_sync, 0)
-        set_and_wait(self._encoder.pc.enc_pos4_sync, 0)
+        self._encoder.pc.enc_pos1_sync.set(1).wait(_timeout)
+        self._encoder.pc.enc_pos2_sync.set(0).wait(_timeout)
+        self._encoder.pc.enc_pos3_sync.set(0).wait(_timeout)
+        self._encoder.pc.enc_pos4_sync.set(0).wait(_timeout)
 
         ## SYS tab
-        set_and_wait(self._encoder.output1.ttl.addr, 53)  # PC_PULSE --> TTL1 --> Camera
-        set_and_wait(
-            self._encoder.output2.ttl.addr, 52
-        )  # PC_PULSE --> TTL2 --> fast shutter
-        set_and_wait(self._encoder.output3.ttl.addr, 0)
-        set_and_wait(self._encoder.output4.ttl.addr, 0)
+        self._encoder.output1.ttl.addr.set(53).wait(_timeout) # PC_PULSE --> TTL1 --> Camera
+        self._encoder.output2.ttl.addr.set(52).wait(_timeout) # PC_PULSE --> TTL2 --> fast shutter
+        self._encoder.output3.ttl.addr.set(0).wait(_timeout)
+        self._encoder.output4.ttl.addr.set(0).wait(_timeout)
+
+
+
+
+        # set_and_wait(self._encoder.pc.block_state_reset, 1)
+
+        # ############### Zebra Setup ###############
+        # ## PC Tab
+        # set_and_wait(self._encoder.pc.data.cap_enc1_bool, 1)
+        # set_and_wait(self._encoder.pc.data.cap_enc2_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_enc3_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_enc4_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_filt1_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_filt2_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_div1_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_div2_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_div3_bool, 0)
+        # set_and_wait(self._encoder.pc.data.cap_div4_bool, 0)
+
+        # set_and_wait(self._encoder.pc.enc, 0)  # 0: Enc1, 1: Enc2, 2: Enc3, 3: Enc4,
+        # set_and_wait(self._encoder.pc.dir, 0)  # 0: Positive, 1: Negative
+        # set_and_wait(self._encoder.pc.tspre, 1)  # 0: ms, 1: s, 2: 10s
+
+        # ## AND tab -- can be used for external triggering
+        # set_and_wait(self._encoder.and1.use1, 0)  # 0: No, 1: Yes
+        # set_and_wait(self._encoder.and1.use2, 0)
+        # set_and_wait(self._encoder.and1.use3, 0)
+        # set_and_wait(self._encoder.and1.use4, 0)
+        # set_and_wait(self._encoder.and1.input_source1, 0)
+        # set_and_wait(self._encoder.and1.input_source2, 0)
+        # set_and_wait(self._encoder.and1.input_source3, 0)
+        # set_and_wait(self._encoder.and1.input_source4, 0)
+        # set_and_wait(self._encoder.and1.invert1, 0)  # 0: No, 1: Yes
+        # set_and_wait(self._encoder.and1.invert2, 0)
+        # set_and_wait(self._encoder.and1.invert3, 0)
+        # set_and_wait(self._encoder.and1.invert4, 0)
+
+        # ## OR Tab -- can be used for diagnose
+        # set_and_wait(self._encoder.or1.use1, 0)  # 0: No, 1: Yes
+        # set_and_wait(self._encoder.or1.use2, 0)
+        # set_and_wait(self._encoder.or1.use3, 0)
+        # set_and_wait(self._encoder.or1.use4, 0)
+        # set_and_wait(self._encoder.or1.input_source1, 0)
+        # set_and_wait(self._encoder.or1.input_source2, 0)
+        # set_and_wait(self._encoder.or1.input_source3, 0)
+        # set_and_wait(self._encoder.or1.input_source4, 0)
+        # set_and_wait(self._encoder.or1.invert1, 0)  # 0 = No, 1 = Yes
+        # set_and_wait(self._encoder.or1.invert2, 0)
+        # set_and_wait(self._encoder.or1.invert3, 0)
+        # set_and_wait(self._encoder.or1.invert4, 0)
+
+        # ## PULSE tab -- set for fast shutter
+        # set_and_wait(self._encoder.pulse1.input_addr, 31)
+        # set_and_wait(self._encoder.pulse1.input_edge, 0)  # 0 = rising, 1 = falling
+        # set_and_wait(self._encoder.pulse1.delay, 0)
+        # set_and_wait(self._encoder.pulse2.input_addr, 31)
+        # set_and_wait(self._encoder.pulse2.input_edge, 1)  # 0 = rising, 1 = falling
+        # set_and_wait(self._encoder.pulse2.delay, 0)
+
+        # ## ENC tab
+        # set_and_wait(self._encoder.pc.enc_pos1_sync, 1)
+        # set_and_wait(self._encoder.pc.enc_pos2_sync, 0)
+        # set_and_wait(self._encoder.pc.enc_pos3_sync, 0)
+        # set_and_wait(self._encoder.pc.enc_pos4_sync, 0)
+
+        # ## SYS tab
+        # set_and_wait(self._encoder.output1.ttl.addr, 53)  # PC_PULSE --> TTL1 --> Camera
+        # set_and_wait(
+        #     self._encoder.output2.ttl.addr, 52
+        # )  # PC_PULSE --> TTL2 --> fast shutter
+        # set_and_wait(self._encoder.output3.ttl.addr, 0)
+        # set_and_wait(self._encoder.output4.ttl.addr, 0)
 
     @property
     def encoder(self):
@@ -451,6 +526,7 @@ class FXITomoFlyer(Device):
             set_and_wait(
                 self._encoder.pc.pulse_width, self.dft_pulse_wid[self.tspre], rtol=0.1
             )
+            # set(0).wait(_timeout)
         elif self.scn_mode == "snaked: single file":
             ############### PC Tab ###############
             ## PC Gate
@@ -958,7 +1034,7 @@ class FXITomoFlyer(Device):
     def check_cam_acq_p(det, acq_p, bin_fac):
         cam_model = det.cam.model.value
         acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
-        if cam_model == "MARANA-4BV6X":
+        if cam_model in ["MARANA-4BV6X", "SONA-4BV6X"]:
             full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][det.pre_amp.enum_strs[det.pre_amp.value]]
             acq_min = full_acq_min * (det.cam.size.size_y.value / 2046) + FXITomoFlyer.rot_var # add vel uncertainty tolerance
         else:

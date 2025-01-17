@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from pathlib import Path
 import datetime
 import os
@@ -237,7 +239,7 @@ def read_calib_file_new(return_flag=0):
     d = dict(zip(d["index"], d["data"]))
 
     for k in d.keys():
-        CALIBER[k] = np.float(d[k][0])
+        CALIBER[k] = float(d[k][0])
 
     # pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(CALIBER)

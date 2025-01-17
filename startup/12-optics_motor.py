@@ -1,5 +1,6 @@
 # from ophyd import (EpicsMotor, Device, Component as Cpt)
 
+print(f"Loading {__file__}...")
 
 class mirror(Device):
     x = Cpt(MyEpicsMotor, "-Ax:X}Mtr")

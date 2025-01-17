@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from bluesky.bundlers import RunBundler as _OrigBundler
 import bluesky
 

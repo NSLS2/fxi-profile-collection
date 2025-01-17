@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 # Certain things to save read at the beginning and end of every run and recorded# just in case.
 sd.baseline = [
     zp,

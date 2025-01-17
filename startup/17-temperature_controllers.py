@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from collections import deque
 
 from ophyd import (

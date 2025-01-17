@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 @parameter_annotation_decorator(
     {
         "parameters": {
@@ -127,7 +129,7 @@ def pzt_scan(pzt_motor, start, stop, steps, detectors=[Vout2], sleep_time=1, md=
 #        time_start = time.time()
 #        while True:
 #            pos = subprocess.check_output(['caget', pzt_dcm_th2.getting_pv, '-t']).rstrip()
-#            pos = np.float(str_convert(pos))
+#            pos = float(str_convert(pos))
 #            if np.abs(pos-x) < 1e-2 or (time.time()-time_start > delay_time):
 #                break
 #        time.sleep(1)

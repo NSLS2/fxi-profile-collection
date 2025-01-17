@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 import uuid
 import sys
 import time

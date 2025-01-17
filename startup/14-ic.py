@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from ophyd import EpicsSignal
 
 ic1 = EpicsSignal("XF:18IDB-BI{i404:1}I:R1-I", name="ic1")

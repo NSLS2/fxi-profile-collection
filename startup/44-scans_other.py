@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 # try:
 #     print(detA1)
 # except:
@@ -348,7 +350,6 @@ def z_scan(
     note: str, experiment notes
 
     """
-
     detectors = [MaranaU]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
 

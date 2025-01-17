@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 import tqdm
 from skimage import io
 # new_user()

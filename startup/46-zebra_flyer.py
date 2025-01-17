@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from bluesky.plan_stubs import kickoff, collect, complete, wait
 from bluesky.utils import short_uid
 

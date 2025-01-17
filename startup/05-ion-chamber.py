@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 from ophyd import Device, Component as Cpt, EpicsScaler, EpicsSignal, EpicsSignalRO
 from ophyd.device import DynamicDeviceComponent as DDC
 from collections import OrderedDict

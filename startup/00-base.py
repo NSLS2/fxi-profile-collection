@@ -1,6 +1,8 @@
 ###############################################################################
 # TODO: remove this block once https://github.com/bluesky/ophyd/pull/959 is
 # merged/released.
+print(f"Loading {__file__}...")
+
 from datetime import datetime
 from ophyd.signal import EpicsSignalBase, EpicsSignal, DEFAULT_CONNECTION_TIMEOUT
 
@@ -106,7 +108,6 @@ from pathlib import Path
 
 import appdirs
 
-
 try:
     from bluesky.utils import PersistentDict
 except ImportError:
@@ -183,7 +184,6 @@ except ImportError:
         def reload(self):
             """Force a reload from disk, overwriting current cache"""
             self._cache = dict(super().items())
-
 
 runengine_metadata_dir = Path(
     "/nsls2/data/fxi-new/shared/config/bluesky/runengine-metadata/"
@@ -321,7 +321,6 @@ def rd(obj, *, default_value=0):
         raise ValueError(msg) from er
     else:
         return data["value"]
-
 
 # monkey batch bluesky.plans_stubs to fix bug.
 bps.rd = rd

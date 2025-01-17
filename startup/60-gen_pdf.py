@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 import numpy as np
 import matplotlib.pyplot as plt
 from reportlab.pdfgen import canvas
@@ -74,7 +76,7 @@ def check_page_is_full():
 def get_current_date():
     from datetime import datetime
     now = datetime.now()
-    year = np.str(now.year)
+    year = str(now.year)
     mon = "{:02d}".format(now.month)
     day = "{:02d}".format(now.day)
     hour = "{:02d}".format(now.hour)

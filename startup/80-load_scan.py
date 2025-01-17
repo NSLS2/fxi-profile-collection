@@ -1,3 +1,5 @@
+print(f"Loading {__file__}...")
+
 # def export_scan(scan_id, binning=4):
 #    '''
 #    e.g. load_scan([0001, 0002])
