@@ -56,7 +56,9 @@ def _take_image(detectors, motor, num, stream_name="primary"):
 def _set_Andor_chunk_size(detectors, chunk_size):
     for detector in detectors:
         yield from unstage(detector)
-    yield from abs_set(MaranaU.cam.num_images, chunk_size, wait=True)
+    yield from abs_set_wait(MaranaU.cam.acquire, 0)
+    yield from abs_set_wait(MaranaU.cam.image_mode, 0)
+    yield from abs_set_wait(MaranaU.cam.num_images, chunk_size, wait=True)
     for detector in detectors:
         yield from stage(detector)
 
@@ -94,16 +96,17 @@ def _take_bkg_image(
 
 
 def _set_andor_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1]):
-    yield from mv(MaranaU.cam.acquire, 0)
-    yield from mv(MaranaU.cam.acquire, 0)
-    yield from mv(MaranaU.cam.image_mode, 0)
-    yield from mv(MaranaU.cam.num_images, chunk_size)
-    period_cor = max(period, exposure_time+0.013)    
+    for i in range(2):
+        yield from abs_set_wait(MaranaU.cam.acquire, 0)
+        yield from bps.sleep(0.2)
+    for i in range(2):
+        yield from abs_set_wait(MaranaU.cam.image_mode, 0)
+        yield from bps.sleep(0.5)
+    yield from abs_set_wait(MaranaU.cam.num_images, chunk_size)
+    period_cor = max(period, exposure_time+0.024)    
     
-    yield from mv(MaranaU.cam.acquire_time, exposure_time)
-    yield from bps.sleep(1)
-    yield from abs_set(MaranaU.cam.acquire_period, period_cor)
-    yield from bps.sleep(1)
+    yield from abs_set_wait(MaranaU.cam.acquire_time, exposure_time)
+    yield from abs_set_wait(MaranaU.cam.acquire_period, period_cor)
 
 
 def _xanes_per_step(
@@ -152,8 +155,8 @@ def _close_shutter(simu=False):
         i = 0
         reading = yield from bps.rd(shutter_status)
         while not reading:  # if 1:  closed; if 0: open
-            yield from abs_set(shutter_close, 1, wait=True)
-            yield from bps.sleep(3)
+            yield from abs_set_wait(shutter_close, 1, wait=True)
+            yield from bps.sleep(1)
             i += 1
             print(f"try closing {i} time(s) ...")
             if i > 20:
@@ -171,7 +174,7 @@ def _open_shutter(simu=False):
         i = 0
         reading = yield from bps.rd(shutter_status)
         while reading:  # if 1:  closed; if 0: open
-            yield from abs_set(shutter_open, 1, wait=True)
+            yield from abs_set_wait(shutter_open, 1, wait=True)
             print(f"try opening {i} time(s) ...")
             yield from bps.sleep(1)
             i += 1
@@ -183,9 +186,7 @@ def _open_shutter(simu=False):
 
 
 def _set_rotation_speed(rs=30):
-    yield from abs_set(zps.pi_r.velocity, rs)
-    yield from bps.sleep(0.5)
-    yield from abs_set(zps.pi_r.velocity, rs)
+    yield from abs_set_wait(zps.pi_r.velocity, rs)
 
 
 def _move_sample(x_pos, y_pos, z_pos, r_pos, repeat=1):

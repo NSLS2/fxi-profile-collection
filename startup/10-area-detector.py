@@ -416,12 +416,12 @@ for det in [detA1]:
 CAM_RD_CFG = {
     "MARANA-4BV6X": {
         "rd_time": {
-            '12-bit (low noise)': 0.011, 
-            '16-bit (high dynamic rang': 0.014, 
-            '11-bit (high speed)': 0.007
+            '12-bit (low noise)': 0.02327893333333333, 
+            '16-bit (high dynamic rang': 0.013516799999999999, 
+            '11-bit (high speed)': 0.007351242105263158
         },
         "pxl_encoding": {
-            '12-bit (low noise)': 'Mono12', 
+            '12-bit (low noise)': 'Mono16', 
             '16-bit (high dynamic rang': 'Mono16', 
             '11-bit (high speed)': 'Mono12'},
         "image_mode": MaranaU.cam.image_mode.metadata["enum_strs"],

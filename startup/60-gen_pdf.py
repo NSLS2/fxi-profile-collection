@@ -227,6 +227,8 @@ def merge_log():
     export_pdf()
     reset_pdf()
     num = 0
+    if not os.path.isfile(PDF_ARGS["fn_tmp_txt"]):
+        return 0
     try:
         with open(PDF_ARGS["fn_tmp_txt"], "r") as fp:
             tmp_txt = ""

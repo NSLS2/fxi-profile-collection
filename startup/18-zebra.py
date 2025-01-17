@@ -24,7 +24,7 @@ DET_MIN_AP = {"Andor": 0.05, "MaranaU": 0.01, "Oryx": 0.005}
 # will move this definition to motors.py
 ROT_BACK_VEL = 30
 
-BIN_FACS = {"Andor": {0: 1, 1: 2, 2: 3, 3: 4, 4: 8}, "MaranaU": {}, "Oryx": {}}
+BIN_FACS = {"Andor": {0: 1, 1: 2, 2: 3, 3: 4, 4: 8}, "MaranaU": {0: 1, 1: 2, 2: 3, 3: 4, 4: 8}, "Oryx": {}}
 
 
 class ZebraPositionCaptureData(Device):
@@ -286,6 +286,7 @@ class FXITomoFlyer(Device):
     }
 
     dft_pulse_wid = {"ms": 0.002, "s": 0.0005, "10s": 0.003}  # 0: ms  # 1: s  # 2: 10s
+    min_exp = {"MARANA-4BV6X": 0.001, "Neo": 0.001, "Oryx": 0.001}
     pc_trig_dir = {1: 0, -1: 1}  # 1: positive, -1: negative
     rot_var = 0.002
     scan_cfg = {}
@@ -959,8 +960,11 @@ class FXITomoFlyer(Device):
         acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
         if cam_model == "MARANA-4BV6X":
             full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][det.pre_amp.enum_strs[det.pre_amp.value]]
-            acq_min = full_acq_min * (det.cam.size.size_y.value / 2048)
-            acq_p = max(acq_min + 0.002, acq_p) - FXITomoFlyer.rot_var  # accounting vel variation in rot vel 
+            acq_min = full_acq_min * (det.cam.size.size_y.value / 2046) + FXITomoFlyer.rot_var # add vel uncertainty tolerance
+        else:
+            acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
+        acq_p = max(acq_min + FXITomoFlyer.min_exp[cam_model], acq_p)  # add miminum exposure time
+        print(f"{full_acq_min=}\n{acq_min=}\n{acq_p=}\n{FXITomoFlyer.rot_var=}")
         return acq_p, acq_min
 
     @classmethod
@@ -1070,7 +1074,7 @@ class FXITomoFlyer(Device):
         return scn_cfg
 
     @staticmethod
-    def do_prime(det):
+    def _prime_det(det):
         if CAM_RD_CFG[det.cam.model.value]["trigger_mode"][det.cam.trigger_mode.value] != "Internal":
             yield from abs_set(det.cam.trigger_mode, "Internal", timeout=5, settle_time=1, wait=True)
         if CAM_RD_CFG[det.cam.model.value]["image_mode"][det.cam.image_mode.value] != "Fixed":
@@ -1081,10 +1085,8 @@ class FXITomoFlyer(Device):
 
     @staticmethod
     def stop_det(det):
-        while det.cam.acquire.value != 0:
-            yield from abs_set(det.cam.acquire, 0, wait=True)
-        while det.hdf5.capture.value != 0:
-            yield from abs_set(det.hdf5.capture, 0, wait=True)
+        yield from abs_set_wait(det.cam.acquire, 0)
+        yield from abs_set_wait(det.hdf5.capture, 0)
 
     @staticmethod
     def bin_det(det, bin_fac):
@@ -1093,15 +1095,30 @@ class FXITomoFlyer(Device):
             if bin_fac is None:
                 bin_fac = 0
             if int(bin_fac) not in [0, 1, 2, 3, 4]:
+                print('b4')
                 raise ValueError("binnng must be in [0, 1, 2, 3, 4]")
             yield from abs_set(det.binning, bin_fac, wait=True)
             return bin_fac
-            # FXITomoFlyer.do_prime(det)
+        else:
+            return bin_fac
 
     @staticmethod
     def prime_det(det):
         if (det.cam.array_size.array_size_x.value != det.hdf5.array_size.width.value) or (det.cam.array_size.array_size_y.value != det.hdf5.array_size.height.value):
-            yield from FXITomoFlyer.do_prime(det)
+            yield from FXITomoFlyer._prime_det(det)
+
+    @staticmethod
+    def set_roi_det(det, roi):
+        if roi is None:
+            yield from abs_set_wait(det.cam.size.size_x, det.cam.max_size.max_size_x.value)
+            yield from abs_set_wait(det.cam.min_x, 1)
+            yield from abs_set_wait(det.cam.size.size_y, det.cam.max_size.max_size_y.value)
+            yield from abs_set_wait(det.cam.min_y, 1)
+        else:
+            yield from abs_set_wait(det.cam.size.size_x, roi["size_x"])
+            yield from abs_set_wait(det.cam.min_x, roi["min_x"])
+            yield from abs_set_wait(det.cam.size.size_y, roi["size_y"])
+            yield from abs_set_wait(det.cam.min_y, roi["min_y"])
 
     @staticmethod
     def def_abs_out_pos(
@@ -1161,21 +1178,26 @@ class FXITomoFlyer(Device):
 
     @staticmethod
     def set_cam_mode(cam, stage="pre-scan"):
+        # if stage == "pre-scan":
+        #     yield from abs_set_wait(cam.cam.image_mode, CAM_RD_CFG[cam.cam.model.value]["image_mode"].index("Fixed"), timeout=5, settle_time=0.5)
+        #     yield from abs_set_wait(cam.cam.trigger_mode, CAM_RD_CFG[cam.cam.model.value]["trigger_mode"].index("External"), timeout=5, settle_time=0.5)
+        # elif stage == "ref-scan":
+        #     yield from abs_set_wait(cam.cam.image_mode, CAM_RD_CFG[cam.cam.model.value]["image_mode"].index("Fixed"), timeout=5, settle_time=0.5)
+        #     yield from abs_set_wait(cam.cam.trigger_mode, CAM_RD_CFG[cam.cam.model.value]["trigger_mode"].index("Internal"), timeout=5, settle_time=0.5)
+        # elif stage == "post-scan":
+        #     yield from abs_set_wait(cam.cam.image_mode, CAM_RD_CFG[cam.cam.model.value]["image_mode"].index("Continuous"), timeout=5, settle_time=0.5)
+        #     yield from abs_set_wait(cam.cam.trigger_mode, CAM_RD_CFG[cam.cam.model.value]["trigger_mode"].index("Internal"), timeout=5, settle_time=0.5)
+        # return
         if stage == "pre-scan":
-            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Fixed":
-                yield from abs_set(cam.cam.image_mode, "Fixed", timeout=5, settle_time=0.5, wait=True)
-            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "External":
-                yield from abs_set(cam.cam.trigger_mode, "External", timeout=5, settle_time=0.5, wait=True)
+            yield from abs_set_wait(cam.cam.image_mode, 0, timeout=5, settle_time=0.5)
+            yield from abs_set_wait(cam.cam.trigger_mode, 2, timeout=5, settle_time=0.5)
         elif stage == "ref-scan":
-            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Fixed":
-                yield from abs_set(cam.cam.image_mode, "Fixed", timeout=5, settle_time=0.5, wait=True)
-            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "Internal":
-                yield from abs_set(cam.cam.trigger_mode, "Internal", timeout=5, settle_time=0.5, wait=True)
+            yield from abs_set_wait(cam.cam.image_mode, 0, timeout=5, settle_time=0.5)
+            yield from abs_set_wait(cam.cam.trigger_mode, 0, timeout=5, settle_time=0.5)
         elif stage == "post-scan":
-            while CAM_RD_CFG[cam.cam.model.value]["image_mode"][cam.cam.image_mode.value] != "Continuous":
-                yield from abs_set(cam.cam.image_mode, "Continuous", timeout=5, settle_time=0.5, wait=True)
-            while CAM_RD_CFG[cam.cam.model.value]["trigger_mode"][cam.cam.trigger_mode.value] != "Internal":
-                yield from abs_set(cam.cam.trigger_mode, "Internal", timeout=5, settle_time=0.5, wait=True)
+            yield from abs_set_wait(cam.cam.image_mode, 1, timeout=5, settle_time=0.5)
+            yield from abs_set_wait(cam.cam.trigger_mode, 0, timeout=5, settle_time=0.5)
+        return
 
 
 Zebra = FXIZebra(

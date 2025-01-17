@@ -12,6 +12,12 @@ from PIL import Image
 from scipy.signal import medfilt2d
 from datetime import datetime  
 
+def reload_bsui():
+
+    """Restarts the current bsui and updates live elements info."""
+
+    os.execl(sys.executable, sys.executable, * sys.argv)
+
 def check_latest_scan_id(init_guess=60000, search_size=100):
     sid_from_md = RE.md["scan_id"]
     if len(list(db(scan_id=sid_from_md))) > 0:
@@ -1504,6 +1510,7 @@ def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, print_flag=1):
             date_end = pd.Timestamp(date_end_by,).tz_localize('US/Eastern')
             if ts < date_end:
                 h = db[uid]
+                break
 
     scan_id = h.start["scan_id"]
     timestamp = h.start["time"]
@@ -1666,7 +1673,11 @@ def split_fly_scan(fn, num=1):
     del img_t
             
             
-            
+def abs_set_wait(pv, val, timeout=5, settle_time=0.5, wait=True):
+    while pv.value != val:
+        yield from abs_set(pv, val, timeout=timeout, settle_time=settle_time, wait=True) 
+        #yield from bps.sleep(0.5)
+    return      
         
 
 

@@ -11,14 +11,12 @@ def tomo_zfly(
     vel=3,
     acc_t=1,
     num_swing=1,
-    out_x=None,
-    out_y=None,
-    out_z=None,
-    out_r=None,
+    out_pos=[None, None, None, None],
     rel_out_flag=True,
     flts=[],
     rot_back_velo=30,
     bin_fac=None,
+    roi=None,
     note="",
     md=None,
     simu=False,
@@ -64,7 +62,8 @@ def tomo_zfly(
     """
     global ZONE_PLATE
     yield from FXITomoFlyer.stop_det(cam)
-    yield from bps.sleep(2)
+    yield from FXITomoFlyer.set_roi_det(cam, roi)
+    
     sleep_plan = _schedule_sleep(sleep, num_swing)
     if not sleep_plan:
         print(f"A wrong sleep pattern {sleep=} and {num_swing=} breaks the scan. Quit")
@@ -89,6 +88,7 @@ def tomo_zfly(
     )
     scn_cfg, pc_cfg = yield from flyer.preset_flyer(scn_cfg)
     (x_ini, y_ini, z_ini, r_ini) = FXITomoFlyer.get_txm_cur_pos()
+    out_x, out_y, out_z, out_r = out_pos
     (mot_x_out, mot_y_out, mot_z_out, mot_r_out) = FXITomoFlyer.def_abs_out_pos(
         out_x, out_y, out_z, out_r, rel_out_flag
     )
@@ -127,7 +127,7 @@ def tomo_zfly(
         "zone_plate": ZONE_PLATE,
     }
     _md.update(md or {})
-    print("preset done")
+    print("preset scan is done")
 
     #@stage_decorator(list(mots))
     @run_decorator(md=_md)
@@ -138,6 +138,7 @@ def tomo_zfly(
             print(sleep_plan)
             for ii in range(scn_cfg["num_swing"]):
                 yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
+                # FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
                 yield from bps.sleep(1)
                 yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
                 yield from bps.sleep(1)
@@ -198,6 +199,7 @@ def tomo_zfly(
 
                 yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
                 yield from bps.sleep(1)
+                print(f"take flat images at {ttime.time()}")
                 yield from _take_ref_image(
                     [cam],
                     mots_pos={
@@ -211,6 +213,7 @@ def tomo_zfly(
                     stream_name="flat",
                     simu=simu,
                 )
+                print(f"take dark images at {ttime.time()}")
                 yield from _take_ref_image(
                     [cam],
                     mots_pos={},
@@ -233,6 +236,7 @@ def tomo_zfly(
                     repeat=2,
                 )
                 yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+                print(f"set post-scan at {ttime.time()}")
 
                 if ii < (scn_cfg["num_swing"] - 1):
                     print(f" Sleeping {sleep_plan[ii]} seconds before {ii+1}th scan ... ".center(100, "#"))
@@ -311,6 +315,7 @@ def tomo_zfly(
                 mot.unstage()
 
             yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
+            # FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
             yield from bps.sleep(1)
             yield from _take_ref_image(
                 [cam],
@@ -347,8 +352,10 @@ def tomo_zfly(
                 repeat=2,
             )
             yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+            # FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
         elif flyer.scn_mode == "snaked: single file": # scn_mode = 2
             yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
+            # FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
             yield from bps.sleep(1)
             yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
             yield from bps.sleep(1)
@@ -421,14 +428,12 @@ def tomo_zfly_repeat(
     ang_e=180,
     vel=3,
     acc_t=1,
-    out_x=None,
-    out_y=None,
-    out_z=None,
-    out_r=None,
+    out_pos=[None, None, None, None],
     rel_out_flag=True,
     flts=[],
     rot_back_velo=30,
     bin_fac=None,
+    roi=None,
     note="",
     md=None,
     simu=False,
@@ -446,14 +451,12 @@ def tomo_zfly_repeat(
                             vel=vel,
                             acc_t=acc_t,
                             num_swing=1,
-                            out_x=out_x,
-                            out_y=out_y,
-                            out_z=out_z,
-                            out_r=out_r,
+                            out_pos=out_pos,
                             rel_out_flag=rel_out_flag,
                             flts=flts,
                             rot_back_velo=rot_back_velo,
                             bin_fac=bin_fac,
+                            roi=roi,
                             note=note,
                             md=md,
                             simu=simu,
@@ -476,10 +479,7 @@ def tomo_grid_zfly(
     acc_t=1,
     grid_nodes={},
     num_swing=1,
-    out_x=None,
-    out_y=None,
-    out_z=None,
-    out_r=None,
+    out_pos=[None, None, None, None],
     rel_out_flag=True,
     flts=[],
     rot_back_velo=30,
@@ -555,6 +555,7 @@ def tomo_grid_zfly(
     )
     scn_cfg, pc_cfg = yield from flyer.preset_flyer(scn_cfg)
     (x_ini, y_ini, z_ini, r_ini) = FXITomoFlyer.get_txm_cur_pos()
+    out_x, out_y, out_z, out_r = out_pos
     (mot_x_out, mot_y_out, mot_z_out, mot_r_out) = FXITomoFlyer.def_abs_out_pos(
         out_x, out_y, out_z, out_r, rel_out_flag
     )
@@ -629,6 +630,7 @@ def tomo_grid_zfly(
                         for kk in range(len(grid_nodes["mots"])):
                             yield from mv(grid_nodes["mots"][kk], jj[kk])
                     yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
+                    # FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
                     yield from bps.sleep(1)
                     yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
                     yield from bps.sleep(1)
@@ -687,6 +689,7 @@ def tomo_grid_zfly(
                     yield from FXITomoFlyer.init_mot_r(scn_cfg)
 
                     yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
+                    # FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
                     yield from bps.sleep(1)
                     yield from _take_ref_image(
                         [cam],
@@ -725,6 +728,7 @@ def tomo_grid_zfly(
                         repeat=2,
                     )
                     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+                    # FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 
                 if ii < scn_cfg["num_swing"] - 1:
                     print(f" Sleeping {sleep_plan[ii]} seconds before {ii+1}th scan ... ".center(100, "#"))
@@ -735,6 +739,7 @@ def tomo_grid_zfly(
                     mot.stage()
                 
                 yield from FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
+                # FXITomoFlyer.set_cam_mode(flyer.detectors[0], stage="pre-scan")
                 yield from bps.sleep(1)
                 for jj in grid_nodes["pos"] if grid_nodes else range(1):
                     if grid_nodes:
@@ -807,6 +812,7 @@ def tomo_grid_zfly(
                     mot.unstage()
 
                 yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
+                # FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
                 yield from bps.sleep(1)
                 yield from _take_ref_image(
                     [cam],
@@ -843,6 +849,7 @@ def tomo_grid_zfly(
                     repeat=2,
                 )
                 yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+                # FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
                 yield from select_filters([])
 
     uid = yield from inner_fly_plan()
@@ -861,14 +868,12 @@ def tomo_grid_zfly2(
     acc_t=1,
     grid_nodes={},
     num_swing=1,
-    out_x=None,
-    out_y=None,
-    out_z=None,
-    out_r=None,
+    out_pos=[None, None, None, None],
     rel_out_flag=True,
     flts=[],
     rot_back_velo=30,
     bin_fac=None,
+    roi=None,
     note="",
     md=None,
     sleep=0,
@@ -940,6 +945,7 @@ def tomo_grid_zfly2(
     )
     scn_cfg, pc_cfg = yield from flyer.preset_flyer(scn_cfg)
     (x_ini, y_ini, z_ini, r_ini) = FXITomoFlyer.get_txm_cur_pos()
+    out_x, out_y, out_z, out_r = out_pos
     (mot_x_out, mot_y_out, mot_z_out, mot_r_out) = FXITomoFlyer.def_abs_out_pos(
         out_x, out_y, out_z, out_r, rel_out_flag
     )
@@ -1004,14 +1010,12 @@ def tomo_grid_zfly2(
                             vel=vel,
                             acc_t=acc_t,
                             num_swing=1,
-                            out_x=out_x,
-                            out_y=out_y,
-                            out_z=out_z,
-                            out_r=out_r,
+                            out_pos=out_pos,
                             rel_out_flag=rel_out_flag,
                             flts=flts,
                             rot_back_velo=rot_back_velo,
                             bin_fac=bin_fac,
+                            roi=roi,
                             note=note,
                             md=None,
                             sleep=sleep,
@@ -1019,9 +1023,6 @@ def tomo_grid_zfly2(
                             cam=cam,
                             flyer=flyer)
         
-    # yield from inner_fly_plan()
-    print("scan finished")
-    # return uid
 
 
 def _schedule_sleep(sleep, num_scan):

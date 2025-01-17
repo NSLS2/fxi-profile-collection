@@ -152,6 +152,9 @@ def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
             export_xanes_scan(h, fpath)
         print("xanes scan: #{} loading finished".format(scan_id))
 
+    elif scan_type == 'radiography_scan':
+        print("exporting radiography_scan: #{}".format(scan_id))
+        export_radiography_scan(h, fpath)
     elif scan_type == "xanes_scan_img_only":
         print("exporting xanes scan image only: #{}".format(scan_id))
         export_xanes_scan_img_only(h, fpath)
@@ -922,7 +925,67 @@ def export_test_scan2(h, fpath=None):
 
 
 
+def export_radiography_scan(h, fpath=None):
+    if fpath is None:
+        fpath = "./"
+    else:
+        if not fpath[-1] == "/":
+            fpath += "/"
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos / zp_z_pos - 1) * 10.0
+    pxl_sz = 6500.0 / M
+    scan_type = h.start["plan_name"]
+    uid = h.start["uid"]
+    note = h.start["note"]
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
+    try:
+        x_eng = h.start["XEng"]
+    except:
+        x_eng = h.start["x_ray_energy"]
+    num = h.start["plan_args"]["num_img"]
 
+    img = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    try:
+        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark_avg = np.mean(img_dark, axis=0, keepdims=True)
+    except:
+        img_dark = np.zeros((1, img.shape[1], img.shape[2]))
+        img_dark_avg = img_dark
+    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
+
+    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
+    img_norm[np.isnan(img_norm)] = 0
+    img_norm[np.isinf(img_norm)] = 0
+    fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
+    with h5py.File(fname, "w") as hf:
+        hf.create_dataset("uid", data=uid)
+        hf.create_dataset("scan_id", data=scan_id)
+        hf.create_dataset("note", data=str(note))
+        hf.create_dataset("scan_time", data=scan_time)
+        hf.create_dataset("X_eng", data=x_eng)
+        hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, dtype=np.float32))
+        hf.create_dataset("img_dark", data=np.array(img_dark_avg, dtype=np.float32))
+        hf.create_dataset("img", data=np.array(img, dtype=np.float32))
+        hf.create_dataset("img_norm", data=np.array(img_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
+
+    try:
+        write_lakeshore_to_file(h, fname)
+    except:
+        print("fails to write lakeshore info into {fname}")
+
+    del (
+        img_dark,
+        img_dark_avg,
+        img_bkg,
+        img_bkg_avg,
+        img_norm,
+        img
+    )
 
 
 
