@@ -23,8 +23,8 @@ def tomo_zfly(
     md=None,
     simu=False,
     sleep=0,
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
     """_summary_
 
@@ -62,6 +62,11 @@ def tomo_zfly(
     Yields:
         _type_: _description_
     """
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+  
     global ZONE_PLATE
     yield from FXITomoFlyer.stop_det(cam)
     yield from FXITomoFlyer.set_roi_det(cam, roi)
@@ -441,9 +446,15 @@ def tomo_zfly_repeat(
     simu=False,
     sleep=0,
     repeat=1,
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
+    
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+
     for ii in range(repeat):
         yield from tomo_zfly(scn_mode=scn_mode,
                             exp_t=exp_t,
@@ -490,8 +501,8 @@ def tomo_grid_zfly(
     md=None,
     sleep=0,
     simu=False,
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
     """_summary_
 
@@ -532,6 +543,11 @@ def tomo_grid_zfly(
     Yields:
         _type_: _description_
     """
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+
     global ZONE_PLATE
     sleep_plan = _schedule_sleep(sleep, num_swing)
     if not sleep_plan:
@@ -880,8 +896,8 @@ def tomo_grid_zfly2(
     md=None,
     sleep=0,
     simu=False,
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
     """_summary_
 
@@ -922,6 +938,11 @@ def tomo_grid_zfly2(
     Yields:
         _type_: _description_
     """
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+
     global ZONE_PLATE
     sleep_plan = _schedule_sleep(sleep, num_swing)
     if not sleep_plan:

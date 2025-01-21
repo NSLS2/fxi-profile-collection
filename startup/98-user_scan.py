@@ -587,8 +587,11 @@ def _xanes_3D_xh(
     binning=1,
     flts=[],
     enable_z=True,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+  
     out_x, out_y, out_z, out_r = out_pos
     for eng in eng_list:
         yield from move_zp_ccd_xh(eng, move_flag=1)
@@ -772,9 +775,14 @@ def _xanes_3D_zebra_xh(
     bin_fac=1,
     roi=None,
     flts=[],
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+    
     for eng in eng_list:
         yield from move_zp_ccd_xh(eng, move_flag=1)
         my_note = f"{note}@energy={eng}keV"
@@ -828,9 +836,14 @@ def _multi_pos_xanes_3D_zebra_xh(
     flts=[],
     repeat=1,
     ref_flat_scan=False,
-    cam=MaranaU,
-    flyer=tomo_flyer,
+    cam=None,
+    flyer=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+    
     yield from select_filters(flts)
     n = len(x_list)
     for rep in range(repeat):
@@ -971,7 +984,7 @@ def _multi_pos_xanes_2D_xh(
     binning=0,
     flts=[],
     enable_z=True,
-    cam=MaranaU,
+    cam=None,
 ):
     """
     Different from multipos_2D_xanes_scan. In the current scan, it take image at all locations and then move out sample to take background image.
@@ -1031,6 +1044,9 @@ def _multi_pos_xanes_2D_xh(
     note: string
 
     """
+    if cam is None:
+        cam = MaranaU
+
     print(eng_list)
     print(x_list)
     print(y_list)
@@ -1347,7 +1363,10 @@ def _exp_t_sanity_check(exp_t, binning=None):
     return period
 
 
-def _bin_cam(binning, cam=MaranaU):
+def _bin_cam(binning, cam=None):
+    if cam is None:
+        cam = MaranaU
+
     if cam.binning.value != binning:
         yield from abs_set_wait(cam.cam.acquire, 0)
         if binning is None:
@@ -1452,8 +1471,11 @@ def _move_sample_in_xhx(
 
 
 def _take_dark_image_xhx(
-    detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False, cam=MaranaU
+    detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False, cam=None
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from _close_shutter_xhx(simu)
     # _close_shutter_xhx(simu)
     original_num_images = yield from rd(cam.cam.num_images)
@@ -1475,8 +1497,11 @@ def _take_bkg_image_xhx(
     stream_name="flat",
     simu=False,
     enable_z=False,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from _move_sample_out_xhx(
         out_x,
         out_y,
@@ -1501,8 +1526,11 @@ def _set_Andor_chunk_size_xhx(detectors, chunk_size, cam):
 
 
 def _set_andor_param_xhx(
-    exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=MaranaU
+    exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     yield from abs_set_wait(cam.cam.image_mode, 0)
     yield from abs_set_wait(cam.cam.num_images, chunk_size)
@@ -1532,9 +1560,14 @@ def multi_edge_xanes_zebra_legacy(
     sleep=0,
     repeat=None,
     ref_flat_scan=False,
-    cam=MaranaU,
-    flyer=tomo_flyer
+    cam=None,
+    flyer=None
 ):
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     if repeat is None:
         repeat = 1
@@ -2008,9 +2041,14 @@ def multi_edge_xanes_zebra(
     repeat=None,
     ref_flat_scan=False,
     use_gui_pos=False,
-    cam=MaranaU,
-    flyer=tomo_flyer
+    cam=None,
+    flyer=None
 ):
+    if cam is None:
+        cam = MaranaU
+    if flyer is None:
+        flyer = tomo_flyer
+    
     yield from abs_set_wait(cam.cam.acquire, 0, timeout=5, settle_time=0.5)
     if repeat is None:
         repeat = 1
@@ -2135,8 +2173,11 @@ def multi_edge_xanes(
     simu=False,
     ref_flat_scan=False,
     enable_z=True,
-    cam=MaranaU
+    cam=None
 ):
+    if cam is None:
+        cam = MaranaU
+
     yield from abs_set_wait(cam.cam.acquire, 0, timeout=5, settle_time=0.5)
     x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
     for elem in elements:
@@ -2320,8 +2361,11 @@ def multi_edge_xanes2(
     repeat=None,
     ref_flat_scan=False,
     enable_z=True,
-    cam=MaranaU
+    cam=None
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0, timeout=5, settle_time=0.5)
     if repeat is None:
         repeat = 1
@@ -2476,8 +2520,11 @@ def multi_edge_xanes3(
     repeat=None,
     ref_flat_scan=False,
     enable_z=True,
-    cam=MaranaU
+    cam=None
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     if repeat is None:
         repeat = 1
@@ -2629,7 +2676,7 @@ def fly_scan2(
     move_to_ini_pos=True,
     simu=False,
     enable_z=True,
-    cam=MaranaU,
+    cam=None,
 ):
     """
     Inputs:
@@ -2672,6 +2719,9 @@ def fly_scan2(
         False: will really close/open shutter
 
     """
+    if cam is None:
+        cam = MaranaU
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     if binning is None:
         binning = 0
@@ -2863,7 +2913,7 @@ def fly_scan3(
     noDark=False,
     noFlat=False,
     enable_z=True,
-    cam=MaranaU,
+    cam=None
 ):
     """
     Inputs:
@@ -2906,6 +2956,9 @@ def fly_scan3(
         False: will really close/open shutter
 
     """
+    if cam is None:
+        cam = MaranaU
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     global ZONE_PLATE
     yield from select_filters(flts)
@@ -3099,7 +3152,7 @@ def rock_scan(
     noDark=False,
     noFlat=False,
     enable_z=True,
-    cam=MaranaU,
+    cam=None,
 ):
     """
     Inputs:
@@ -3142,6 +3195,9 @@ def rock_scan(
         False: will really close/open shutter
 
     """
+    if cam is None:
+        cam = MaranaU
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     
     global ZONE_PLATE
@@ -3326,8 +3382,11 @@ def mosaic_fly_scan_xh(
     enable_z=True,
     repeat=1,
     sleep=0,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from select_filters(flts)
     binning = yield from _bin_cam(binning)
 
@@ -3401,8 +3460,11 @@ def mosaic_zfly_scan_xh(
     enable_z=True,
     repeat=1,
     sleep=0,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from select_filters(flts)
     yield from _bin_cam(binning)
 
@@ -3865,7 +3927,7 @@ def grid_z_scan(
     note="",
     md=None,
     simu=False,
-    cam=MaranaU,
+    cam=None,
 ):
     """
     scan the zone-plate to find best focus
@@ -3891,6 +3953,9 @@ def grid_z_scan(
     note: str, experiment notes
 
     """
+    if cam is None:
+        cam = MaranaU
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     dets = [cam]
     motor = zp.z
@@ -3981,7 +4046,7 @@ def xxanes_scan(
     eng_list,
     delay_time=0.5,
     intgr=1,
-    dets=[ic1, ic2, ic3],
+    dets=None,
     note="",
     md=None,
     repeat=None,
@@ -3992,6 +4057,8 @@ def xxanes_scan(
     delay_time: delay_time between each energy step, in unit of sec
     note: string; optional, description of the scan
     """
+    if dets is None:
+        dets = [ic1, ic2, ic3]
     if repeat is None:
         repeat = 1
     repeat = int(repeat)
@@ -4063,12 +4130,14 @@ def xxanes_scan(
 
 
 def xxanes_scan2(
-    eng_list, dets=[ic1, ic2, ic3], note="", md=None, repeat=1, sleep=100, simu=False
+    eng_list, dets=None, note="", md=None, repeat=1, sleep=100, simu=False
 ):
     """
     eng_list: energy list in keV
     note: string; optional, description of the scan
     """
+    if dets is None:
+        dets=[ic1, ic2, ic3]
     repeat = int(repeat)
 
     check_eng_range([eng_list[0], eng_list[-1]])
@@ -4162,11 +4231,11 @@ def xxanes_scan2(
 
 
 def mosaic_2D_rel_grid_xh(
-    mot1=zps.sx,
+    mot1=None,
     mot1_start=-100,
     mot1_end=100,
     mot1_points=6,
-    mot2=zps.sy,
+    mot2=None,
     mot2_start=-50,
     mot2_end=50,
     mot2_points=6,
@@ -4178,8 +4247,15 @@ def mosaic_2D_rel_grid_xh(
     note="",
     md=None,
     simu=False,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    if mot1 is None:
+        mot1=zps.sx
+    if mot2 is None:
+        mot2=zps.sy
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     dets = [cam]
     y_ini = zps.sy.position  # sample y position (initial)
@@ -4275,8 +4351,11 @@ def mosaic_2D_xh(
     flts=[],
     md=None,
     enable_z=True,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     M = GLOBAL_MAG
     pxl = 6.5 / M * (2560.0 / img_sizeX)
@@ -4439,8 +4518,11 @@ def dummy_scan(
     flts=[],
     rot_back_velo=30,
     repeat=1,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -4647,8 +4729,11 @@ def radiographic_record(
     simu=False,
     rot_first_flag=1,
     relative_move_flag=1,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     if in_pos is None:
         (motor_x_ini,
          motor_y_ini,
@@ -4963,8 +5048,11 @@ def multi_pos_2D_xanes_and_3D_tomo(
     note="",
     relative_move_flag=0,
     simu=False,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     yield from abs_set_wait(cam.cam.acquire, 0)
     sam_in_pos_list_2D = np.asarray(sam_in_pos_list_2D)
     sam_out_pos_list_2D = np.asarray(sam_out_pos_list_2D)
@@ -5119,7 +5207,7 @@ def z_scan_xh(
     relative_move_flag=1,
     note="",
     md=None,
-    cam=MaranaU,
+    cam=None,
 ):
     """
 
@@ -5147,6 +5235,8 @@ def z_scan_xh(
     note: str, experiment notes
 
     """
+    if cam is None:
+        cam = MaranaU
 
     detectors = [cam]
     motor = [zps.sx, zps.sy, zps.sz, zps.sz, zp.z]
@@ -5296,8 +5386,11 @@ def zps_motor_scan_with_Andor(
     simu=False,
     rot_first_flag=0,
     md=None,
-    cam=MaranaU,
+    cam=None,
 ):
+    if cam is None:
+        cam = MaranaU
+    
     global ZONE_PLATE
     dets = [cam, ic3]
 
