@@ -529,22 +529,28 @@ def _open_shutter_xhx(simu=False):
         print("testing: open shutter")
     else:
         print("opening shutter ... ")
-        # yield from abs_set_wait(shutter_open, 1)
         i = 0
-        reading = yield from bps.rd(shutter_status)
-        while reading:  # if 1:  closed; if 0: open
+        set_and_wait(shutter_open, 1, timeout=3)
+        # reading = yield from bps.rd(shutter_status)
+        reading = yield from bps.rd(psh_cls_sts_xh)
+        while reading == 1:  # if 1:  closed; if 0: open
+            print(f"try opening shutter {i} time(s) ...")
+            yield from bps.sleep(3)
             if i > 5:
-                yield from abs_set(shutter_close, 1, wait=True)
-                yield from bps.sleep(1)
+                # yield from abs_set(shutter_close, 1, wait=True)
+                # shutter_close.set(1).wait(3)
+                set_and_wait(shutter_close, 1, timeout=3)
+                yield from bps.sleep(3)
             elif i > 10:
                 print("fails to open shutter")
                 raise Exception("fails to open shutter")
                 break
-            yield from abs_set(shutter_open, 1, wait=True)
-            print(f"try opening shutter {i} time(s) ...")
-            yield from bps.sleep(1)
+            # yield from abs_set(shutter_open, 1, wait=True)
+            # shutter_open.set(1).wait(3)
+            set_and_wait(shutter_open, 1, timeout=3)
             i += 1
-            reading = yield from bps.rd(shutter_status)
+            # reading = yield from bps.rd(shutter_status)
+            reading = yield from bps.rd(psh_cls_sts_xh)
     return
 
 
@@ -553,22 +559,28 @@ def _close_shutter_xhx(simu=False):
         print("testing: close shutter")
     else:
         print("closing shutter ... ")
-        # yield from abs_set_wait(shutter_close, 1)
         i = 0
-        reading = yield from bps.rd(shutter_status)
-        while not reading:  # if 1:  closed; if 0: open
+        set_and_wait(shutter_close, 1, timeout=3)
+        # reading = yield from bps.rd(shutter_status)
+        reading = yield from bps.rd(psh_cls_sts_xh)
+        while reading == 0:  # if 1:  closed; if 0: open
+            print(f"try closing shutter {i} time(s) ...")
+            yield from bps.sleep(3)
             if i > 5:
-                yield from abs_set(shutter_open, 1, wait=True)
-                yield from bps.sleep(1)
+                # yield from abs_set(shutter_open, 1, wait=True)
+                # shutter_open.set(1).wait(3)
+                set_and_wait(shutter_open, 1, timeout=3)
+                yield from bps.sleep(3)
             elif i > 10:
                 print("fails to close shutter")
                 raise Exception("fails to close shutter")
                 break
-            yield from abs_set(shutter_close, 1, wait=True)
-            yield from bps.sleep(1)
+            # yield from abs_set(shutter_close, 1, wait=True)
+            # shutter_close.set(1).wait(3)
+            set_and_wait(shutter_close, 1, timeout=3)
             i += 1
-            print(f"try closing shutter {i} time(s) ...")
-            reading = yield from bps.rd(shutter_status)
+            # reading = yield from bps.rd(shutter_status)
+            reading = yield from bps.rd(psh_cls_sts_xh)
     return
 
 
@@ -591,7 +603,7 @@ def _xanes_3D_xh(
 ):
     if cam is None:
         cam = MaranaU
-  
+
     out_x, out_y, out_z, out_r = out_pos
     for eng in eng_list:
         yield from move_zp_ccd_xh(eng, move_flag=1)
@@ -782,7 +794,7 @@ def _xanes_3D_zebra_xh(
         cam = MaranaU
     if flyer is None:
         flyer = tomo_flyer
-    
+
     for eng in eng_list:
         yield from move_zp_ccd_xh(eng, move_flag=1)
         my_note = f"{note}@energy={eng}keV"
@@ -843,7 +855,7 @@ def _multi_pos_xanes_3D_zebra_xh(
         cam = MaranaU
     if flyer is None:
         flyer = tomo_flyer
-    
+
     yield from select_filters(flts)
     n = len(x_list)
     for rep in range(repeat):
@@ -894,22 +906,38 @@ def _multi_pos_xanes_3D_zebra_xh(
 
                 if rel_out_flag:
                     motor_x_out = (
-                        motor_x_ini + out_pos[0] if not (out_pos[0] is None) else motor_x_ini
+                        motor_x_ini + out_pos[0]
+                        if not (out_pos[0] is None)
+                        else motor_x_ini
                     )
                     motor_y_out = (
-                        motor_y_ini + out_pos[1] if not (out_pos[1] is None) else motor_y_ini
+                        motor_y_ini + out_pos[1]
+                        if not (out_pos[1] is None)
+                        else motor_y_ini
                     )
                     motor_z_out = (
-                        motor_z_ini + out_pos[2] if not (out_pos[2] is None) else motor_z_ini
+                        motor_z_ini + out_pos[2]
+                        if not (out_pos[2] is None)
+                        else motor_z_ini
                     )
                     motor_r_out = (
-                        motor_r_ini + out_pos[3] if not (out_pos[3] is None) else motor_r_ini
+                        motor_r_ini + out_pos[3]
+                        if not (out_pos[3] is None)
+                        else motor_r_ini
                     )
                 else:
-                    motor_x_out = out_pos[0] if not (out_pos[0] is None) else motor_x_ini
-                    motor_y_out = out_pos[1] if not (out_pos[1] is None) else motor_y_ini
-                    motor_z_out = out_pos[2] if not (out_pos[2] is None) else motor_z_ini
-                    motor_r_out = out_pos[3] if not (out_pos[3] is None) else motor_r_ini
+                    motor_x_out = (
+                        out_pos[0] if not (out_pos[0] is None) else motor_x_ini
+                    )
+                    motor_y_out = (
+                        out_pos[1] if not (out_pos[1] is None) else motor_y_ini
+                    )
+                    motor_z_out = (
+                        out_pos[2] if not (out_pos[2] is None) else motor_z_ini
+                    )
+                    motor_r_out = (
+                        out_pos[3] if not (out_pos[3] is None) else motor_r_ini
+                    )
 
                 yield from _move_sample_out_xhx(
                     motor_x_out,
@@ -1047,6 +1075,7 @@ def _multi_pos_xanes_2D_xh(
     if cam is None:
         cam = MaranaU
 
+    out_x, out_y, out_z, out_r = out_pos
     print(eng_list)
     print(x_list)
     print(y_list)
@@ -1162,7 +1191,7 @@ def _multi_pos_xanes_2D_xh(
         # _open_shutter_xhx(simu)
         if len(eng_list) > 1:
             for rep in range(repeat_num):
-                print(f"repeat multi-pos xanes scan #{rep}")            
+                print(f"repeat multi-pos xanes scan #{rep}")
                 for eng in eng_list:
                     yield from move_zp_ccd_xh(eng, move_flag=1, info_flag=0)
                     yield from _open_shutter_xhx(simu)
@@ -1209,10 +1238,10 @@ def _multi_pos_xanes_2D_xh(
                 # sleep
                 if rep < repeat_num - 1:
                     print(f"\nsleep for {sleep_time} seconds ...")
-                    yield from bps.sleep(sleep_time)    
+                    yield from bps.sleep(sleep_time)
         elif len(eng_list) == 1:
             for rep in range(repeat_num):
-                print(f"repeat multi-pos xanes scan #{rep}")   
+                print(f"repeat multi-pos xanes scan #{rep}")
                 yield from _open_shutter_xhx(simu)
                 # _open_shutter_xhx(simu)
                 # take image at multiple positions
@@ -1252,12 +1281,14 @@ def _multi_pos_xanes_2D_xh(
                 )
                 # close shutter and sleep
                 yield from _close_shutter_xhx(simu)
-                # _close_shutter_xhx(simu)
                 # sleep
                 if rep < repeat_num - 1:
                     print(f"\nsleep for {sleep_time} seconds ...")
                     yield from bps.sleep(sleep_time)
+
     yield from inner_scan()
+    yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+    yield from select_filters([])
 
 
 def _mk_eng_list(elem, bulk=False):
@@ -1320,11 +1351,43 @@ def _mk_eng_list(elem, bulk=False):
                     + "_xanes_standard_diff.txt"
                 )
         if eng_list[0] < eng_list[-1]:
-                eng_list = eng_list[::-1]
+            eng_list = eng_list[::-1]
+        return eng_list
+    elif isinstance(elem, dict):
+        eng_list = np.loadtxt(Path("/nsls2/data/fxi-new/shared/config/xanes_ref/user_customized") / elem["fn"])
+        if eng_list[0] < eng_list[-1]:
+            eng_list = eng_list[::-1]
         return eng_list
     else:
+        if elem[0] < elem[-1]:
+            elem = elem[::-1]
         return elem
 
+
+def _check_xanes_scan_params(elem, flts, exp_t, acq_p, edge_list):
+    for key in flts.keys():
+        if elem == key:
+            flt = flts[key]
+            break
+        else:
+            flt = []
+    for key in exp_t.keys():
+        if elem == key:
+            exposure = exp_t[key]
+            break
+        else:
+            exposure = 0.05
+            print("use default exposure time 0.05 sec")
+    for key in acq_p.keys():
+        if elem == key:
+            period = acq_p[key]
+            break
+        else:
+            period = 0.05
+            print("Use default acquisition period 0.05 sec")
+    eng_list = _mk_eng_list(edge_list[elem], bulk=False)
+    return flt, exposure, period, eng_list
+    
 
 def _exp_t_sanity_check(exp_t, binning=None):
     if binning is None:
@@ -1429,9 +1492,9 @@ def _move_sample_out_xhx(
             if rot_first_flag:
                 yield from mv(zps.pi_r, r_out)
                 yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
-                #yield from mv(zps.sx, x_out, zps.sz, z_out)
+                # yield from mv(zps.sx, x_out, zps.sz, z_out)
             else:
-                #yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
+                # yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
                 yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
                 yield from mv(zps.pi_r, r_out)
     else:
@@ -1454,12 +1517,12 @@ def _move_sample_in_xhx(
         for i in range(repeat):
             if trans_first_flag:
                 yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
-                #yield from mv(zps.sx, in_x, zps.sz, in_z)
+                # yield from mv(zps.sx, in_x, zps.sz, in_z)
                 yield from mv(zps.pi_r, in_r)
             else:
                 yield from mv(zps.pi_r, in_r)
                 yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
-                #yield from mv(zps.sx, in_x, zps.sz, in_z)
+                # yield from mv(zps.sx, in_x, zps.sz, in_z)
     else:
         for i in range(repeat):
             if trans_first_flag:
@@ -1475,7 +1538,7 @@ def _take_dark_image_xhx(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from _close_shutter_xhx(simu)
     # _close_shutter_xhx(simu)
     original_num_images = yield from rd(cam.cam.num_images)
@@ -1501,7 +1564,7 @@ def _take_bkg_image_xhx(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from _move_sample_out_xhx(
         out_x,
         out_y,
@@ -1530,7 +1593,7 @@ def _set_andor_param_xhx(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     yield from abs_set_wait(cam.cam.image_mode, 0)
     yield from abs_set_wait(cam.cam.num_images, chunk_size)
@@ -1561,18 +1624,18 @@ def multi_edge_xanes_zebra_legacy(
     repeat=None,
     ref_flat_scan=False,
     cam=None,
-    flyer=None
+    flyer=None,
 ):
     if cam is None:
         cam = MaranaU
     if flyer is None:
         flyer = tomo_flyer
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     if repeat is None:
         repeat = 1
     repeat = int(repeat)
-    
+
     if scan_type == "2D":
         if bin_fac is None:
             bin_fac = 0
@@ -1676,7 +1739,7 @@ def multi_edge_xanes_zebra_legacy(
                 cam=cam,
                 flyer=flyer,
             )
-            
+
             if bulk:
                 eng_list = _mk_eng_list(elem, bulk=True)
                 zpx = zp.x.position
@@ -1690,335 +1753,8 @@ def multi_edge_xanes_zebra_legacy(
         print("wrong scan type")
 
 
-# from magicgui import widgets
-# _XANES_POS_XH = {}
-# _XANES_IN_POS_LIST_XH = []
-# _XANES_OUT_POS_LIST_XH = []
-
-# def _update_xanes_in_pos_choices(ComboBox):
-#     global _XANES_IN_POS_LIST_XH
-#     return _XANES_IN_POS_LIST_XH
-
-# def _update_xanes_out_pos_choices(ComboBox):
-#     global _XANES_OUT_POS_LIST_XH
-#     return _XANES_OUT_POS_LIST_XH
-
-# class _add_xanes_pos_xh():
-#     def __init__(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_IN_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_POS_XH = {}
-
-#         self.main_win = widgets.MainWindow(label="add xanes scan positions")
-
-#         self.label0 = widgets.Label(value="define xanes scan positions".center(50, "-"))
-#         self.xanes_in_pos_table = widgets.Select(choices=_update_xanes_in_pos_choices, name="in pos list")
-#         self.add_in_pos = widgets.PushButton(text="Add in pos")
-#         self.rem_in_pos = widgets.PushButton(text="Rem in pos")
-#         box0 = widgets.VBox(
-#             widgets=[
-#                 self.add_in_pos,
-#                 self.rem_in_pos
-#             ]
-#         )
-#         box1 = widgets.HBox(
-#             widgets=[
-#                 self.xanes_in_pos_table,
-#                 box0
-#             ]
-#         )
-#         self.label1 = widgets.Label(value="define xanes out position".center(50, "-"))
-#         self.xanes_out_pos_table = widgets.Select(choices=_update_xanes_out_pos_choices, name="out pos")
-#         self.update_out_pos = widgets.PushButton(text="Update out pos")
-#         box2 = widgets.HBox(
-#             widgets=[
-#                 self.xanes_out_pos_table,
-#                 self.update_out_pos
-#             ]
-#         )
-#         self.update = widgets.PushButton(text="Update")
-#         self.cancel = widgets.PushButton(text="Cancel")
-
-#         self.add_in_pos.changed.connect(self._add_in_pos)
-#         self.rem_in_pos.changed.connect(self._rem_in_pos)
-#         self.update_out_pos.changed.connect(self._update_out_pos)
-#         self.update.changed.connect(self._update_pos)
-#         self.cancel.changed.connect(self._cancel)
-#         box3 = widgets.HBox(
-#             widgets=[
-#                 self.update,
-#                 self.cancel
-#             ]
-#         )
-        
-
-#         layout = widgets.VBox(
-#             widgets=[
-#                 self.label0,
-#                 box1,
-#                 self.label1,
-#                 box2,
-#                 box3
-#             ]
-#         )
-#         self.main_win.append(layout)
-#         self.main_win.show()
-
-#     def _add_in_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         _XANES_IN_POS_LIST_XH.append(
-#             [
-#                 round(zps.sx.user_readback.value, 3), 
-#                 round(zps.sy.user_readback.value, 3), 
-#                 round(zps.sz.user_readback.value, 3), 
-#                 round(zps.pi_r.user_readback.value, 3)
-#             ]
-#         )
-#         self.xanes_in_pos_table.reset_choices()
-
-#     def _rem_in_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         for ii in self.xanes_in_pos_table.value:
-#             _XANES_IN_POS_LIST_XH.remove(ii)
-#         self.xanes_in_pos_table.reset_choices()
-
-#     def _update_out_pos(self):
-#         global _XANES_OUT_POS_LIST_XH
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = [[
-#             round(zps.sx.user_readback.value, 3), 
-#             round(zps.sy.user_readback.value, 3), 
-#             round(zps.sz.user_readback.value, 3), 
-#             round(zps.pi_r.user_readback.value, 3)
-#         ]]
-#         self.xanes_out_pos_table.reset_choices()
-
-#     def _update_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_POS_XH["in_pos"] = _XANES_IN_POS_LIST_XH
-#         _XANES_POS_XH["out_pos"] = _XANES_OUT_POS_LIST_XH[0]
-#         print("You will use in positions:")
-#         for pos in _XANES_POS_XH['in_pos']:
-#             print(pos)
-#         print(f"and out position\n{_XANES_POS_XH['out_pos']}\n\n")
-
-#     def _cancel(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_IN_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_POS_XH = {}
-#         self.xanes_in_pos_table.reset_choices()
-#         self.xanes_out_pos_table.reset_choices()
-#         print("You cancelled all positions!\n\n")
-
-# from magicgui import widgets
-# from qtpy.QtWidgets import QAbstractItemView
-
-# _XANES_POS_XH = {}
-# _XANES_IN_POS_LIST_XH = []
-# _XANES_OUT_POS_LIST_XH = []
-# _XANES_SAVED_IN_POS_XH = []
-
-
-# def _update_xanes_in_pos_choices(ComboBox):
-#     global _XANES_IN_POS_LIST_XH
-#     return _XANES_IN_POS_LIST_XH
-
-
-# def _update_xanes_out_pos_choices(ComboBox):
-#     global _XANES_OUT_POS_LIST_XH
-#     return _XANES_OUT_POS_LIST_XH
-
-# def _update_xanes_saved_in_pos_choices(ComboBox):
-#     global _XANES_SAVED_IN_POS_XH
-#     return _XANES_SAVED_IN_POS_XH
-
-
-# class _add_xanes_pos_xh:
-#     _instance = None
-
-#     def __new__(cls):
-#         if cls._instance is None:
-#             cls._instance = super(_add_xanes_pos_xh, cls).__new__(cls)
-#         return cls._instance
-    
-#     def __init__(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_IN_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_POS_XH = {}
-
-#         self.main_win = widgets.MainWindow(label="add xanes scan positions")
-
-#         self.label0 = widgets.Label(value=" define xanes scan positions ".center(100, "-"))
-#         self.xanes_in_pos_table = widgets.Select(
-#             choices=_update_xanes_in_pos_choices, name="in pos list",
-#         )
-#         self.xanes_in_pos_table.native.setFixedWidth(300)
-#         self.xanes_in_pos_table.native.setFixedHeight(100)
-#         self.add_in_pos = widgets.PushButton(text="Add in pos")
-#         self.add_in_pos.native.setFixedWidth(150)
-#         self.rem_in_pos = widgets.PushButton(text="Rem in pos")
-#         self.rem_in_pos.native.setFixedWidth(150)
-#         self.sav_in_pos_for_later = widgets.PushButton(text="Sav in pos")
-#         self.sav_in_pos_for_later.native.setFixedWidth(150)
-#         box0 = widgets.VBox(widgets=[self.add_in_pos, self.rem_in_pos, self.sav_in_pos_for_later])
-#         box1 = widgets.HBox(widgets=[self.xanes_in_pos_table, box0])
-        
-#         self.label1 = widgets.Label(value=" define xanes out position ".center(100, "-"))
-#         self.xanes_out_pos_table = widgets.Select(
-#             choices=_update_xanes_out_pos_choices, name="out pos"
-#         )
-#         self.xanes_out_pos_table.native.setFixedWidth(300)
-#         self.xanes_out_pos_table.native.setFixedHeight(50)
-#         self.update_out_pos = widgets.PushButton(text="Update out pos")
-#         self.update_out_pos.native.setFixedWidth(150)
-#         box2 = widgets.HBox(widgets=[self.xanes_out_pos_table, self.update_out_pos])
-#         self.update = widgets.PushButton(text="Update")
-#         self.cancel = widgets.PushButton(text="Cancel")
-#         box3 = widgets.HBox(widgets=[self.update, self.cancel])
-
-#         self.label2 = widgets.Label(value=" saved sample in positions ".center(100, "-"))
-#         self.xanes_saved_in_pos_table = widgets.Select(
-#             choices=_update_xanes_saved_in_pos_choices, name="saved in pos",
-#             allow_multiple=False
-#         )
-#         self.xanes_saved_in_pos_table.native.setFixedWidth(300)
-#         self.xanes_saved_in_pos_table.native.setFixedHeight(100)
-#         self.xanes_saved_in_pos_table.native.setSelectionMode(QAbstractItemView.SingleSelection)
-#         self.mov_saved_in_pos = widgets.PushButton(text="Move to")
-#         self.mov_saved_in_pos.native.setFixedWidth(150)
-#         self.rem_saved_in_pos = widgets.PushButton(text="Remove")
-#         self.rem_saved_in_pos.native.setFixedWidth(150)
-#         box4 = widgets.VBox(widgets=[self.mov_saved_in_pos, self.rem_saved_in_pos])
-#         box5 = widgets.HBox(widgets=[self.xanes_saved_in_pos_table, box4])
-
-#         self.label3 = widgets.Label(value=" restart everything ".center(100, "-"))
-#         self.restart = widgets.PushButton(text="Start Over")
-
-#         self.add_in_pos.changed.connect(self._add_in_pos)
-#         self.rem_in_pos.changed.connect(self._rem_in_pos)
-#         self.sav_in_pos_for_later.changed.connect(self._sav_in_pos_for_later)
-#         self.update_out_pos.changed.connect(self._update_out_pos)
-#         self.update.changed.connect(self._update_pos)
-#         self.cancel.changed.connect(self._cancel)
-#         self.mov_saved_in_pos.changed.connect(self._mov_saved_in_pos)
-#         self.rem_saved_in_pos.changed.connect(self._rem_saved_in_pos)
-#         self.restart.changed.connect(self._restart)
-        
-
-#         layout = widgets.VBox(widgets=[self.label0, box1, self.label1, box2, box3, self.label2, box5, self.label3, self.restart])
-#         self.main_win.append(layout)
-#         self.main_win.show()
-
-#     def _add_in_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         _XANES_IN_POS_LIST_XH.append(
-#             (
-#                 round(zps.sx.user_readback.value, 1),
-#                 round(zps.sy.user_readback.value, 1),
-#                 round(zps.sz.user_readback.value, 1),
-#                 round(zps.pi_r.user_readback.value, 1),
-#             )
-#         )
-#         _XANES_IN_POS_LIST_XH = list(set(_XANES_IN_POS_LIST_XH))
-#         self.xanes_in_pos_table.reset_choices()
-
-#     def _rem_in_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         for ii in self.xanes_in_pos_table.value:
-#             _XANES_IN_POS_LIST_XH.remove(ii)
-#         self.xanes_in_pos_table.reset_choices()
-
-#     def _sav_in_pos_for_later(self):
-#         global _XANES_SAVED_IN_POS_XH
-#         for item in _XANES_IN_POS_LIST_XH:
-#             _XANES_SAVED_IN_POS_XH.append(item)
-#         _XANES_SAVED_IN_POS_XH = list(set(_XANES_SAVED_IN_POS_XH))
-#         self.xanes_saved_in_pos_table.reset_choices()
-
-#     def _update_out_pos(self):
-#         global _XANES_OUT_POS_LIST_XH
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = [
-#             [
-#                 round(zps.sx.user_readback.value, 1),
-#                 round(zps.sy.user_readback.value, 1),
-#                 round(zps.sz.user_readback.value, 1),
-#                 round(zps.pi_r.user_readback.value, 1),
-#             ]
-#         ]
-#         self.xanes_out_pos_table.reset_choices()
-
-#     def _update_pos(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_POS_XH["in_pos"] = _XANES_IN_POS_LIST_XH
-#         _XANES_POS_XH["out_pos"] = _XANES_OUT_POS_LIST_XH[0]
-#         print("You will use in positions:")
-#         for pos in _XANES_POS_XH["in_pos"]:
-#             print(pos)
-#         print(f"and out position\n{_XANES_POS_XH['out_pos']}\n\n")
-
-#     def _cancel(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         _XANES_IN_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_POS_XH = {}
-#         self.xanes_in_pos_table.reset_choices()
-#         self.xanes_out_pos_table.reset_choices()
-#         print("You cancelled all positions!\n\n")
-
-#     def _mov_saved_in_pos(self):
-#         confirm = widgets.Dialog(
-#             widgets={
-#                 widgets.Label(value="Confirm to go to the selected position?")
-#             }
-#         ).exec()
-
-#         if confirm:
-#             global RE
-#             if self.xanes_saved_in_pos_table.value:
-#                 RE(mv(zps.sx, self.xanes_saved_in_pos_table.value[0][0]))
-#                 RE(mv(zps.sy, self.xanes_saved_in_pos_table.value[0][1]))
-#                 RE(mv(zps.sz, self.xanes_saved_in_pos_table.value[0][2]))
-#                 RE(mv(zps.pi_r, self.xanes_saved_in_pos_table.value[0][3]))
-
-#     def _rem_saved_in_pos(self):
-#         if self.xanes_saved_in_pos_table.value:
-#             global _XANES_SAVED_IN_POS_XH
-#             _XANES_SAVED_IN_POS_XH.remove(self.xanes_saved_in_pos_table.value[0])
-#             self.xanes_saved_in_pos_table.reset_choices()
-
-#     def _restart(self):
-#         global _XANES_IN_POS_LIST_XH
-#         global _XANES_OUT_POS_LIST_XH
-#         global _XANES_POS_XH
-#         global _XANES_SAVED_IN_POS_XH
-#         _XANES_IN_POS_LIST_XH = []
-#         _XANES_OUT_POS_LIST_XH = []
-#         _XANES_POS_XH = {}
-#         _XANES_SAVED_IN_POS_XH = []
-#         self.xanes_saved_in_pos_table.reset_choices()
-#         self.xanes_in_pos_table.reset_choices()
-#         self.xanes_out_pos_table.reset_choices()
-#         print("All saved positions are erased!\n\n")
-
-
 def multi_edge_xanes_zebra(
-    edge_list={"Ni": "Ni_wl"},
+    edge_list={"Ni": "Ni_21"},
     scan_type="3D",
     flts={"Ni": [1, 2, 3]},
     exp_t={"Ni": 0.05},
@@ -2042,13 +1778,13 @@ def multi_edge_xanes_zebra(
     ref_flat_scan=False,
     use_gui_pos=False,
     cam=None,
-    flyer=None
+    flyer=None,
 ):
     if cam is None:
         cam = MaranaU
     if flyer is None:
         flyer = tomo_flyer
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0, timeout=5, settle_time=0.5)
     if repeat is None:
         repeat = 1
@@ -2059,18 +1795,20 @@ def multi_edge_xanes_zebra(
         if _XANES_POS_XH["in_pos"]:
             in_pos_list = _XANES_POS_XH["in_pos"]
         else:
-            in_pos_list = [[None, None, None, None],]
+            in_pos_list = [
+                [None, None, None, None],
+            ]
 
         if _XANES_POS_XH["out_pos"]:
             out_pos = _XANES_POS_XH["out_pos"]
         else:
             print("Out position is not defined")
             return
-    
+
     if bin_fac is None and scan_type == "2D":
-            bin_fac = 0
+        bin_fac = 0
     elif bin_fac is None and scan_type == "3D":
-            bin_fac = 1
+        bin_fac = 1
 
     x_list, y_list, z_list, r_list = _sort_in_pos(in_pos_list)
     for elem in edge_list.keys():
@@ -2144,7 +1882,7 @@ def multi_edge_xanes_zebra(
                 cam=cam,
                 flyer=flyer,
             )
-            
+
             if bulk:
                 eng_list = _mk_eng_list(elem, bulk=True)
                 zpx = zp.x.position
@@ -2173,7 +1911,7 @@ def multi_edge_xanes(
     simu=False,
     ref_flat_scan=False,
     enable_z=True,
-    cam=None
+    cam=None,
 ):
     if cam is None:
         cam = MaranaU
@@ -2361,11 +2099,11 @@ def multi_edge_xanes2(
     repeat=None,
     ref_flat_scan=False,
     enable_z=True,
-    cam=None
+    cam=None,
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0, timeout=5, settle_time=0.5)
     if repeat is None:
         repeat = 1
@@ -2398,7 +2136,9 @@ def multi_edge_xanes2(
                     print("use default exposure time 0.05s")
             for key in period_time.keys():
                 if elem.split("_")[0] == key.split("_")[0]:
-                    yield from abs_set_wait(cam.cam.acquire_time, exposure, timeout=5, settle_time=0.5)
+                    yield from abs_set_wait(
+                        cam.cam.acquire_time, exposure, timeout=5, settle_time=0.5
+                    )
                     yield from bps.sleep(2)
                     break
             eng_list = _mk_eng_list(elem, bulk=False)
@@ -2520,11 +2260,11 @@ def multi_edge_xanes3(
     repeat=None,
     ref_flat_scan=False,
     enable_z=True,
-    cam=None
+    cam=None,
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     if repeat is None:
         repeat = 1
@@ -2756,10 +2496,10 @@ def fly_scan2(
         motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
     if enable_z:
-        #motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
+        # motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
         motor = [zps.sx, zps.sz, zps.pi_r]
     else:
-        #motor = [zps.sx, zps.sy, zps.pi_r]
+        # motor = [zps.sx, zps.sy, zps.pi_r]
         motor = [zps.sx, zps.pi_r]
 
     dets = [cam, ic3]
@@ -2913,7 +2653,7 @@ def fly_scan3(
     noDark=False,
     noFlat=False,
     enable_z=True,
-    cam=None
+    cam=None,
 ):
     """
     Inputs:
@@ -3199,7 +2939,7 @@ def rock_scan(
         cam = MaranaU
 
     yield from abs_set_wait(cam.cam.acquire, 0)
-    
+
     global ZONE_PLATE
 
     if binning is None:
@@ -3302,7 +3042,6 @@ def rock_scan(
         # open shutter, tomo_images
         yield from _set_Andor_chunk_size(dets, chunk_size=num_img)
         yield from _open_shutter_xhx(simu=simu)
-        # _open_shutter_xhx(simu=simu)
         print("\nshutter opened, taking tomo images...")
         yield from abs_set(zps.pi_r, start_angle, wait=True)
 
@@ -3386,7 +3125,7 @@ def mosaic_fly_scan_xh(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from select_filters(flts)
     binning = yield from _bin_cam(binning)
 
@@ -3440,8 +3179,8 @@ def mosaic_fly_scan_xh(
 
 def mosaic_zfly_scan_xh(
     ini_pos=None,
-    num_steps={'x': 1, 'y': 1, 'z': 1},
-    step_sizes={'x': 0, 'y': 0, 'z': 0},
+    num_steps={"x": 1, "y": 1, "z": 1},
+    step_sizes={"x": 0, "y": 0, "z": 0},
     scn_mode=0,
     exp_t=0.05,
     acq_p=0.05,
@@ -3464,18 +3203,18 @@ def mosaic_zfly_scan_xh(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from select_filters(flts)
     yield from _bin_cam(binning)
 
     x_ini, y_ini, z_ini = ini_pos
-    x_num_steps = num_steps['x']
-    y_num_steps = num_steps['y']
-    z_num_steps = num_steps['z']
-    x_step_size = step_sizes['x']
-    y_step_size = step_sizes['y']
-    z_step_size = step_sizes['z']
-    
+    x_num_steps = num_steps["x"]
+    y_num_steps = num_steps["y"]
+    z_num_steps = num_steps["z"]
+    x_step_size = step_sizes["x"]
+    y_step_size = step_sizes["y"]
+    z_step_size = step_sizes["z"]
+
     if x_ini is None:
         x_ini = zps.sx.position
     if y_ini is None:
@@ -3529,8 +3268,81 @@ def mosaic_zfly_scan_xh(
     yield from select_filters([])
 
 
-def cal_calib_pos():
-    calib = trans_calib()
+def record_calib_pos_new_xh(n=None):
+    global GLOBAL_MAG, CALIBER
+
+    def find_missing_or_next(nums):
+        nums = sorted(set(nums))  # Sort and remove duplicates
+    
+        # If the smallest number is greater than 1, return the integer smaller than all numbers
+        if nums[0] > 1:
+            return nums[0] - 1
+
+        # Check for missing numbers in sequence
+        for i in range(len(nums) - 1):
+            if nums[i] + 1 != nums[i + 1]:  # Found a gap
+                return nums[i] + 1
+
+        # If consecutive, return the next integer
+        return nums[-1] + 1
+
+    if n is None:
+        sorted_calib_dict = trans_calib_xh()
+        if sorted_calib_dict:
+            idx = []
+            for key in sorted_calib_dict.keys():
+                if round(XEng.position, 3) == round(sorted_calib_dict[key]['XEng'], 3):
+                    n = int(sorted_calib_dict[key]['pos'].strip('pos'))
+                else:
+                    idx.append(int(sorted_calib_dict[key]['pos'].strip('pos')))
+            if n is None:
+                n = find_missing_or_next(idx)
+                # idx_set = set(idx)
+                # n = min(idx)
+                # while True:
+                #     if n not in idx_set:
+                #         break
+                #     n += 1
+        else:
+            n = 1
+
+    print(n)
+    CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
+    CALIBER[f"XEng_pos{n}"] = XEng.position
+    CALIBER[f"zp_x_pos{n}"] = zp.x.position
+    CALIBER[f"zp_y_pos{n}"] = zp.y.position
+    CALIBER[f"th2_motor_pos{n}"] = dcm.th2.position
+    CALIBER[f"clens_x_pos{n}"] = clens.x.position
+    CALIBER[f"clens_y1_pos{n}"] = clens.y1.position
+    CALIBER[f"clens_y2_pos{n}"] = clens.y2.position
+    CALIBER[f"clens_p_pos{n}"] = clens.p.position
+    CALIBER[f"DetU_y_pos{n}"] = DetU.y.position
+    CALIBER[f"DetU_x_pos{n}"] = DetU.x.position
+    CALIBER[f"aper_x_pos{n}"] = aper.x.position
+    CALIBER[f"aper_y_pos{n}"] = aper.y.position
+    # CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
+
+    mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
+    CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
+    GLOBAL_MAG = CALIBER[f"mag{n}"]
+
+    tmp = {}
+    for k in CALIBER.keys():
+        if str(n) in k:
+            tmp[k] = CALIBER[k]
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(tmp)
+    df = pd.DataFrame.from_dict(CALIBER, orient="index")
+    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
+    print(
+        f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}'
+    )
+    yield from bps.sleep(0.5)
+
+
+def cal_calib_pos_xh():
+    calib = trans_calib_xh()
     cur_eng = XEng.position
     new_th2 = dcm.th2.position
 
@@ -3546,18 +3358,18 @@ def cal_calib_pos():
     else:
         eng1 = above[-1]
         eng2 = below[0]
-    
+
     calib_pos = {}
     for item in calib[eng1].keys():
         if item != "pos":
-            calib_pos[cur_eng] = (cur_eng - eng2) * (calib[eng1][item] - calib[eng2][item]) / (
-                    eng1 - eng2
-                ) + calib[eng2][item]
+            calib_pos[cur_eng] = (cur_eng - eng2) * (
+                calib[eng1][item] - calib[eng2][item]
+            ) / (eng1 - eng2) + calib[eng2][item]
     return calib_pos
 
 
-def update_th2_xh():
-    calib = trans_calib()
+def _update_th2_xh():
+    calib = trans_calib_xh()
     cur_eng = XEng.position
     cur_th2 = dcm.th2.position
 
@@ -3573,22 +3385,43 @@ def update_th2_xh():
     else:
         eng1 = above[-1]
         eng2 = below[0]
-    old_th2 = (cur_eng - eng2) * (calib[eng1]["th2_motor"] - calib[eng2]["th2_motor"]) / (
-                eng1 - eng2
-            ) + calib[eng2]["th2_motor"]
+    old_th2 = (cur_eng - eng2) * (
+        calib[eng1]["th2_motor"] - calib[eng2]["th2_motor"]
+    ) / (eng1 - eng2) + calib[eng2]["th2_motor"]
     delta_th2 = cur_th2 - old_th2
     for key in calib.keys():
         calib[key]["th2_motor"] += delta_th2
     return calib
 
 
-def update_CALIBER_th2_xh():
+def _update_CALIBER_th2_xh(msg=""):
     global CALIBER
-    _calib = trans_calib()
-    _calib_th2 = update_th2()
+    _calib = trans_calib_xh()
+    _calib_th2 = _update_th2_xh()
     for key in _calib.keys():
         CALIBER[f"th2_motor_{_calib[key]['pos']}"] = _calib_th2[key]["th2_motor"]
+    # if msg:
+    #     print(msg)
+    # else:
+    #     print("th2 new calibration sync has been done!")
+    # yield from bps.sleep(1)
+
+
+def update_CALIBER_th2_and_lock_xh(msg=""):
+    # global CALIBER
+    # _calib = trans_calib()
+    # _calib_th2 = update_th2()
+    # for key in _calib.keys():
+    #     CALIBER[f"th2_motor_{_calib[key]['pos']}"] = _calib_th2[key]["th2_motor"]
+    _update_CALIBER_th2_xh()
+    cur_eng = XEng.user_readback.value
+    yield from move_zp_ccd_xh(cur_eng)
+    if msg:
+        print(msg)
+    else:
+        print("th2 new calibration sync has been done!")
     
+
 
 def trans_calib_xh():
     global CALIBER
@@ -3597,7 +3430,7 @@ def trans_calib_xh():
 
     for key in CALIBER.keys():
         if "XEng" in key:
-            new_key1.append(key.split("_")[-1] )
+            new_key1.append(key.split("_")[-1])
             new_key2.append(CALIBER[key])
 
     calib_dict = {}
@@ -3605,20 +3438,70 @@ def trans_calib_xh():
         calib_dict[key2] = {}
         for k in CALIBER.keys():
             if key1 in k:
-                calib_dict[key2][k.strip("_"+ key1)] = CALIBER[k]
+                calib_dict[key2][k.strip("_" + key1)] = CALIBER[k]
         calib_dict[key2]["pos"] = key1
         calib_dict[key2]["mag"] = CALIBER["mag" + key1.strip("pos")]
     return calib_dict
 
 
-def lock_th2_xh():
-    cur_th2 = dcm.th2.position
-    yield from mv(dcm_th2.feedback_enable, 0)
-    yield from mv(dcm_th2.feedback, cur_th2)
-    yield from mv(dcm_th2.feedback_enable, 1)
+def show_calib_eng():
+    calib_dict = trans_calib_xh()
+    for key in calib_dict.keys():
+        print(f"{key}: {calib_dict[key]['pos']}")
 
 
-def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_det_flag=0, mag=None, zp_cfg=None):
+def cal_zp_ccd_xh(eng, mag, zp_cfg=None, show=True):
+    """
+    INPUT:
+        eng: X-ray energy in keV
+        mag: zone plate magnification
+    OUTPUTS:
+        p: sample-zp distance in mm
+        det_pos: detector-sample distance in mm
+        wl: X-ray wavelength
+        na: numerical aperture
+        f: zp focal length in mm
+    """
+    if zp_cfg is None:
+        zp_cfg = {
+            "D": 244,
+            "dr": 30,
+        }  # 'D': zp diameter in um; 'dr': outmost zone width in nm
+    # wl = 12.39847/eng/10  # in nm
+    wl = 6.6261e-34 * 299792458 / (1.602176565e-19 * eng) * 1e6  # in nm
+    na = wl / 2 / zp_cfg["dr"]  # numberical apeture in rad
+    dof = wl / (na**2) / 1000  # depth of focus in um
+    f = zp_cfg["dr"] * zp_cfg["D"] / wl / 1000  # focal length in mm
+    p = f * (mag + 1) / mag  # object distance from zone plate in mm
+    q = p * mag  # detector distance from zone plate in mm
+    det_pos = p + q  # ccd detector distance from the sample in mm
+    if show:
+        print(
+            f"obj-zp dist: {round(p, 4)} mm\ndet-sam dist: {round(det_pos, 4)} mm\nwavelength: {round(wl, 4)} nm\nNumerical aperture: {round(na, 4)} rad\nzp focal length: {round(f,4)} mm"
+        )
+    return p, det_pos, wl, na, f
+
+
+def set_zp_ccd_xh(eng, mag, zp_cfg=None):
+    p, det_pos, _, _, _ = cal_zp_ccd_xh(eng, mag, zp_cfg=zp_cfg)
+    yield from mv(zp.z.set_use_switch, 1)
+    yield from mv(zp.z, p) 
+    yield from mv(zp.z.set_use_switch, 0)
+
+    yield from mv(det.z.set_use_switch, 1)
+    yield from mv(det.z, det_pos)
+    yield from mv(det.z.set_use_switch, 0)
+
+
+def move_zp_ccd_xh(
+    eng_new,
+    move_flag=1,
+    info_flag=1,
+    move_clens_flag=0,
+    move_det_flag=0,
+    mag=None,
+    zp_cfg=None,
+):
     """
     move the zone_plate and ccd to the user-defined energy with constant magnification
     use the function as:
@@ -3650,10 +3533,9 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
     det = DetU  # upstream detector
     eng_ini = XEng.position
 
-    
     eng_lst1 = list(trans_calib_xh().keys())
     eng_lst2 = list(trans_calib_xh().keys())
-    
+
     idx = find_nearest(eng_new, eng_lst1)
     eng1 = eng_lst1[idx]
     print(f"{eng1=}")
@@ -3672,22 +3554,24 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
         )
         return -1
 
-    zp_ini, det_ini, _, _, _ = cal_ccd_zp_xh(eng_ini, mag1/GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False)
-    zp_final, det_final, _, _, _ = cal_ccd_zp_xh(eng_new, mag1/GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False)
+    zp_ini, det_ini, _, _, _ = cal_zp_ccd_xh(
+        eng_ini, mag1 / GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False
+    )
+    zp_final, det_final, _, _, _ = cal_zp_ccd_xh(
+        eng_new, mag1 / GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False
+    )
     zp_delta = zp_final - zp_ini
     det_delta = det_final - det_ini
-    
-    if (det_final < det.z.low_limit.value) or (det_final > det.z.high_limit.value): 
+
+    if (det_final < det.z.low_limit.value) or (det_final > det.z.high_limit.value):
         print(
-        "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
-            det_final, det.z.low_limit.value, det.z.high_limit.value
+            "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
+                det_final, det.z.low_limit.value, det.z.high_limit.value
             )
         )
         return -1
 
-    print(
-        f"using reference at {eng1:2.5f} keV and {eng2:2.5f} kev to interpolate\n"
-    )
+    print(f"using reference at {eng1:2.5f} keV and {eng2:2.5f} kev to interpolate\n")
     dcm_chi2_eng1 = CALIBER[f"chi2_pos{id1}"]
     zp_x_pos_eng1 = CALIBER[f"zp_x_pos{id1}"]
     zp_y_pos_eng1 = CALIBER[f"zp_y_pos{id1}"]
@@ -3766,7 +3650,6 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
     aper_x_ini = aper.x.position
     aper_y_ini = aper.y.position
 
-
     if np.abs(eng1 - eng2) < 1e-5:  # difference less than 0.01 eV
         print(
             f'eng1({eng1:2.5f} eV) and eng2({eng2:2.5f} eV) in "CALIBER" are two close, will not move any motors...'
@@ -3777,28 +3660,20 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
             if not move_flag:
                 print("This is calculation. No stages move")
 
-            print(
-                "Energy: {0:5.2f} keV --> {1:5.2f} keV".format(eng_ini, eng_new)
-            )
+            print("Energy: {0:5.2f} keV --> {1:5.2f} keV".format(eng_ini, eng_new))
             print(
                 "zone plate position: {0:2.4f} mm --> {1:2.4f} mm".format(
                     zp_ini, zp_final
                 )
             )
             print(
-                "CCD position: {0:2.4f} mm --> {1:2.4f} mm".format(
-                    det_ini, det_final
-                )
+                "CCD position: {0:2.4f} mm --> {1:2.4f} mm".format(det_ini, det_final)
             )
             print(
-                "move zp_x: ({0:2.4f} um --> {1:2.4f} um)".format(
-                    zp_x_ini, zp_x_target
-                )
+                "move zp_x: ({0:2.4f} um --> {1:2.4f} um)".format(zp_x_ini, zp_x_target)
             )
             print(
-                "move zp_y: ({0:2.4f} um --> {1:2.4f} um)".format(
-                    zp_y_ini, zp_y_target
-                )
+                "move zp_y: ({0:2.4f} um --> {1:2.4f} um)".format(zp_y_ini, zp_y_target)
             )
             print(
                 "move th2_motor: ({0:2.6f} deg --> {1:2.6f} deg)".format(
@@ -3857,7 +3732,7 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
 
             yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
             yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
-            yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)               
+            yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
 
             if move_clens_flag:
                 yield from mv(
@@ -3879,40 +3754,6 @@ def move_zp_ccd_xh(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_de
                 t = min(t, 2)
                 print(f"sleep for {t} sec")
                 yield from bps.sleep(t)
-        
-
-def record_calib_pos_new_xh(n):
-    global GLOBAL_MAG, CALIBER
-
-    CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
-    CALIBER[f"XEng_pos{n}"] = XEng.position
-    CALIBER[f"zp_x_pos{n}"] = zp.x.position
-    CALIBER[f"zp_y_pos{n}"] = zp.y.position
-    CALIBER[f"th2_motor_pos{n}"] = dcm.th2.position
-    CALIBER[f"clens_x_pos{n}"] = clens.x.position
-    CALIBER[f"clens_y1_pos{n}"] = clens.y1.position
-    CALIBER[f"clens_y2_pos{n}"] = clens.y2.position
-    CALIBER[f"clens_p_pos{n}"] = clens.p.position
-    CALIBER[f"DetU_y_pos{n}"] = DetU.y.position
-    CALIBER[f"DetU_x_pos{n}"] = DetU.x.position
-    CALIBER[f"aper_x_pos{n}"] = aper.x.position
-    CALIBER[f"aper_y_pos{n}"] = aper.y.position
-    #CALIBER[f"txm_x_pos{n}"] = zps.pi_x.position
-
-    mag = (DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG
-    CALIBER[f"mag{n}"] = np.round(mag * 100) / 100.0
-    GLOBAL_MAG = CALIBER[f"mag{n}"]
-
-    tmp = {}
-    for k in CALIBER.keys():
-        if str(n) in k:
-            tmp[k] = CALIBER[k]
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(tmp)
-    df = pd.DataFrame.from_dict(CALIBER, orient="index")
-    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
-    # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
-    print(f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}')
 
 
 def grid_z_scan(
@@ -3965,9 +3806,7 @@ def grid_z_scan(
     zp_x_ini = zp.x.position
     zp_y_ini = zp.y.position
     y_ini = zps.sy.position  # sample y position (initial)
-    y_out = (
-        y_ini + out_y if not (out_y is None) else y_ini
-    )  
+    y_out = y_ini + out_y if not (out_y is None) else y_ini
     x_ini = zps.sx.position
     x_out = x_ini + out_x if not (out_x is None) else x_ini
     yield from abs_set_wait(cam.cam.acquire, 0)
@@ -4137,7 +3976,7 @@ def xxanes_scan2(
     note: string; optional, description of the scan
     """
     if dets is None:
-        dets=[ic1, ic2, ic3]
+        dets = [ic1, ic2, ic3]
     repeat = int(repeat)
 
     check_eng_range([eng_list[0], eng_list[-1]])
@@ -4252,10 +4091,10 @@ def mosaic_2D_rel_grid_xh(
     if cam is None:
         cam = MaranaU
     if mot1 is None:
-        mot1=zps.sx
+        mot1 = zps.sx
     if mot2 is None:
-        mot2=zps.sy
-    
+        mot2 = zps.sy
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     dets = [cam]
     y_ini = zps.sy.position  # sample y position (initial)
@@ -4355,7 +4194,7 @@ def mosaic_2D_xh(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     M = GLOBAL_MAG
     pxl = 6.5 / M * (2560.0 / img_sizeX)
@@ -4505,12 +4344,12 @@ def mosaic_2D_xh(
 
 
 def dummy_scan(
-    exposure_time=0.1,
+    exposure_time=0.01,
     ang_s=0,
     ang_e=180,
     period=0.15,
     out_pos=[None, None, None, None],
-    rs=1,
+    rs=3,
     note="",
     simu=False,
     relative_move_flag=1,
@@ -4522,7 +4361,8 @@ def dummy_scan(
 ):
     if cam is None:
         cam = MaranaU
-    
+
+    yield from select_filters(flts)
     yield from abs_set_wait(cam.cam.acquire, 0)
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -4585,6 +4425,7 @@ def dummy_scan(
         yield from fly_inner_scan()
         print(f"swing #{ii} finished!")
     yield from _set_rotation_speed(rs=rot_back_velo)
+
 
 """
 def radiographic_record(
@@ -4715,6 +4556,7 @@ def radiographic_record(
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 """
 
+
 def radiographic_record(
     exp_t=0.1,
     period=0.1,
@@ -4733,36 +4575,32 @@ def radiographic_record(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     if in_pos is None:
-        (motor_x_ini,
-         motor_y_ini,
-         motor_z_ini,
-         motor_r_ini) = FXITomoFlyer.get_txm_cur_pos()
+        (motor_x_ini, motor_y_ini, motor_z_ini, motor_r_ini) = (
+            FXITomoFlyer.get_txm_cur_pos()
+        )
     else:
-        (motor_x_ini,
-         motor_y_ini,
-         motor_z_ini,
-         motor_r_ini) = in_pos
+        (motor_x_ini, motor_y_ini, motor_z_ini, motor_r_ini) = in_pos
 
     if out_pos is not None:
         out_x, out_y, out_z, out_r = out_pos
-        (motor_x_out,
-         motor_y_out,
-         motor_z_out,
-         motor_r_out) = FXITomoFlyer.def_abs_out_pos(out_x,
-                                                     out_y,
-                                                     out_z,
-                                                     out_r,
-                                                     relative_move_flag,)
+        (motor_x_out, motor_y_out, motor_z_out, motor_r_out) = (
+            FXITomoFlyer.def_abs_out_pos(
+                out_x,
+                out_y,
+                out_z,
+                out_r,
+                relative_move_flag,
+            )
+        )
     else:
-        (motor_x_out,
-         motor_y_out,
-         motor_z_out,
-         motor_r_out) = (motor_x_ini,
-                         motor_y_ini,
-                         motor_z_ini,
-                         motor_r_ini)
+        (motor_x_out, motor_y_out, motor_z_out, motor_r_out) = (
+            motor_x_ini,
+            motor_y_ini,
+            motor_z_ini,
+            motor_r_ini,
+        )
 
     yield from FXITomoFlyer.stop_det(cam)
     binning = yield from FXITomoFlyer.bin_det(cam, binning)
@@ -4772,10 +4610,10 @@ def radiographic_record(
     acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period, binning)
     if acq_p > period:
         print(
-              "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
-             )
+            "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
+        )
         period = acq_p
-        
+
         if exp_t > (acq_p - acq_min):
             exp_t = acq_p - acq_min
 
@@ -4839,7 +4677,7 @@ def radiographic_record(
             zps.pi_r,
             motor_r_out,
         )
-        yield from _set_andor_param(exposure_time=exp_t, period=exp_t+0.1)
+        yield from _set_andor_param(exposure_time=exp_t, period=exp_t + 0.1)
         yield from abs_set_wait(cam.cam.num_images, 10)
         yield from trigger_and_read([cam], name="flat")
         yield from _close_shutter_xhx(simu=simu)
@@ -4857,31 +4695,31 @@ def radiographic_record(
         yield from mv(cam.cam.image_mode, 1)
         yield from abs_set_wait(cam.cam.image_mode, 1)
         yield from select_filters([])
-        
+
     yield from rad_record_inner()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 
 
-
 def multi_pos_radiography_record(
-        x_list,
-        y_list,
-        z_list,
-        r_list,
-        out_pos=[None, None, None, None],
-        repeat_num=1,
-        exposure_time=0.2,
-        sleep_time=1,
-        settle_time=0,
-        chunk_size=5,
-        simu=False,
-        relative_move_flag=False,
-        note="",
-        md=None,
-        binning=0,
-        flts=[],
-        enable_z=True,):
-    
+    x_list,
+    y_list,
+    z_list,
+    r_list,
+    out_pos=[None, None, None, None],
+    repeat_num=1,
+    exposure_time=0.2,
+    sleep_time=1,
+    settle_time=0,
+    chunk_size=5,
+    simu=False,
+    relative_move_flag=False,
+    note="",
+    md=None,
+    binning=0,
+    flts=[],
+    enable_z=True,
+):
+
     eng_list = [XEng.position]
     yield from _multi_pos_xanes_2D_xh(
         eng_list,
@@ -4964,7 +4802,8 @@ def multi_pos_2D_and_3D_xanes(
             if ii < repeat_num - 1:
                 yield from bps.sleep(sleep_time)
 
-#### function "multi_pos_xanes_3D" is moved from 41-scans.py 
+
+#### function "multi_pos_xanes_3D" is moved from 41-scans.py
 def multi_pos_xanes_3D(
     eng_list,
     x_list,
@@ -5033,7 +4872,6 @@ def multi_pos_xanes_3D(
         yield from bps.sleep(sleep_time)
 
 
-
 def multi_pos_2D_xanes_and_3D_tomo(
     elements=["Ni"],
     sam_in_pos_list_2D=[[[0, 0, 0, 0]]],
@@ -5052,7 +4890,7 @@ def multi_pos_2D_xanes_and_3D_tomo(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     yield from abs_set_wait(cam.cam.acquire, 0)
     sam_in_pos_list_2D = np.asarray(sam_in_pos_list_2D)
     sam_out_pos_list_2D = np.asarray(sam_out_pos_list_2D)
@@ -5159,43 +4997,8 @@ def multi_pos_2D_xanes_and_3D_tomo(
                 )
 
 
-def cal_ccd_zp_xh(eng, mag, zp_cfg=None, show=True):
-    """
-    INPUT:
-        eng: X-ray energy in keV
-        mag: zone plate magnification
-    OUTPUTS:
-        p: sample-zp distance in mm
-        det_pos: detector-sample distance in mm
-        wl: X-ray wavelength
-        na: numerical aperture
-        f: zp focal length in mm
-    """
-    if zp_cfg is None:
-        zp_cfg = {
-            "D": 244,
-            "dr": 30,
-        }  # 'D': zp diameter in um; 'dr': outmost zone width in nm
-    # wl = 12.39847/eng/10  # in nm
-    wl = 6.6261e-34 * 299792458 / (1.602176565e-19 * eng) * 1e6  # in nm
-    na = wl / 2 / zp_cfg["dr"]  # numberical apeture in rad
-    dof = wl / (na**2) / 1000  # depth of focus in um
-    f = zp_cfg["dr"] * zp_cfg["D"] / wl / 1000  # focal length in mm
-    p = f * (mag + 1) / mag  # object distance from zone plate in mm
-    q = p * mag  # detector distance from zone plate in mm
-    det_pos = p + q  # ccd detector distance from the sample in mm
-    if show:
-        print(f"obj-zp dist: {round(p, 4)} mm\ndet-sam dist: {round(det_pos, 4)} mm\nwavelength: {round(wl, 4)} nm\nNumerical aperture: {round(na, 4)} rad\nzp focal length: {round(f,4)} mm")
-    return p, det_pos, wl, na, f
-
-
-def set_ccd_zp_xh(eng, mag, zp_cfg=None):
-    p, det_pos, _, _, _ = cal_ccd_zp_xh(eng, mag, zp_cfg=zp_cfg)
-
-
-
 def z_scan_xh(
-    scan_motor:'zp_z',
+    scan_motor: "zp_z",
     start=-0.03,
     stop=0.03,
     steps=5,
@@ -5250,17 +5053,16 @@ def z_scan_xh(
         x_out = x_ini + out_x if not (out_x is None) else x_ini
         y_out = y_ini + out_y if not (out_y is None) else y_ini
         z_out = z_ini + out_z if not (out_z is None) else z_ini
-        
+
     else:
         x_out = out_x if not (out_x is None) else x_ini
         y_out = out_y if not (out_y is None) else y_ini
         z_out = out_z if not (out_z is None) else z_ini
-        
 
-    if scan_motor == 'zp_x':
+    if scan_motor == "zp_x":
         zp_ini = zp.x.position  # zp.x intial position
         real_motor = zp.x
-    if scan_motor == 'zp_y':
+    if scan_motor == "zp_y":
         real_motor = zp.y
         zp_ini = zp.y.position  # zp.y intial position
     else:
@@ -5269,7 +5071,7 @@ def z_scan_xh(
 
     zp_start = zp_ini + start
     zp_stop = zp_ini + stop
-    
+
     period = max(exposure_time + 0.01, 0.05)
 
     yield from _set_andor_param(
@@ -5313,7 +5115,7 @@ def z_scan_xh(
 
         # take dark image
         yield from _take_dark_image(detectors, motor)
-        yield from _open_shutter()
+        yield from _open_shutter_xhx()
         for pos in my_var:
             yield from mv(zps.sx, x_ini, zps.sy, y_ini)
             yield from mv(real_motor, pos)
@@ -5338,10 +5140,11 @@ def z_scan_xh(
 
     yield from z_inner_scan()
     yield from abs_set_wait(cam.cam.image_mode, 1)
-    yield from _close_shutter(simu=False)
+    yield from _close_shutter_xhx(simu=False)
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
+
 
 def get_caliber_record(n=1, sh=False):
     npnt = []
@@ -5390,7 +5193,7 @@ def zps_motor_scan_with_Andor(
 ):
     if cam is None:
         cam = MaranaU
-    
+
     global ZONE_PLATE
     dets = [cam, ic3]
 
@@ -5555,7 +5358,7 @@ def zps_motor_scan_with_Andor(
         )
 
         print("closing shutter")
-        yield from _close_shutter(simu)
+        yield from _close_shutter_xhx(simu)
 
     yield from zps_motor_scan_inner()
     yield from abs_set_wait(cam.cam.image_mode, 1)
@@ -6337,7 +6140,8 @@ def trim_points_to_polygon(xyz_list, poly):
             xyz_list_out.append((x, y, z))
     return xyz_list_out
 
-'''
+
+"""
 def qingchao_scan(
     eng_list,
     x_list1,
@@ -6393,7 +6197,8 @@ def qingchao_scan(
         )
         print(f"sleep for {sleep_time} sec ...")
         yield from bps.sleep(sleep_time)
-'''
+"""
+
 
 def scan_change_expo_time(
     x_range,

@@ -448,6 +448,7 @@ def tomo_zfly_repeat(
     repeat=1,
     cam=None,
     flyer=None,
+    open_sh=False,
 ):
     
     if cam is None:
@@ -479,6 +480,8 @@ def tomo_zfly_repeat(
         if ii != repeat - 1:
             print(f" Sleeping {sleep} seconds before {ii+2}th scan ... ".center(100, "#"))
             print("\n")
+            if open_sh:
+                yield from _open_shutter_xhx(simu)
             yield from bps.sleep(sleep)
         
 

@@ -691,7 +691,7 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
         return 0
     else:
         print(f"using reference at {eng1:2.5f} keV and {eng2:2.5f} kev to interpolate\n")
-        dcm_chi2_eng1 =  CALIBER[f"chi2_pos{id1}"]
+        #dcm_chi2_eng1 =  CALIBER[f"chi2_pos{id1}"]
         zp_x_pos_eng1 =  CALIBER[f"zp_x_pos{id1}"]
         zp_y_pos_eng1 =  CALIBER[f"zp_y_pos{id1}"]
         th2_motor_eng1 = CALIBER[f"th2_motor_pos{id1}"]
@@ -704,7 +704,7 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
         aper_x_eng1 =    CALIBER[f"aper_x_pos{id1}"]
         aper_y_eng1 =    CALIBER[f"aper_y_pos{id1}"]
 
-        dcm_chi2_eng2 =  CALIBER[f"chi2_pos{id2}"]
+        #dcm_chi2_eng2 =  CALIBER[f"chi2_pos{id2}"]
         zp_x_pos_eng2 =  CALIBER[f"zp_x_pos{id2}"]
         zp_y_pos_eng2 =  CALIBER[f"zp_y_pos{id2}"]
         th2_motor_eng2 = CALIBER[f"th2_motor_pos{id2}"]
@@ -730,7 +730,7 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
             aper_x_target = slope_zp_z * (aper_x_eng1 - aper_x_eng2) + aper_x_eng2
             aper_y_target = slope_zp_z * (aper_y_eng1 - aper_y_eng2) + aper_y_eng2
 
-            chi2_motor_target = slope_eng * (dcm_chi2_eng1 - dcm_chi2_eng2) + dcm_chi2_eng2
+            #chi2_motor_target = slope_eng * (dcm_chi2_eng1 - dcm_chi2_eng2) + dcm_chi2_eng2
             th2_motor_target = slope_eng * (th2_motor_eng1 - th2_motor_eng2) + th2_motor_eng2
             clens_x_target = slope_eng * (clens_x_eng1 - clens_x_eng2) + clens_x_eng2
             clens_y1_target = slope_eng * (clens_y1_eng1 - clens_y1_eng2) + clens_y1_eng2
@@ -763,7 +763,7 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
                 print(f"CCD position: {det_ini:2.4f} mm --> {det_final:2.4f} mm")
                 print(f"move zp_x: ({zp_x_ini:2.4f} um --> {zp_x_target:2.4f} um)")
                 print(f"move zp_y: ({zp_y_ini:2.4f} um --> {zp_y_target:2.4f} um)")
-                print(f"move dcm_chi2: ({dcm_chi2_ini:2.4f} um --> {chi2_motor_target:2.4f} um)")
+                #print(f"move dcm_chi2: ({dcm_chi2_ini:2.4f} um --> {chi2_motor_target:2.4f} um)")
                 print(f"move th2_motor: ({th2_motor_ini:2.6f} deg --> {th2_motor_target:2.6f} deg)")
                 print(f"move aper_x_motor: ({aper_x_ini:2.4f} um --> {aper_x_target:2.4f} um)")
                 print(f"move aper_y_motor: ({aper_y_ini:2.4f} um --> {aper_y_target:2.4f} um)")
@@ -784,9 +784,9 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
                 yield from mv(dcm_th2.feedback, th2_motor_target)
                 yield from mv(dcm_th2.feedback_enable, 1)
 
-                yield from mv(dcm_chi2.feedback_enable, 0)
-                yield from mv(dcm_chi2.feedback, chi2_motor_target)
-                yield from mv(dcm_chi2.feedback_enable, 1)
+                #yield from mv(dcm_chi2.feedback_enable, 0)
+                #yield from mv(dcm_chi2.feedback, chi2_motor_target)
+                #yield from mv(dcm_chi2.feedback_enable, 1)
 
                 yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
                 yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)

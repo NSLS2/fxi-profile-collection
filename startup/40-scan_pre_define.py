@@ -158,7 +158,7 @@ def _close_shutter(simu=False):
         reading = yield from bps.rd(shutter_status)
         while not reading:  # if 1:  closed; if 0: open
             yield from abs_set_wait(shutter_close, 1, wait=True)
-            yield from bps.sleep(1)
+            yield from bps.sleep(4)
             i += 1
             print(f"try closing {i} time(s) ...")
             if i > 20:
@@ -178,7 +178,7 @@ def _open_shutter(simu=False):
         while reading:  # if 1:  closed; if 0: open
             yield from abs_set_wait(shutter_open, 1, wait=True)
             print(f"try opening {i} time(s) ...")
-            yield from bps.sleep(1)
+            yield from bps.sleep(4)
             i += 1
             if i > 5:
                 print("fails to open shutter")

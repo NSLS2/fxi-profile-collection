@@ -101,7 +101,7 @@ class MyBaseMotor(EpicsMotor):
     motor_calib = Cpt(EpicsSignal, ".SET")
     low_limit = Cpt(EpicsSignal, ".LLM")
     high_limit = Cpt(EpicsSignal, ".HLM")
-    step_size = Cpt(EpicsSignal, ".TWV")    
+    step_size = Cpt(EpicsSignal, ".TWV")
 
 
 class MyEpicsMotor(MyBaseMotor):
@@ -121,7 +121,7 @@ class Condenser(Device):
 
 class Zoneplate(Device):
     x = Cpt(MyEpicsMotor, "{ZP:1-Ax:X}Mtr")
-    #y = Cpt(MyEpicsMotor, "{ZP:1-Ax:Y}Mtr")
+    # y = Cpt(MyEpicsMotor, "{ZP:1-Ax:Y}Mtr")
     y = Cpt(MyEpicsMotor, "{BLens:1-Ax:Y}Mtr")
     z = Cpt(MyBaseMotor, "{TXM-ZP:1-Ax:Z}Mtr")
 
@@ -140,18 +140,18 @@ class PhaseRing(Device):
 
 class BetrandLens(Device):
     x = Cpt(MyEpicsMotor, "{BLens:1-Ax:X}Mtr")
-    #y = Cpt(MyEpicsMotor, "{BLens:1-Ax:Y}Mtr")
+    # y = Cpt(MyEpicsMotor, "{BLens:1-Ax:Y}Mtr")
     y = Cpt(MyEpicsMotor, "{ZP:1-Ax:Y}Mtr")
-    #z = Cpt(MyBaseMotor, "{BLens:1-Ax:Z}Mtr")
+    # z = Cpt(MyBaseMotor, "{BLens:1-Ax:Z}Mtr")
 
 
 class TXMSampleStage(Device):
     sx = Cpt(MyEpicsMotor, "{Env:1-Ax:Xl}Mtr")
     sy = Cpt(MyEpicsMotor, "{Env:1-Ax:Yl}Mtr")
     sz = Cpt(MyEpicsMotor, "{Env:1-Ax:Zl}Mtr")
-   # pi_x = Cpt(MyBaseMotor, "{TXM:1-Ax:X}Mtr")
+    # pi_x = Cpt(MyBaseMotor, "{TXM:1-Ax:X}Mtr")
     pi_r = Cpt(MyEpicsMotor, "{TXM:2-Ax:R}Mtr")
-    #pi_r = Cpt(MyEpicsMotor, "{TXM:1-Ax:R}Mtr")
+    # pi_r = Cpt(MyEpicsMotor, "{TXM:1-Ax:R}Mtr")
 
 
 class DetSupport(Device):
@@ -194,7 +194,7 @@ XEng = MyEpicsMotor("XF:18IDA-OP{Mono:DCM-Ax:En}Mtr", name="XEng")
 zps_sy = zps.sy  # Required by the Queue Server
 zps_sz = zps.sz  # Required by the Queue Server
 
-'''
+"""
 th2_motor = MyEpicsMotor("XF:18IDA-OP{Mono:DCM-Ax:Th2}Mtr", name="th2_motor")
 th2_feedback = EpicsSignal("XF:18IDA-OP{Mono:DCM-Ax:Th2}PID", name="th2_feedback")
 th2_feedback_enable = EpicsSignal(
@@ -206,11 +206,12 @@ chi2_feedback = EpicsSignal("XF:18IDA-OP{Mono:DCM-Ax:Chi2}PID", name="chi2_feedb
 chi2_feedback_enable = EpicsSignal(
     "XF:18IDA-OP{Mono:DCM-Ax:Chi2}PID.FBON", name="chi2_feedback_enable"
 )
-'''
+"""
 
 shutter_open = EpicsSignal("XF:18IDA-PPS{PSh}Cmd:Opn-Cmd", name="shutter_open")
 shutter_close = EpicsSignal("XF:18IDA-PPS{PSh}Cmd:Cls-Cmd", name="shutter_close")
 shutter_status = EpicsSignal("XF:18IDA-PPS{PSh}Pos-Sts", name="shutter_status")
+psh_cls_sts_xh = EpicsSignal("XF:18IDA-PPS{PSh}Sts:Cls-Sts", name="psh_cls_sts_xh")
 
 shutter = TwoButtonShutter("XF:18IDA-PPS{PSh}", name="shutter")
 
@@ -239,18 +240,18 @@ motor_txm = [
     aper.y,
     aper.z,
     zp.x,
-    #zp.y,
+    # zp.y,
     zp.z,
-    #phase_ring.x,
-    #phase_ring.y,
-    #phase_ring.z,
+    # phase_ring.x,
+    # phase_ring.y,
+    # phase_ring.z,
     betr.x,
     betr.y,
-    #betr.z,
+    # betr.z,
     zps.sx,
     zps.sy,
     zps.sz,
-    #zps.pi_x,
+    # zps.pi_x,
     zps.pi_r,
     DetU.x,
     DetU.y,

@@ -602,8 +602,8 @@ def fly_scan(
     motor_z_ini = zps.sz.position
     motor_r_ini = zps.pi_r.position
     
-    out_r_frac = out_r - (out_r // 180) * 180
-    out_r_relative = (target_rot_angle // 180) * 180 + out_r_frac
+    out_r_frac = out_r - (out_r // 360) * 360
+    out_r_relative = ((target_rot_angle-0.01) // 360) * 360 + out_r_frac
 
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
@@ -1964,10 +1964,10 @@ def raster_2D_scan(
         motor_z_out = out_z if not (out_z is None) else motor_z_ini
         motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
-    img_sizeX = np.int(img_sizeX)
-    img_sizeY = np.int(img_sizeY)
-    x_range = np.int_(x_range)
-    y_range = np.int_(y_range)
+    img_sizeX = np.int16(img_sizeX)
+    img_sizeY = np.int16(img_sizeY)
+    x_range = np.int16(x_range)
+    y_range = np.int16(y_range)
 
     print("hello1")
     _md = {
@@ -2172,10 +2172,10 @@ def raster_2D_scan_filter_bkg(
         motor_z_out = out_z if not (out_z is None) else motor_z_ini
         motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
-    img_sizeX = np.int(img_sizeX)
-    img_sizeY = np.int(img_sizeY)
-    x_range = np.int_(x_range)
-    y_range = np.int_(y_range)
+    img_sizeX = np.int16(img_sizeX)
+    img_sizeY = np.int16(img_sizeY)
+    x_range = np.int16(x_range)
+    y_range = np.int16(y_range)
 
     print("hello1")
     _md = {
@@ -2381,10 +2381,10 @@ def raster_2D_scan_individal_bkg(
         motor_z_out = out_z if not (out_z is None) else motor_z_ini
         motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
-    img_sizeX = np.int(img_sizeX)
-    img_sizeY = np.int(img_sizeY)
-    x_range = np.int_(x_range)
-    y_range = np.int_(y_range)
+    img_sizeX = np.int16(img_sizeX)
+    img_sizeY = np.int16(img_sizeY)
+    x_range = np.int16(x_range)
+    y_range = np.int16(y_range)
 
     print("hello1")
     _md = {

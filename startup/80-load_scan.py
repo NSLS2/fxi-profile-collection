@@ -41,7 +41,9 @@ def get_fly_scan_angle(scan_id):
     for idx in range(1, n):
         ts1 = timestamp_mot[idx] - timestamp_mot[idx-1]
         ts2 = timestamp_mot[idx+1] - timestamp_mot[idx]
-        if ts1 < 0.25 and ts2 < 0.25:
+        #if ts1 < 0.25 and ts2 < 0.25:
+        #    break
+        if ts1 < 1 and ts2 < 1:
             break
     mot_ini_timestamp = timestamp_mot[idx]
     ## end modifing

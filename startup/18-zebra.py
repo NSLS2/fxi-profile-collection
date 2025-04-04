@@ -290,7 +290,7 @@ class FXITomoFlyer(Device):
     dft_pulse_wid = {"ms": 0.002, "s": 0.0005, "10s": 0.003}  # 0: ms  # 1: s  # 2: 10s
     min_exp = {"MARANA-4BV6X": 0.001, "SONA-4BV6X": 0.001, "Neo": 0.001, "Oryx": 0.001}
     pc_trig_dir = {1: 0, -1: 1}  # 1: positive, -1: negative
-    rot_var = 0.002
+    rot_var = 0.006
     scan_cfg = {}
     pc_cfg = {}
     _staging_delay = 0.010
@@ -944,8 +944,13 @@ class FXITomoFlyer(Device):
             dict: scan_cfg
         """
         ############### calculate detector parameters ###############
-        acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(det, scn_cfg["acq_p"], scn_cfg["bin_fac"])
-        print(f"acq_p: {acq_p}, acq_min: {acq_min}")
+        if scn_cfg["exp_t"] < FXITomoFlyer.min_exp[det.cam.model.value]:
+            print(
+                "Exposure time is too small for the camera. Reset exposure time to minimum allowed exposure time."
+            )
+            scn_cfg["exp_t"] = FXITomoFlyer.min_exp[det.cam.model.value]
+
+        acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(det, scn_cfg["exp_t"], scn_cfg["acq_p"], scn_cfg["bin_fac"])
 
         if acq_p > scn_cfg["acq_p"]:
             print(
@@ -953,8 +958,10 @@ class FXITomoFlyer(Device):
             )
         scn_cfg["acq_p"] = acq_p
 
-        if scn_cfg["exp_t"] > (acq_p - acq_min):
-            scn_cfg["exp_t"] = acq_p - acq_min
+        print(f"scn_cfg['acq_p']: {scn_cfg['acq_p']}, scn_cfg['exp_t']: {scn_cfg['exp_t']}")
+
+        # if scn_cfg["exp_t"] > (acq_p - acq_min):
+        #     scn_cfg["exp_t"] = acq_p - acq_min
 
         ############### calculate rotary stage parameters ###############
         if scn_cfg["tacc"] <= 0:
@@ -1031,16 +1038,20 @@ class FXITomoFlyer(Device):
         return scn_cfg
 
     @staticmethod
-    def check_cam_acq_p(det, acq_p, bin_fac):
+    def check_cam_acq_p(det, exp_t, acq_p, bin_fac):
         cam_model = det.cam.model.value
         acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
-        if cam_model in ["MARANA-4BV6X", "SONA-4BV6X"]:
+        if cam_model == "MARANA-4BV6X":
             full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][det.pre_amp.enum_strs[det.pre_amp.value]]
             acq_min = full_acq_min * (det.cam.size.size_y.value / 2046) + FXITomoFlyer.rot_var # add vel uncertainty tolerance
+        elif cam_model == "SONA-4BV6X":
+            full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][det.pre_amp.enum_strs[det.pre_amp.value]]
+            acq_min = full_acq_min * (det.cam.size.size_y.value / 2048) + FXITomoFlyer.rot_var # add vel uncertainty tolerance
         else:
             acq_min = DET_MIN_AP[det.name] / BIN_FACS[det.name][bin_fac]
-        acq_p = max(acq_min + FXITomoFlyer.min_exp[cam_model], acq_p)  # add miminum exposure time
-        print(f"{full_acq_min=}\n{acq_min=}\n{acq_p=}\n{FXITomoFlyer.rot_var=}")
+        # acq_p = max(acq_min + FXITomoFlyer.min_exp[cam_model], acq_p)  # add miminum exposure time
+        acq_p = round(max(acq_min + exp_t, acq_p) * 1000) / 1000.  # add miminum exposure time
+        # print(f"{full_acq_min=}\n{acq_min=}\n{acq_p=}\n{FXITomoFlyer.rot_var=}")
         return acq_p, acq_min
 
     @classmethod
@@ -1239,6 +1250,7 @@ class FXITomoFlyer(Device):
     @staticmethod
     def set_cam_step_for_scan(det, scn_cfg):
         yield from abs_set(det.cam.acquire_time, scn_cfg["exp_t"], wait=True)
+        # yield from abs_set(det.cam.acquire_period, scn_cfg["acq_p"], wait=True)
         yield from abs_set(det.hdf5.num_capture, scn_cfg["num_images"], wait=True)
         yield from abs_set(det.cam.num_images, scn_cfg["num_images"], wait=True)
 
