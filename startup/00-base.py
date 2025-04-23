@@ -40,33 +40,6 @@ def print_now():
     return datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S.%f")
 
 
-def wait_for_connection_base(self, timeout=DEFAULT_CONNECTION_TIMEOUT):
-    """Wait for the underlying signals to initialize or connect"""
-    if timeout is DEFAULT_CONNECTION_TIMEOUT:
-        timeout = self.connection_timeout
-    # print(f'{print_now()}: waiting for {self.name} to connect within {timeout:.4f} s...')
-    start = time.time()
-    try:
-        self._ensure_connected(self._read_pv, timeout=timeout)
-        # print(f'{print_now()}: waited for {self.name} to connect for {time.time() - start:.4f} s.')
-    except TimeoutError:
-        if self._destroyed:
-            raise DestroyedError("Signal has been destroyed")
-        raise
-
-
-def wait_for_connection(self, timeout=DEFAULT_CONNECTION_TIMEOUT):
-    """Wait for the underlying signals to initialize or connect"""
-    if timeout is DEFAULT_CONNECTION_TIMEOUT:
-        timeout = self.connection_timeout
-    # print(f'{print_now()}: waiting for {self.name} to connect within {timeout:.4f} s...')
-    start = time.time()
-    self._ensure_connected(self._read_pv, self._write_pv, timeout=timeout)
-    # print(f'{print_now()}: waited for {self.name} to connect for {time.time() - start:.4f} s.')
-
-
-EpicsSignalBase.wait_for_connection = wait_for_connection_base
-EpicsSignal.wait_for_connection = wait_for_connection
 ###############################################################################
 
 from ophyd.signal import EpicsSignalBase
