@@ -191,6 +191,7 @@ betr = BetrandLens("XF:18IDB-OP", name="betr")
 zps = TXMSampleStage("XF:18IDB-OP", name="zps")
 XEng = MyEpicsMotor("XF:18IDA-OP{Mono:DCM-Ax:En}Mtr", name="XEng")
 
+zps_sx = zps.sx  # Required by the Queue Server
 zps_sy = zps.sy  # Required by the Queue Server
 zps_sz = zps.sz  # Required by the Queue Server
 

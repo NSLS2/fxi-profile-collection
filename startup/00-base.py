@@ -58,13 +58,8 @@ if not is_re_worker_active():
     get_ipython().register_magics(BlueskyMagics)
 
 from bluesky.preprocessors import stage_decorator, run_decorator
-from databroker.v0 import Broker
 
-db = Broker.named("fxi")
-del Broker
-
-nslsii.configure_base(get_ipython().user_ns,
-                      db,
+nslsii.configure_base(get_ipython().user_ns,'fxi',
                       bec=True,
                       redis_url='info.fxi.nsls2.bnl.gov'
                       )
