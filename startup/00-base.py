@@ -59,6 +59,10 @@ if not is_re_worker_active():
 
 from bluesky.preprocessors import stage_decorator, run_decorator
 
+# This is needed for backward compatitility of the export_scan code.
+from databroker.v0 import Broker as BrokerV0
+dbv0 = BrokerV0.named("fxi")
+
 nslsii.configure_base(get_ipython().user_ns,'fxi',
                       bec=True,
                       redis_url='info.fxi.nsls2.bnl.gov'

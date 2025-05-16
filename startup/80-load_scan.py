@@ -22,8 +22,8 @@ def timestamp_to_float(t):
 
 
 def get_fly_scan_angle(scan_id):
-    h = db[scan_id]
-    with db.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+    h = dbv0[scan_id]
+    with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
         timestamp_tomo = list(h.data("Andor_image", stream_name="primary"))[0]
         #timestamp_dark = list(h.data("Andor_image", stream_name="dark"))[0]
         #timestamp_bkg = list(h.data("Andor_image", stream_name="flat"))[0]
@@ -80,7 +80,7 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
         for item in scan_id:
             try:
                 custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
-                db.reg.clear_process_cache()
+                dbv0.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {item}')
                 print(err)
@@ -89,7 +89,7 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
             try:
                 # export_single_scan(int(i), binning)
                 custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
-                db.reg.clear_process_cache()
+                dbv0.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {i}')
                 print(err)
@@ -115,7 +115,7 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=Fals
 
 def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
     import datetime
-    h = db[scan_id]
+    h = dbv0[scan_id]
     scan_id = h.start["scan_id"]
     scan_type = h.start["plan_name"]
     #    x_eng = h.start['XEng']
@@ -281,7 +281,6 @@ def export_fly_scan(h, fpath=None):
     x_eng = h.start["XEng"]
     img_angle = get_fly_scan_angle(uid)
     id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
-
 
     img_tomo = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
     s = img_tomo.shape
@@ -1606,7 +1605,7 @@ def export_user_fly_only(h, fpath=None):
     img_dark_avg = np.mean(img_dark, axis=0).reshape(1, s[1], s[2])
     img_bkg_avg = np.mean(img_bkg, axis=0).reshape(1, s[1], s[2])
 
-    with db.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+    with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
         chunked_timestamps = list(h.data("Andor_image"))
 
     raw_timestamps = []
