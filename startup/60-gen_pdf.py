@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
-from PyPDF2 import PdfFileMerger, PdfFileReader
+from PyPDF2 import PdfFileMerger, PdfFileReader, PdfMerger, PdfReader
 import shutil
 import os
 import skimage.io
@@ -265,11 +265,13 @@ def merge_pdf(fn1, fn2, fout):
     if fn1 does not exist, it will copy fn2 to fout
     """
     if os.path.exists(fn1):
-        merger = PdfFileMerger()
+        #merger = PdfFileMerger()
+        merger = PdfMerger()
         flag1 = 0
         flag2 = 0
         try:
-            f1 = PdfFileReader(fn1, "rb")
+            #f1 = PdfFileReader(fn1, "rb")
+            f1 = PdfReader(fn1, "rb")
             flag1 = 1
         except:
             try:
@@ -280,7 +282,8 @@ def merge_pdf(fn1, fn2, fout):
                 print(f'file: crashed.\nGenerate new file "{fout}"')
                 flag1 = 0
         try:
-            f2 = PdfFileReader(fn2, "rb")
+            #f2 = PdfFileReader(fn2, "rb")
+            f2 = PdfReader(fn2, "rb")
             flag2 = 1
         except:
             try:
