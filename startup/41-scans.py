@@ -533,6 +533,7 @@ def fly_scan(
     relative_move_flag=1,
     rot_first_flag=1,
     filters=[],
+    add_bkg_filt_only=False,
     rot_back_velo=30,
     binning=None,
     note="",
@@ -676,10 +677,11 @@ def fly_scan(
     @bpp.monitor_during_decorator([zps.pi_r])
     @run_decorator(md=_md)
     def fly_inner_scan():
-        for flt in filters:
-            yield from mv(flt, 1)
-            yield from mv(flt, 1)
-        yield from bps.sleep(1)
+        if not add_bkg_filt_only:
+            for flt in filters:
+                yield from mv(flt, 1)
+                yield from mv(flt, 1)
+            yield from bps.sleep(1)
 
         # close shutter, dark images: numer=chunk_size (e.g.20)
         if take_dark_img:
@@ -710,6 +712,11 @@ def fly_scan(
         #        yield from abs_set(zps.pi_r.velocity, rs)
 
         if take_bkg_img:
+            if add_bkg_filt_only:
+                for flt in filters:
+                    yield from mv(flt, 1)
+                    yield from mv(flt, 1)
+                yield from bps.sleep(1)
             yield from _take_bkg_image(
                 motor_x_out,
                 motor_y_out,
@@ -723,6 +730,11 @@ def fly_scan(
                 stream_name="flat",
                 simu=simu,
             )
+            if add_bkg_filt_only:
+                for flt in filters:
+                    yield from mv(flt, 0)
+                    yield from mv(flt, 0)
+                yield from bps.sleep(1)
         if close_shutter_finish:
             yield from _close_shutter(simu=simu)
         if move_to_ini_pos:
