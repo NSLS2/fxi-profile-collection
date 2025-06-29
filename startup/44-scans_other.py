@@ -440,12 +440,12 @@ def z_scan(
         yield from _take_dark_image(detectors, motor)
         yield from _open_shutter()
         for pos in my_var:
+            # yield from mv(zps.sx, x_ini, zps.sy, y_ini)
+            # yield from mv(real_motor, pos)
+            # yield from bps.sleep(0.1)
             yield from mv(zps.sx, x_ini, zps.sy, y_ini)
-            yield from mv(real_motor, pos)
-            yield from bps.sleep(0.1)
-            yield from mv(zps.sx, x_ini, zps.sy, y_ini)
-            yield from mv(real_motor, pos)
-            yield from bps.sleep(0.1)
+            # yield from mv(real_motor, pos)
+            yield from bps.sleep(0.3)
             yield from _take_image(detectors, motor=motor, num=1)
         yield from _take_bkg_image(
             out_x=x_out,

@@ -1893,6 +1893,7 @@ def raster_2D_scan(
     img_sizeX=2048,
     img_sizeY=2040,
     pxl=20,
+    chunk_size=1,
     simu=False,
     relative_move_flag=1,
     rot_first_flag=1,
@@ -1957,7 +1958,7 @@ def raster_2D_scan(
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     detectors = [MaranaU, ic3]
     yield from _set_andor_param(
-        exposure_time=exposure_time, period=exposure_time, chunk_size=1
+        exposure_time=exposure_time, period=exposure_time, chunk_size=chunk_size
     )
 
     motor_x_ini = zps.sx.position
@@ -2005,6 +2006,7 @@ def raster_2D_scan(
             "img_sizeX": img_sizeX,
             "img_sizeY": img_sizeY,
             "pxl": pxl,
+            "chunk_size": chunk_size,
             "note": note if note else "None",
             "relative_move_flag": relative_move_flag,
             "rot_first_flag": rot_first_flag,
@@ -2035,11 +2037,13 @@ def raster_2D_scan(
         # take dark image
         print("take 5 dark image")
         yield from _take_dark_image(
-            detectors, motor, num=5, stream_name="primary", simu=simu
+            detectors, motor, num=1, chunk_size=chunk_size, stream_name="dark", simu=simu
         )
 
         print("open shutter ...")
         yield from _open_shutter(simu)
+
+        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
 
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
@@ -2053,7 +2057,7 @@ def raster_2D_scan(
             yield from bps.sleep(sleep_time)
             for jj in np.arange(y_range[0], y_range[1] + 1):
                 yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
-                yield from _take_image(detectors, motor, 1)
+                yield from _take_image(detectors, motor, 1, stream_name="primary")
         #                yield from trigger_and_read(list(detectors) + motor)
 
         print("moving sample out to take 5 background image")
@@ -2065,8 +2069,9 @@ def raster_2D_scan(
             motor_r_out,
             detectors,
             motor,
-            num=5,
-            stream_name="primary",
+            num=1,
+            chunk_size=chunk_size,
+            stream_name="flat",
             simu=simu,
             rot_first_flag=rot_first_flag,
         )
@@ -2085,6 +2090,8 @@ def raster_2D_scan(
         yield from _close_shutter(simu=simu)
 
     yield from raster_2D_inner()
+    yield from mv(MaranaU.cam.image_mode, 1)
+    print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
@@ -2101,6 +2108,7 @@ def raster_2D_scan_filter_bkg(
     img_sizeX=2048,
     img_sizeY=2040,
     pxl=20,
+    chunk_size=1,
     simu=False,
     relative_move_flag=1,
     rot_first_flag=1,
@@ -2164,9 +2172,6 @@ def raster_2D_scan_filter_bkg(
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     detectors = [MaranaU, ic3]
-    yield from _set_andor_param(
-        exposure_time=exposure_time, period=exposure_time, chunk_size=1
-    )
 
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -2189,12 +2194,12 @@ def raster_2D_scan_filter_bkg(
     x_range = np.int16(x_range)
     y_range = np.int16(y_range)
 
-    print("hello1")
+
     _md = {
         "detectors": [det.name for det in detectors],
         "motors": [mot.name for mot in motor],
-        "num_bkg_images": 5,
-        "num_dark_images": 5,
+        "num_bkg_images": chunk_size,
+        "num_dark_images": chunk_size,
         "x_range": x_range,
         "y_range": y_range,
         "out_x": out_x,
@@ -2213,6 +2218,7 @@ def raster_2D_scan_filter_bkg(
             "img_sizeX": img_sizeX,
             "img_sizeY": img_sizeY,
             "pxl": pxl,
+            "chunk_size": chunk_size,
             "note": note if note else "None",
             "relative_move_flag": relative_move_flag,
             "rot_first_flag": rot_first_flag,
@@ -2242,12 +2248,12 @@ def raster_2D_scan_filter_bkg(
         # take dark image
         print("take 5 dark image")
         yield from _take_dark_image(
-            detectors, motor, num=5, stream_name="primary", simu=simu
+            detectors, motor, num=1, chunk_size=chunk_size, stream_name="dark", simu=simu
         )
 
         print("open shutter ...")
         yield from _open_shutter(simu)
-
+        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
             if scan_x_flag == 1:
@@ -2260,7 +2266,7 @@ def raster_2D_scan_filter_bkg(
             yield from bps.sleep(sleep_time)
             for jj in np.arange(y_range[0], y_range[1] + 1):
                 yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
-                yield from _take_image(detectors, motor, 1)
+                yield from _take_image(detectors, motor, 1, stream_name="primary")
         #                yield from trigger_and_read(list(detectors) + motor)
 
         print("moving sample out to take 5 background image")
@@ -2275,8 +2281,9 @@ def raster_2D_scan_filter_bkg(
             motor_r_out,
             detectors,
             motor,
-            num=5,
-            stream_name="primary",
+            num=1,
+            chunk_size=chunk_size,
+            stream_name="flat",
             simu=simu,
             rot_first_flag=rot_first_flag,
         )
@@ -2298,6 +2305,8 @@ def raster_2D_scan_filter_bkg(
         yield from _close_shutter(simu)
 
     yield from raster_2D_inner()
+    yield from mv(MaranaU.cam.image_mode, 1)
+    print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
@@ -2313,8 +2322,8 @@ def raster_2D_scan_individal_bkg(
     out_r=0,
     img_sizeX=2048,
     img_sizeY=2040,
-    pxl=17.2,
-    num_bkg=1,
+    pxl=20,
+    chunk_size=1,
     simu=False,
     relative_move_flag=1,
     rot_first_flag=1,
@@ -2373,10 +2382,7 @@ def raster_2D_scan_individal_bkg(
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     detectors = [MaranaU, ic3]
-    yield from _set_andor_param(
-        exposure_time=exposure_time, period=exposure_time, chunk_size=1
-    )
-
+    
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
@@ -2402,8 +2408,8 @@ def raster_2D_scan_individal_bkg(
     _md = {
         "detectors": [det.name for det in detectors],
         "motors": [mot.name for mot in motor],
-        "num_bkg_images": 5,
-        "num_dark_images": 5,
+        "num_bkg_images": chunk_size,
+        "num_dark_images": chunk_size,
         "x_range": x_range,
         "y_range": y_range,
         "out_x": out_x,
@@ -2422,6 +2428,7 @@ def raster_2D_scan_individal_bkg(
             "img_sizeX": img_sizeX,
             "img_sizeY": img_sizeY,
             "pxl": pxl,
+            "chunk_size": chunk_size,
             "num_bkg": num_bkg,
             "note": note if note else "None",
             "relative_move_flag": relative_move_flag,
@@ -2449,17 +2456,16 @@ def raster_2D_scan_individal_bkg(
     @run_decorator(md=_md)
     def raster_2D_inner():
         # take dark image
-        print("take 5 dark image")
+        print(f"take {chunk_size} dark image")
         yield from _take_dark_image(
-            detectors, motor, num=5, stream_name="primary", simu=simu
+            detectors, motor, num=1, chunk_size=chunk_size, stream_name="dark", simu=simu
         )
 
         print("open shutter ...")
         yield from _open_shutter(simu)
-
+        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
-
             for jj in np.arange(y_range[0], y_range[1] + 1):
                 if scan_x_flag == 1:
                     yield from mv(
@@ -2476,7 +2482,7 @@ def raster_2D_scan_individal_bkg(
                         zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000
                     )
                 yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
-                yield from _take_image(detectors, motor, 1)
+                yield from _take_image(detectors, motor, 1, stream_name="primary")
                 #                yield from trigger_and_read(list(detectors) + motor)
                 yield from _take_bkg_image(
                     motor_x_out,
@@ -2486,13 +2492,11 @@ def raster_2D_scan_individal_bkg(
                     detectors,
                     motor,
                     num=1,
-                    stream_name="primary",
+                    chunk_size=chunk_size,
+                    stream_name="flat",
                     simu=simu,
                     rot_first_flag=rot_first_flag,
                 )
-
-        # print('moving sample out to take 5 background image')
-        # yield from _take_bkg_image(motor_x_out, motor_y_out, motor_z_out, motor_r_out, detectors, motor, num_bkg=5, simu=simu,traditional_sequence_flag=rot_first_flag)
 
         # move sample in
         yield from _move_sample_in(
@@ -2508,6 +2512,8 @@ def raster_2D_scan_individal_bkg(
         yield from _close_shutter(simu)
 
     yield from raster_2D_inner()
+    yield from mv(MaranaU.cam.image_mode, 1)
+    print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
@@ -3052,6 +3058,7 @@ def raster_2D_xanes2(
     img_sizeX=2048,
     img_sizeY=2040,
     pxl=20,
+    chunk_size=5,
     simu=False,
     relative_move_flag=1,
     rot_first_flag=1,
@@ -3102,7 +3109,7 @@ def raster_2D_xanes2(
         motor_y_out,
         motor_z_out,
         motor_r_out,
-        chunk_size=4,
+        chunk_size=chunk_size,
         exposure_time=exposure_time,
         repeat_num=1,
         sleep_time=0,

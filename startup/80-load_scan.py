@@ -518,6 +518,8 @@ def export_xanes_scan(h, fpath=None):
     img_xanes_norm = (img_xanes_avg - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg)
     img_xanes_norm[np.isnan(img_xanes_norm)] = 0
     img_xanes_norm[np.isinf(img_xanes_norm)] = 0
+    n_img = len(img_xanes_norm)
+    eng_list = eng_list[:n_img]
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
     with h5py.File(fname, "w") as hf:
         hf.create_dataset("uid", data=uid)
@@ -1171,52 +1173,62 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     scan_type = "grid2D_rel"
     scan_id = h.start["scan_id"]
     scan_time = h.start["time"]
-    num_dark = 5
-    num_bkg = h.start["plan_args"]["num_bkg"]
+    num_dark = h.start["plan_args"]["num_dark_images"]
+    num_bkg = h.start["plan_args"]["num_bkg_images"]
     x_eng = h.start["XEng"]
     x_range = h.start["plan_args"]["x_range"]
     y_range = h.start["plan_args"]["y_range"]
     img_sizeX = h.start["plan_args"]["img_sizeX"]
     img_sizeY = h.start["plan_args"]["img_sizeY"]
     pix = h.start["plan_args"]["pxl"]
+    chunk_size = h.start["plan_args"]["chunk_size"]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
-    img_raw = np.squeeze(np.array(list(h.data("Andor_image"))))
-    img_dark_avg = np.mean(img_raw[:num_dark], axis=0, keepdims=True)
-    s = img_dark_avg.shape
-    # img_bkg_avg = np.mean(img_raw[-num_bkg:], axis=0, keepdims = True)
-    # img = img_raw[num_dark:-num_bkg]
+    img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
+    img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
 
-    num_img = (x_range[1] - x_range[0] + 1) * (y_range[1] - y_range[0] + 1)
-    img = np.zeros([num_img, s[1], s[2]])
-    for i in range(num_img):
-        index = num_dark + i * num_bkg + i
-        img_bkg_avg = np.mean(
-            img_raw[index + 1 : index + 1 + num_bkg], axis=0, keepdims=True
-        )
-        img[i] = (img_raw[index] - img_dark_avg) / (img_bkg_avg - img_dark_avg)
+    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+    img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
 
+    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+
+    img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
     s = img.shape
 
     x_num = round((x_range[1] - x_range[0]) + 1)
     y_num = round((y_range[1] - y_range[0]) + 1)
+    # start stitching
+    frac = np.round(pix / pxl_sz, 2) # e.g., 10nm/20nm = 0.5
+    rl = int(s[1] * frac) # num of pixel (row) in cropped_and_centered image
+    rs = s[1]/2 * (1 - frac)
+    rs = int(max(0, rs))
+    re = rs + rl
+    re = int(min(re, s[1]))
+
+    cl = int(s[2] * frac) # num of pixel (column) in cropped_and_centered image
+    cs = s[2]/2 *(1 - frac)
+    cs = int(max(0, cs))
+    ce = cs + cl
+    ce = int(min(ce, s[2]))
+
     x_list = np.linspace(x_range[0], x_range[1], x_num)
     y_list = np.linspace(y_range[0], y_range[1], y_num)
-    row_size = y_num * s[1]
-    col_size = x_num * s[2]
+    row_size = y_num * rl
+    col_size = x_num * cl
     img_patch = np.zeros([1, row_size, col_size])
-    index = 0
+
+    
     pos_file_for_print = np.zeros([x_num * y_num, 4])
     pos_file = ["cord_x\tcord_y\tx_pos_relative\ty_pos_relative\n"]
     index = 0
     for i in range(int(x_num)):
         for j in range(int(y_num)):
-            img_patch[0, j * s[1] : (j + 1) * s[1], i * s[2] : (i + 1) * s[2]] = img[
-                index
-            ]
+            #img_patch[0, j * s[1] : (j + 1) * s[1], i * s[2] : (i + 1) * s[2]] = img[index, rs:re, cs:ce]
+            img_patch[0, j*rl : (j+1)*rl, i*cl : (i+1)*cl] = img[index, rs:re, cs:ce]
             pos_file_for_print[index] = [
                 x_list[i],
                 y_list[j],
@@ -1227,10 +1239,17 @@ def export_raster_2D_2(h, binning=4, fpath=None):
                 f"{x_list[i]:3.0f}\t{y_list[j]:3.0f}\t{x_list[i]*pix*img_sizeX/1000:3.3f}\t\t{y_list[j]*pix*img_sizeY/1000:3.3f}\n"
             )
             index = index + 1
-    s = img_patch.shape
-    img_patch_bin = bin_ndarray(
-        img_patch, new_shape=(1, int(s[1] / binning), int(s[2] / binning))
-    )
+            print(i,j, index)
+    s_patch = img_patch.shape # (1, 3060, 3072)
+    try:
+        s_bin = (s_patch[0], s_patch[1]//binning*binning, s_patch[2]//binning*binning)
+        img_patch_bin = bin_ndarray(
+            img_patch[:, :int(s_bin[1]), :int(s_bin[2])], new_shape=(s_bin[0], int(s_bin[1]//binning), int(s_bin[2]//binning))
+        )
+    except:
+        img_patch_bin = img_patch
+        binning = 1
+        
     fout_h5 = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.h5"
     fout_tiff = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.tiff"
     fout_txt = fpath + f"raster2D_scan_{scan_id}_cord.txt"
@@ -1282,47 +1301,68 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False):
     scan_type = "grid2D_rel"
     scan_id = h.start["scan_id"]
     scan_time = h.start["time"]
-    num_dark = h.start["num_dark_images"]
-    num_bkg = h.start["num_bkg_images"]
+    #num_dark = h.start["num_dark_images"]
+    #num_bkg = h.start["num_bkg_images"]
     x_eng = h.start["XEng"]
     x_range = h.start["plan_args"]["x_range"]
     y_range = h.start["plan_args"]["y_range"]
     img_sizeX = h.start["plan_args"]["img_sizeX"]
     img_sizeY = h.start["plan_args"]["img_sizeY"]
     pix = h.start["plan_args"]["pxl"]
+    chunk_size = h.start["plan_args"]["chunk_size"]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
-    img_raw = np.squeeze(np.array(list(h.data("Andor_image"))))
-    img_dark_avg = np.mean(img_raw[:num_dark], axis=0, keepdims=True)
-    img_bkg_avg = np.mean(img_raw[-num_bkg:], axis=0, keepdims=True)
+    img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
+    img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
 
+    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+    img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
+
+    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+    
     if reverse:
         img_raw = img_raw[:, ::-1, ::-1]
         img_dark_avg = img_dark_avg[:, ::-1, ::-1]
         img_bkg_avg = img_bkg_avg[:, ::-1, ::-1]
 
-    img = img_raw[num_dark:-num_bkg]
-    s = img.shape
+    s = img.shape # (9, 1020, 1024)
     img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
     x_num = round((x_range[1] - x_range[0]) + 1)
     y_num = round((y_range[1] - y_range[0]) + 1)
+
+
+    # start stitching
+    frac = np.round(pix / pxl_sz, 2) # e.g., 10nm/20nm = 0.5
+    rl = int(s[1] * frac) # num of pixel (row) in cropped_and_centered image
+    rs = s[1]/2 * (1 - frac)
+    rs = int(max(0, rs))
+    re = rs + rl
+    re = int(min(re, s[1]))
+
+    cl = int(s[2] * frac) # num of pixel (column) in cropped_and_centered image
+    cs = s[2]/2 *(1 - frac)
+    cs = int(max(0, cs))
+    ce = cs + cl
+    ce = int(min(ce, s[2]))
+
     x_list = np.linspace(x_range[0], x_range[1], x_num)
     y_list = np.linspace(y_range[0], y_range[1], y_num)
-    row_size = y_num * s[1]
-    col_size = x_num * s[2]
+    row_size = y_num * rl
+    col_size = x_num * cl
     img_patch = np.zeros([1, row_size, col_size])
-    index = 0
+
+    
     pos_file_for_print = np.zeros([x_num * y_num, 4])
     pos_file = ["cord_x\tcord_y\tx_pos_relative\ty_pos_relative\n"]
     index = 0
     for i in range(int(x_num)):
         for j in range(int(y_num)):
-            img_patch[0, j * s[1] : (j + 1) * s[1], i * s[2] : (i + 1) * s[2]] = img[
-                index
-            ]
+            #img_patch[0, j * s[1] : (j + 1) * s[1], i * s[2] : (i + 1) * s[2]] = img[index, rs:re, cs:ce]
+            img_patch[0, j*rl : (j+1)*rl, i*cl : (i+1)*cl] = img[index, rs:re, cs:ce]
             pos_file_for_print[index] = [
                 x_list[i],
                 y_list[j],
@@ -1333,10 +1373,12 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False):
                 f"{x_list[i]:3.0f}\t{y_list[j]:3.0f}\t{x_list[i]*pix*img_sizeX/1000:3.3f}\t\t{y_list[j]*pix*img_sizeY/1000:3.3f}\n"
             )
             index = index + 1
-    s = img_patch.shape
+            print(i,j, index)
+    s_patch = img_patch.shape # (1, 3060, 3072)
     try:
+        s_bin = (s_patch[0], s_patch[1]//binning*binning, s_patch[2]//binning*binning)
         img_patch_bin = bin_ndarray(
-            img_patch, new_shape=(1, int(s[1] / binning), int(s[2] / binning))
+            img_patch[:, :int(s_bin[1]), :int(s_bin[2])], new_shape=(s_bin[0], int(s_bin[1]//binning), int(s_bin[2]//binning))
         )
     except:
         img_patch_bin = img_patch

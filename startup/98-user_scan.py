@@ -1310,7 +1310,15 @@ def _mk_eng_list(elem, bulk=False):
                     + elem.split("_")[0]
                     + "_xanes_standard_21pnt.txt"
                 )
-            if elem.split("_")[-1] == "41":
+            elif elem.split("_")[-1] == "31":
+                eng_list = np.genfromtxt(
+                    "/nsls2/data/fxi-new/shared/config/xanes_ref/"
+                    + elem.split("_")[0]
+                    + "/eng_list_"
+                    + elem.split("_")[0]
+                    + "_xanes_standard_31pnt.txt"
+                )
+            elif elem.split("_")[-1] == "41":
                 eng_list = np.genfromtxt(
                     "/nsls2/data/fxi-new/shared/config/xanes_ref/"
                     + elem.split("_")[0]
@@ -1318,7 +1326,7 @@ def _mk_eng_list(elem, bulk=False):
                     + elem.split("_")[0]
                     + "_xanes_standard_41pnt.txt"
                 )
-            if elem.split("_")[-1] == "83":
+            elif elem.split("_")[-1] == "83":
                 eng_list = np.genfromtxt(
                     "/nsls2/data/fxi-new/shared/config/xanes_ref/"
                     + elem.split("_")[0]
