@@ -484,7 +484,7 @@ def tomo_zfly_repeat(
                 yield from _open_shutter_xhx(simu)
             yield from bps.sleep(sleep)
         
-
+'''
 def tomo_grid_zfly(
     scn_mode=0,
     exp_t=0.05,
@@ -876,10 +876,10 @@ def tomo_grid_zfly(
     uid = yield from inner_fly_plan()
     print("scan finished")
     return uid
+'''
 
 
-
-def tomo_grid_zfly2(
+def tomo_grid_zfly(
     scn_mode=0,
     exp_t=0.05,
     acq_p=0.05,
@@ -951,8 +951,9 @@ def tomo_grid_zfly2(
     if not sleep_plan:
         print(f"A wrong sleep pattern {sleep=} and {num_swing=} breaks the scan. Quit")
         return
-    #mots = [zps.sx, zps.sy, zps.sz]
-    mots = [zps.sx, zps.sz]
+    
+    mots = {"zps_x": zps.sx, "zps_y": zps.sy, "zps_z": zps.sz}
+    # mots = [zps.sx, zps.sz]
     flyer.detectors = [
         cam,
     ]
@@ -978,7 +979,7 @@ def tomo_grid_zfly2(
 
     _md = {
         "detectors": [flyer.detectors[0].name],
-        "motors": [mot.name for mot in mots],
+        "motors": "none" if not grid_nodes else grid_nodes["mots"],
         "XEng": XEng.position,
         "storage_ring_current (mA)": round(sr_current.get(), 1),
         "plan_args": {
@@ -991,9 +992,7 @@ def tomo_grid_zfly2(
             "mv_back_vel": scn_cfg["mb_vel"],
             "acceleration": scn_cfg["tacc"],
             "number_of_swings": scn_cfg["num_swing"],
-            "grid_mots": "none"
-            if not grid_nodes
-            else [mot.name for mot in grid_nodes["mots"]],
+            "grid_mots": "none" if not grid_nodes else grid_nodes["mots"],
             "grid_nodes": "none" if not grid_nodes else grid_nodes["pos"],
             "out_x": mot_x_out,
             "out_y": mot_y_out,
@@ -1017,17 +1016,11 @@ def tomo_grid_zfly2(
     }
     _md.update(md or {})
 
-    if grid_nodes:
-        all_mots = list(set(list(mots) + list(grid_nodes["mots"])))
-    else:
-        all_mots = list(list(mots))
     print("preset done")
 
-    # @run_decorator(md=_md)
-    # def inner_fly_plan():
     for jj in grid_nodes["pos"]:
-        for kk in range(len(grid_nodes["mots"])):
-            yield from mv(grid_nodes["mots"][kk], jj[kk])
+        for kk in grid_nodes["mots"]:
+            yield from mv(mots[kk], jj)
         yield from tomo_zfly(scn_mode=scn_mode,
                             exp_t=exp_t,
                             acq_p=acq_p,
@@ -1081,26 +1074,23 @@ def _schedule_sleep(sleep, num_scan):
         return False
 
 
-def prep_grid_dic(pos, mots=[zps.sx, zps.sy, zps.sz]):
+def prep_grid_dic(pos_dict):
     """
     mots: TXM sample stage motors zps.sx, zps.sy, zps.sz
-    pos: dictionary with keys "x", "y", and "z". The value
-         under each key is a list that defines the start, end
-         and step of grid
+    pos: dictionary in form {
+                                "zps_x": [xstart, xend, xstep], 
+                                "zps_y": [ystart, yend, ystep],
+                                "zps_z": [zstart, zend, zstep]
+                            }. 
     """
     grid_nodes = {}
-    grid_nodes["mots"] = mots
-    pos = []
+    grid_nodes["mots"] = list(pos_dict.keys())
     tem = []
-    for ii in range(len(mots)):
-        num = int(round((pos[ii][1] - pos[ii][0]) / pos[ii][2]))
-        tem[ii] = np.linspace(pos[ii][0], pos[ii][1], num, endpoint=True)
-    m = np.meshgrid(*tem)
-    pos = list(zip(*(ii.flat for ii in m)))
-    """ y = np.linspace(pos["y"][0], pos["y"][1], pos["y"][2])
-    for y in range(pos["y"][0], pos["y"][1], pos["y"][2]):
-        for x in range(pos["x"][0], pos["x"][1], pos["x"][2]):
-            for z in range(pos["x"][0], pos["z"][1], pos["z"][2]):            
-                pos.append([x, y, z]) """
+    for ii in pos_dict.keys():
+        num = int(round((pos_dict[ii][1] - pos_dict[ii][0]) / pos_dict[ii][2])) + 1
+        tem.append(np.linspace(pos_dict[ii][0], pos_dict[ii][1], num, endpoint=True))
+    print(tem)
+    m = np.meshgrid(*tem, indexing='xy')
+    pos = list(zip(*(ii.ravel() for ii in m)))
     grid_nodes["pos"] = pos
     return grid_nodes

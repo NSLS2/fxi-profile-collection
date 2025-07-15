@@ -1614,6 +1614,31 @@ def reprint_scan(scan_id):
     for name, doc in h.documents():
         mybec(name, doc)
 
+def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2='img_bkg', scale_factor=1):
+    '''
+    take image from fn (e.g., test_scan_id_43471.h5'
+    take img_bkg from fn_ref (e.g., fly_scan_id_43501.h5')
+    normalize image by: img/img_bkg
+    '''
+    f1 = h5py.File(fn, 'r')
+    img = np.array(f1[arg1])
+    scan_id = np.array(f1['scan_id'])
+    f1.close()
+
+    f2 = h5py.File(fn_ref, 'r')
+    img_bkg = np.array(f2[arg2])
+    scan_id2 = np.array(f2['scan_id'])
+    if len(img_bkg.shape) == 3:
+        img_bkg = np.median(img_bkg, axis=0)
+    f2.close()
+    
+    img_n = img / img_bkg / scale_factor
+    fn_save = f'img_{scan_id}_normalize_background_from_{scan_id2}.tiff'
+    io.imsave(fn_save, img_n.astype(np.float32))
+    print(f'image saved: {fn_save}')
+
+
+
 
 def get_lakeshore_param(scan_id, print_flag=0, return_flag=0):
     h = db[scan_id]
