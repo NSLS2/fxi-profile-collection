@@ -70,7 +70,7 @@ def write_lakeshore_to_file(h, fname):
             break
 
 
-def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=None, reverse=False):
+def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=None, reverse=False, bkg_scan_id=None):
     """
     e.g. load_scan([0001, 0002])
     """
@@ -79,7 +79,7 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
             scan_id = [scan_id]
         for item in scan_id:
             try:
-                custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
+                custom_export(int(item), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse, bkg_scan_id=bkg_scan_id)
                 dbv0.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {item}')
@@ -88,20 +88,20 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
         for i in range(scan_id, scan_id_end + 1):
             try:
                 # export_single_scan(int(i), binning)
-                custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse)
+                custom_export(int(i), binning, date_end_by=date_end_by, fpath=fpath, reverse=reverse, bkg_scan_id=bkg_scan_id)
                 dbv0.reg.clear_process_cache()
             except Exception as err:
                 print(f'fail to export {i}')
                 print(err)
 
-def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=False):
+def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=False, bkg_scan_id=None):
     """
     date_end_by: string, e.g., '2020-01-20'
     """
     tmp = list(db(scan_id=scan_id))
     n = len(tmp)
     if date_end_by is None:
-        export_single_scan(scan_id, binning, reverse=reverse)
+        export_single_scan(scan_id, binning, reverse=reverse, bkg_scan_id=bkg_scan_id)
     else:
         for sid in tmp:
             uid = sid.start["uid"]
@@ -113,7 +113,7 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=Fals
                 break
 
 
-def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
+def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     import datetime
     h = dbv0[scan_id]
     scan_id = h.start["scan_id"]
@@ -186,7 +186,7 @@ def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
         export_grid2D_rel(h, fpath)
     elif scan_type == "raster_2D":
         print("exporting raster_2D: #{}".format(scan_id))
-        export_raster_2D(h, binning, reverse=reverse)
+        export_raster_2D(h, binning, reverse=reverse, bkg_scan_id=bkg_scan_id)
     elif scan_type == "raster_2D_2":
         print("exporting raster_2D_2: #{}".format(scan_id))
         export_raster_2D(h, binning, fpath, reverse=reverse)
@@ -205,6 +205,9 @@ def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False):
     elif scan_type in ("user_fly_only", "dmea_fly_only"):
         print("exporting user_fly_only #{}".format(scan_id))
         export_user_fly_only(h, fpath)
+    elif scan_type == "moving_x_scan":
+        print("exporting moving_x_scan #{}".format(scan_id))
+        export_moving_x_scan(h, fpath)
     else:
         print("Un-recognized scan type ......")
 
@@ -1189,12 +1192,18 @@ def export_raster_2D_2(h, binning=4, fpath=None):
 
     img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
+    s = img.shape
+    try:
+        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
+    except:
+        img_dark_avg = np.zeros((1, *s[1:]))
 
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
-    img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
-
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
-    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+    try:
+        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+    except:
+        img_bkg_avg = np.ones((1, *s[1:]))
 
     img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
     s = img.shape
@@ -1287,7 +1296,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
         print(f"fails to write lakeshore info into {fn_h5_save}")
 
 
-def export_raster_2D(h, binning=4, fpath=None, reverse=False):
+def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     import tifffile
 
     if fpath is None:
@@ -1315,21 +1324,34 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False):
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
+    if not bkg_scan_id is None:
+        h_ref = db[norm_bkg_scan_id]
+    else:
+        h_ref = h
+
     img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
+    s = img.shape # (9, 1020, 1024)
+    try:
+        img_dark = np.array(list(h_ref.data("Andor_image", stream_name="dark")))[0]
+        img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
+    except:
+        img_dark_avg = np.zeros((1, *s[1:]))    
 
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
-    img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
-
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
-    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+    try:
+        img_bkg = np.array(list(h_ref.data("Andor_image", stream_name="flat")))[0]
+        img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
+    except:
+        img_bkg_avg = np.ones((1, *s[1:]))
     
     if reverse:
         img_raw = img_raw[:, ::-1, ::-1]
         img_dark_avg = img_dark_avg[:, ::-1, ::-1]
         img_bkg_avg = img_bkg_avg[:, ::-1, ::-1]
 
-    s = img.shape # (9, 1020, 1024)
+    
+        
+
     img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
     x_num = round((x_range[1] - x_range[0]) + 1)
     y_num = round((y_range[1] - y_range[0]) + 1)
@@ -1844,3 +1866,132 @@ def export_scan_change_expo_time(h, fpath=None, save_range_x=[], save_range_y=[]
         hf.create_dataset("XEng", data=x_eng)
         hf.create_dataset("pos_x", data=pos_x)
         hf.create_dataset("pos_y", data=pos_y)
+
+
+def export_moving_x_scan(h, fpath=None):
+    if fpath is None:
+        fpath = "./"
+    else:
+        if not fpath[-1] == "/":
+            fpath += "/"
+    uid = h.start["uid"]
+    note = h.start["note"]
+    scan_type = "moving_x_scan"
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
+    x_pos = h.table("baseline")["zps_sx"][1]
+    y_pos = h.table("baseline")["zps_sy"][1]
+    z_pos = h.table("baseline")["zps_sz"][1]
+    r_pos = h.table("baseline")["zps_pi_r"][1]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos / zp_z_pos - 1) * 10.0
+    pxl_sz = 6500.0 / M
+
+    x_eng = h.start["XEng"]
+
+    img = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    s = img.shape
+    try:
+        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+    except:
+        img_dark = np.zeros((1, s[1], s[2]))
+    try:
+        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    except:
+        img_bkg = np.ones((1, s[1], s[2]))
+
+    img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
+    img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
+
+    stage_x_pos = get_moving_x_scan_position(scan_id)
+    fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
+
+    with h5py.File(fname, "w") as hf:
+        hf.create_dataset("note", data=str(note))
+        hf.create_dataset("uid", data=uid)
+        hf.create_dataset("scan_id", data=int(scan_id))
+        hf.create_dataset("scan_time", data=scan_time)
+        hf.create_dataset("X_eng", data=x_eng)
+        hf.create_dataset("img_bkg", data=np.array(img_bkg, dtype=np.uint16))
+        hf.create_dataset("img_dark", data=np.array(img_dark, dtype=np.uint16))
+        hf.create_dataset("img_bkg_avg", data=np.array(img_bkg_avg, dtype=np.float32))
+        hf.create_dataset("img_dark_avg", data=np.array(img_dark_avg, dtype=np.float32))
+        hf.create_dataset("img", data=np.array(img, dtype=np.uint16))
+        hf.create_dataset("x_pos", data=stage_x_pos)
+        hf.create_dataset("x_ini", data=x_pos)
+        hf.create_dataset("y_ini", data=y_pos)
+        hf.create_dataset("z_ini", data=z_pos)
+        hf.create_dataset("r_ini", data=r_pos)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=pxl_sz)
+    """
+    try:
+        write_lakeshore_to_file(h, fname)
+    except:
+        print("fails to write lakeshore info into {fname}")
+    """
+    plt.figure()
+    plt.plot(stage_x_pos, '.')
+    plt.title('motor position (um)')
+    del img
+    del img_dark
+    del img_bkg
+
+
+
+def get_moving_x_scan_position(scan_id):
+    h = dbv0[scan_id]
+    with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+        timestamp_img = list(h.data("Andor_image", stream_name="primary"))[0]
+    assert "zps_sx_monitor" in h.stream_names
+    pos = h.table("zps_sx_monitor")
+    timestamp_mot = timestamp_to_float(pos["time"])
+
+    img_ini_timestamp = timestamp_img[0]
+    mot_ini_timestamp = timestamp_mot[0]
+
+    n = len(timestamp_mot)
+
+
+    img_time = timestamp_img - img_ini_timestamp
+    mot_time = timestamp_mot - mot_ini_timestamp
+
+    mot_pos = np.array(pos["zps_sx"])
+    n = len(mot_pos)
+    idx = 1
+    for i in range(1, n):
+        if mot_pos[i] - mot_pos[i-1] > 0.1:
+            break
+        else:
+            idx += 1
+    mot_time = mot_time[idx:]
+    mot_time = mot_time - mot_time[0]
+    mot_pos = mot_pos[idx:]
+    mot_pos_interp = np.interp(img_time, mot_time, mot_pos)
+
+    img_pos = mot_pos_interp
+    return img_pos
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#

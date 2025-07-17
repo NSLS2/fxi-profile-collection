@@ -1982,7 +1982,6 @@ def raster_2D_scan(
     x_range = np.int16(x_range)
     y_range = np.int16(y_range)
 
-    print("hello1")
     _md = {
         "detectors": [det.name for det in detectors],
         "motors": [mot.name for mot in motor],
@@ -2088,6 +2087,222 @@ def raster_2D_scan(
         select_filters([])
         print("closing shutter")
         yield from _close_shutter(simu=simu)
+
+    yield from raster_2D_inner()
+    yield from mv(MaranaU.cam.image_mode, 1)
+    print("scan finished")
+    txt = get_scan_parameter()
+    insert_text(txt)
+    print(txt)
+
+def raster_2D_scan_modify(
+    x_range=[-1, 1],
+    y_range=[-1, 1],
+    exposure_time=0.1,
+    out_x=None,
+    out_y=None,
+    out_z=None,
+    out_r=None,
+    img_sizeX=2048,
+    img_sizeY=2040,
+    pxl=20,
+    chunk_size=1,
+    simu=False,
+    relative_move_flag=1,
+    rot_first_flag=1,
+    note="",
+    scan_x_flag=1,
+    flag_take_dark_img=True,
+    flag_take_bkg_img=True,
+    flag_close_shutter=True,    
+    md=None,
+):
+    """
+    !!! Note:
+
+    Filters will be inserted at all time, including: img, img_bkg, and img_dark    
+    
+
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
+    for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
+    
+    
+    Inputs:
+    -------
+
+    x_range: two-elements list, e.g., [-1, 1], in unit of horizontal screen size
+
+    y_range: two-elements list, e.g., [-1, 1], in unit of horizontal screen size
+
+    exposure_time: float
+
+    out_x: float, default is 0
+        relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_y: float, default is 0
+        relative movement of sample in "y" direction using zps.sy to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_z: float, default is 0
+        relative movement of sample in "z" direction using zps.sz to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_r: float, default is 0
+        relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
+
+    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
+
+    pxl: float, pixel size, default is 17.2, in unit of nm/pix
+
+    note: string
+
+    scan_x_flag: 1 or 0
+        if 1: scan x and y
+        if 0: scan z and y
+
+    simu: Bool, default is False
+        True: will simulate closing/open shutter without really closing/opening
+        False: will really close/open shutter
+
+    """
+    global ZONE_PLATE
+    motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
+    detectors = [MaranaU, ic3]
+    yield from _set_andor_param(
+        exposure_time=exposure_time, period=exposure_time, chunk_size=chunk_size
+    )
+
+    motor_x_ini = zps.sx.position
+    motor_y_ini = zps.sy.position
+    motor_z_ini = zps.sz.position
+    motor_r_ini = zps.pi_r.position
+
+    if relative_move_flag:
+        motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
+    else:
+        motor_x_out = out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = out_r if not (out_r is None) else motor_r_ini
+
+    img_sizeX = np.int16(img_sizeX)
+    img_sizeY = np.int16(img_sizeY)
+    x_range = np.int16(x_range)
+    y_range = np.int16(y_range)
+
+    _md = {
+        "detectors": [det.name for det in detectors],
+        "motors": [mot.name for mot in motor],
+        "num_bkg_images": chunk_size,
+        "num_dark_images": chunk_size,
+        "x_range": x_range,
+        "y_range": y_range,
+        "out_x": out_x,
+        "out_y": out_y,
+        "out_z": out_z,
+        "exposure_time": exposure_time,
+        "XEng": XEng.position,
+        "plan_args": {
+            "x_range": x_range,
+            "y_range": y_range,
+            "exposure_time": exposure_time,
+            "out_x": out_x,
+            "out_y": out_y,
+            "out_z": out_z,
+            "out_r": out_r,
+            "img_sizeX": img_sizeX,
+            "img_sizeY": img_sizeY,
+            "pxl": pxl,
+            "chunk_size": chunk_size,
+            "note": note if note else "None",
+            "relative_move_flag": relative_move_flag,
+            "rot_first_flag": rot_first_flag,
+            "note": note if note else "None",
+            "scan_x_flag": scan_x_flag,
+            "zone_plate": ZONE_PLATE,
+        },
+        "plan_name": "raster_2D",
+        "hints": {},
+        "operator": "FXI",
+        "zone_plate": ZONE_PLATE,
+        "note": note if note else "None",
+        #'motor_pos':  wh_pos(print_on_screen=0),
+    }
+    _md.update(md or {})
+    try:
+        dimensions = [(motor.hints["fields"], "primary")]
+    except (AttributeError, KeyError):
+        pass
+    else:
+        _md["hints"].setdefault("dimensions", dimensions)
+
+    @stage_decorator(list(detectors) + motor)
+    @run_decorator(md=_md)
+    def raster_2D_inner():
+         
+        # take dark image
+        if flag_take_dark_img:
+            print("take 5 dark image")
+            yield from _take_dark_image(
+                detectors, motor, num=1, chunk_size=chunk_size, stream_name="dark",simu=simu
+            )
+        reading = yield from bps.rd(shutter_status)
+        if reading == 1: # shutter closed
+            print("open shutter ...")
+            yield from _open_shutter(simu)
+
+        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
+
+        print("taking mosaic image ...")
+        for ii in np.arange(x_range[0], x_range[1] + 1):
+            if scan_x_flag == 1:
+                yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+            else:
+                yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+            sleep_time = (x_range[-1] - x_range[0]) * img_sizeX * pxl * 1.0 / 1000 / 600
+            yield from bps.sleep(sleep_time)
+            for jj in np.arange(y_range[0], y_range[1] + 1):
+                yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
+                yield from _take_image(detectors, motor, 1, stream_name="primary")
+        #                yield from trigger_and_read(list(detectors) + motor)
+
+        if flag_take_bkg_img:
+            print("moving sample out to take 5 background image")
+            yield from _take_bkg_image(
+                motor_x_out,
+                motor_y_out,
+                motor_z_out,
+                motor_r_out,
+                detectors,
+                motor,
+                num=1,
+                chunk_size=chunk_size,
+                stream_name="flat",
+                simu=simu,
+                rot_first_flag=rot_first_flag,
+            )
+
+        # move sample in
+        yield from _move_sample_in(
+            motor_x_ini,
+            motor_y_ini,
+            motor_z_ini,
+            motor_r_ini,
+            repeat=1,
+            trans_first_flag=1 - rot_first_flag,
+        )
+        if flag_close_shutter:
+            print("closing shutter")
+            yield from _close_shutter(simu=simu)
 
     yield from raster_2D_inner()
     yield from mv(MaranaU.cam.image_mode, 1)

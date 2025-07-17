@@ -6350,3 +6350,164 @@ def scan_change_expo_time(
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
+
+def moving_x_scan(
+    exposure_time=0.005,
+    period=0.025,
+    zps_sx_speed=0.5, 
+    zps_sx_travel_dis=40,
+    out_x=-100,
+    out_y=-100,
+    out_z=0,
+    out_r=0,  
+    relative_move_flag=0,
+    note="",    
+    simu=False,
+    md=None,
+):
+    """
+    Take multiple images (MaranaU camera)
+
+    Input:
+    ------------
+    exposure_time: float, exposure time for each image
+
+    out_x: float(int), relative sample out position for zps.sx
+
+    out_y: float(int), relative sampel out position for zps.sy
+
+    out_z: float(int), relative sampel out position for zps.sz
+
+    out_r: float(int), relative sampel out position for zps.pi_r
+
+    num_img: int, number of images to take
+
+    num_bkg: int, number of backgroud image to take
+    """
+
+    zps_sx_default_speed = 300
+    zps_sx_defalut_base_speed = 50
+
+    yield from mv(zps.sx.velocity, max(zps_sx_speed, 0.5))
+    
+    yield from _set_andor_param(
+        exposure_time=exposure_time, period=period, chunk_size=20
+    )
+
+    true_period = yield from rd(MaranaU.cam.acquire_period)
+    print(f'true_period={true_period}')
+    print(zps_sx_travel_dis)
+    motor_time = np.abs(zps_sx_travel_dis) / zps_sx_speed
+    num_img = int(motor_time / true_period / 2) 
+
+    detectors = [MaranaU]
+    motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
+
+    motor_x_ini = zps.sx.position
+    motor_y_ini = zps.sy.position
+    motor_z_ini = zps.sz.position
+    motor_r_ini = zps.pi_r.position
+    if relative_move_flag:
+        motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
+    else:
+        motor_x_out = out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = out_r if not (out_r is None) else motor_r_ini
+
+    zps_sx_target = motor_x_ini + zps_sx_travel_dis
+    
+
+    _md = {
+        "detectors": ["MaranaU"],
+        "motors": [mot.name for mot in motors],
+        "XEng": XEng.position,
+        "plan_args": {
+            "exposure_time": exposure_time,
+            "period": period,
+            "out_x": out_x,
+            "out_y": out_y,
+            "out_z": out_z,
+            "out_r": out_r,
+            "zps_sx_speed": zps_sx_speed,
+            "zps_sx_travel_dis":zps_sx_travel_dis,
+            "relative_move_flag": relative_move_flag,
+            "note": note if note else "None",
+        },
+        "plan_name": "moving_x_scan",
+        "plan_pattern": "linspace",
+        "plan_pattern_module": "numpy",
+        "hints": {},
+        "operator": "FXI",
+        "note": note if note else "None",
+        # "motor_pos": wh_pos(print_on_screen=0),
+    }
+    _md.update(md or {})
+
+    try:
+        dimensions = [(zps.sx.hints["fields"], "primary")]
+    except (AttributeError, KeyError):
+        pass
+    else:
+        _md["hints"].setdefault("dimensions", dimensions)
+
+
+    _md["hints"].setdefault("dimensions", [(("time",), "primary")])
+
+    @stage_decorator(list(detectors) + motors)
+    @bpp.monitor_during_decorator([zps.sx])
+    @run_decorator(md=_md)
+    def inner_scan():
+        yield from _open_shutter(simu=simu)
+        yield from _set_Andor_chunk_size(detectors, chunk_size=num_img)
+        
+        status = yield from abs_set(zps.sx, zps_sx_target, wait=False)
+        yield from _take_image(detectors, motors, num=1, stream_name="primary")
+        while not status.done:
+            yield from bps.sleep(0.01)
+
+        # taking out sample and take background image
+        print(f'\nmove sample out and take 20 backgound image')
+        print(f'move sample stage velocity to {zps_sx_default_speed}')
+        yield from mv(zps.sx.velocity, zps_sx_default_speed)
+        yield from _take_bkg_image(
+                motor_x_out,
+                motor_y_out,
+                motor_z_out,
+                motor_r_out,
+                detectors,
+                [],
+                num=1,
+                chunk_size=20,
+                rot_first_flag=1,
+                stream_name="flat",
+                simu=simu,
+                )
+
+        print(f'\nclose shutter and take 20 dark image')
+        yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
+
+        
+        print('move sample back to initial position')
+        
+        yield from _move_sample_in(
+            motor_x_ini,
+            motor_y_ini,
+            motor_z_ini,
+            motor_r_ini,
+            trans_first_flag=1,
+            repeat=2,
+        )
+
+    uid = yield from inner_scan()
+    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from _close_shutter(simu=simu)
+    
+    txt = get_scan_parameter()
+    insert_text(txt)
+    print(txt)
+    return uid
+

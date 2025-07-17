@@ -1614,11 +1614,11 @@ def reprint_scan(scan_id):
     for name, doc in h.documents():
         mybec(name, doc)
 
-def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2='img_bkg', scale_factor=1):
+def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2_bkg='img_bkg', arg2_dark='img_dark', scale_factor=1):
     '''
     take image from fn (e.g., test_scan_id_43471.h5'
-    take img_bkg from fn_ref (e.g., fly_scan_id_43501.h5')
-    normalize image by: img/img_bkg
+    take img_bkg and or img_dark from fn_ref (e.g., fly_scan_id_43501.h5')
+    normalize image by: (img-img_dark)/(img_bkg-img_dark)
     '''
     f1 = h5py.File(fn, 'r')
     img = np.array(f1[arg1])
@@ -1626,13 +1626,23 @@ def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2='img_bkg', scale_
     f1.close()
 
     f2 = h5py.File(fn_ref, 'r')
-    img_bkg = np.array(f2[arg2])
     scan_id2 = np.array(f2['scan_id'])
-    if len(img_bkg.shape) == 3:
-        img_bkg = np.median(img_bkg, axis=0)
+    if len(arg2_bkg) > 1:
+        img_bkg = np.array(f2[arg2_bkg])    
+        if len(img_bkg.shape) == 3:
+            img_bkg = np.median(img_bkg, axis=0)
+    else:
+        img_bkg = 1
+
+    if len(arg2_bkg) > 1:
+        img_dark = np.array(f2[arg2_dark])    
+        if len(img_dark.shape) == 3:
+            img_dark = np.median(img_dark, axis=0)
+    else:
+        img_dark = 0
     f2.close()
     
-    img_n = img / img_bkg / scale_factor
+    img_n = (img-img_dark) / (img_bkg-img_dark) / scale_factor
     fn_save = f'img_{scan_id}_normalize_background_from_{scan_id2}.tiff'
     io.imsave(fn_save, img_n.astype(np.float32))
     print(f'image saved: {fn_save}')
