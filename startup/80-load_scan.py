@@ -829,8 +829,14 @@ def export_test_scan(h, fpath=None):
     except:
         img_dark = np.zeros((1, img.shape[1], img.shape[2]))
         img_dark_avg = img_dark
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
-    img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
+        print('img dark not taken')
+    try:
+        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
+    except:
+        img_bkg = np.zeros((1, img.shape[1], img.shape[2]))
+        img_bkg_avg = img_bkg
+        print('img background not taken')
 
     img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
     img_norm[np.isnan(img_norm)] = 0
@@ -1358,6 +1364,12 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
 
 
     # start stitching
+    if pix > pxl_sz:
+        warn_msg = f'warning: the setpoint pixel size used in scan ({pix:3.2f} nm) should be smaller than actual pixel size ({pxl_sz:3.2f} nm)'
+        pix = pxl_sz
+    else:
+        warn_msg = ''
+        
     frac = np.round(pix / pxl_sz, 2) # e.g., 10nm/20nm = 0.5
     rl = int(s[1] * frac) # num of pixel (row) in cropped_and_centered image
     rs = s[1]/2 * (1 - frac)
@@ -1418,6 +1430,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     new_dir = fpath + f"raster_scan_{scan_id}"
     if not os.path.exists(new_dir):
         os.mkdir(new_dir)
+    print(warn_msg)
     """
     s = img.shape
     tmp = bin_ndarray(img, new_shape=(s[0], int(s[1]/binning), int(s[2]/binning)))
@@ -1439,6 +1452,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         write_lakeshore_to_file(h, fn_h5_save)
     except:
         print(f"fails to write lakeshore info into {fn_h5_save}")
+    
 
 
 def export_multipos_2D_xanes_scan2(h, fpath=None):
