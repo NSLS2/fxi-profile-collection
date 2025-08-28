@@ -16,7 +16,7 @@ from bluesky.preprocessors import subs_wrapper
 
 
 try:
-    from cytools import partition
+    from cytoolz import partition
 except ImportError:
     from toolz import partition
 from bluesky import plan_patterns
@@ -319,12 +319,12 @@ def fly_scan(
     @bpp.monitor_during_decorator([zps.pi_r])
     @run_decorator(md=_md)
     def fly_inner_scan():
-        
+
         for flt in filters:
             yield from mv(flt, 1)
             yield from mv(flt, 1)
         yield from bps.sleep(1)
-        
+
         # close shutter, dark images: numer=chunk_size (e.g.20)
         print("\nshutter closed, taking dark images...")
         yield from _take_dark_image(
@@ -351,7 +351,7 @@ def fly_scan(
         print("\nTaking background images...")
         yield from _set_rotation_speed(rs=rot_back_velo)
         #        yield from abs_set(zps.pi_r.velocity, rs)
-        
+
         for flt in filters:
             yield from mv(flt, 1)
             yield from mv(flt, 1)
@@ -401,7 +401,7 @@ def radiography_scan(
     num_img=10,
     take_dark_img=True,
     relative_move_flag=1,
-    rot_first_flag=1, 
+    rot_first_flag=1,
     note="",
     simu=False,
     md=None,
@@ -578,7 +578,7 @@ def fly_scan(
         rotation speed in unit of deg/sec
 
     take_bkg_img: bool, default is True,
-        check if need to take background image (without sample)        
+        check if need to take background image (without sample)
 
     take_dark_img: bool, default is True,=True,
         check if need to take dark image (shutter closed)
@@ -602,7 +602,7 @@ def fly_scan(
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
     motor_r_ini = zps.pi_r.position
-    
+
     out_r_frac = out_r - (out_r // 360) * 360
     out_r_relative = ((target_rot_angle-1) // 360) * 360 + out_r_frac
 
@@ -622,7 +622,7 @@ def fly_scan(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    
+
     _md = {
         "detectors": ["KinetixU"],
         "motors": [mot.name for mot in motor],
@@ -702,7 +702,7 @@ def fly_scan(
         ###########################################################################
 
         rot_time = np.abs(relative_rot_angle) / np.abs(rs) + 1 # it seems acceleration/de-acceleration take more time
-        num_img = int(rot_time / true_period) 
+        num_img = int(rot_time / true_period)
 
         yield from _open_shutter(simu=simu)
         print("\nshutter opened, taking tomo images...")
@@ -956,7 +956,7 @@ def xanes_scan2(
                 repeat=2,
                 trans_first_flag=rot_first_flag,
             )
-        '''        
+        '''
         if len(filters):
             for filt in filters:
                 yield from mv(filt, 0)
@@ -1495,7 +1495,7 @@ class EngScanPlot(QtAwareCallback):
         eng_start = plan_args["start"]
         eng_end = plan_args["stop"]
         steps = plan_args["num"]
-        try: 
+        try:
             x = plan_args['eng_list']
         except:
             x = np.linspace(eng_start, eng_end, steps)
@@ -1514,7 +1514,7 @@ class EngScanPlot(QtAwareCallback):
         y0 = np.array(list(h.data(ic3.name)))
         y1 = np.array(list(h.data(ic4.name)))
         r = np.log(y0 / y1)
-        
+
         self._ax1.plot(x, y0, ".-", label=f'{ic3.name}')
         self._ax1.plot(x, y1, ".-", label=f'{ic4.name}')
         self._ax1.legend()
@@ -1914,13 +1914,13 @@ def raster_2D_scan(
     """
     !!! Note:
 
-    Filters will be inserted at all time, including: img, img_bkg, and img_dark    
-    
+    Filters will be inserted at all time, including: img, img_bkg, and img_dark
+
 
     scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
-    
-    
+
+
     Inputs:
     -------
 
@@ -2041,7 +2041,7 @@ def raster_2D_scan(
     @run_decorator(md=_md)
     def raster_2D_inner():
         select_filters(filters)
-        
+
         # take dark image
         print("take 5 dark image")
         yield from _take_dark_image(
@@ -2123,19 +2123,19 @@ def raster_2D_scan_modify(
     scan_x_flag=1,
     flag_take_dark_img=True,
     flag_take_bkg_img=True,
-    flag_close_shutter=True,    
+    flag_close_shutter=True,
     md=None,
 ):
     """
     !!! Note:
 
-    Filters will be inserted at all time, including: img, img_bkg, and img_dark    
-    
+    Filters will be inserted at all time, including: img, img_bkg, and img_dark
+
 
     scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
-    
-    
+
+
     Inputs:
     -------
 
@@ -2255,7 +2255,7 @@ def raster_2D_scan_modify(
     @stage_decorator(list(detectors) + motor)
     @run_decorator(md=_md)
     def raster_2D_inner():
-         
+
         # take dark image
         if flag_take_dark_img:
             print("take 5 dark image")
@@ -2345,7 +2345,7 @@ def raster_2D_scan_filter_bkg(
 
     !!! Note:
 
-    Filters will ONLY be inserted when taking background image   
+    Filters will ONLY be inserted when taking background image
 
 
     scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
@@ -2606,7 +2606,7 @@ def raster_2D_scan_individal_bkg(
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     detectors = [KinetixU, ic3]
-    
+
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
@@ -3291,7 +3291,7 @@ def raster_2D_xanes2(
 ):
 
     '''
-    take 2D-xanes at defined grid position, using "multipos_2D_xanes_scan2" 
+    take 2D-xanes at defined grid position, using "multipos_2D_xanes_scan2"
     '''
 
     motor_x_ini = zps.sx.position
@@ -3805,4 +3805,3 @@ def tomo_mosaic_scan(
     txt4 = "\n######  mosaic tomogrpahy scan finished  ######"
     txt = txt1 + txt4 + txt3
     insert_text(txt)
-
