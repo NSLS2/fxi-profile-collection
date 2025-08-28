@@ -21,12 +21,12 @@ def test_scan(
     period=0.1,
     num_img=10,
     #num_bkg=10,
-    relative_move_flag=False,    
-    sleep_time=0, 
-    rot_first_flag=1, 
+    relative_move_flag=False,
+    sleep_time=0,
+    rot_first_flag=1,
     close_shutter_in_scan=False,
     note="",
-    
+
     simu=False,
     md=None,
 ):
@@ -140,7 +140,7 @@ def test_scan(
         '''
         yield from mv(zps.pi_r, r_out)
         yield from mv(zps.sz, z_out)
-        yield from mv(zps.sx, x_out, zps.sy, y_out)        
+        yield from mv(zps.sx, x_out, zps.sy, y_out)
         for i in range(num_bkg):
             yield from trigger_and_read(list(detectors))
         '''
@@ -153,7 +153,7 @@ def test_scan(
         # close shutter, taking dark image
         yield from _close_shutter(simu=simu)
         '''
-        
+
         print('move sample back to initial position')
         yield from _move_sample_in(
             motor_x_ini,
@@ -192,7 +192,7 @@ def test_scan2(
     take_dark_img=True,
     take_bkg_img=True,
     relative_move_flag=1,
-    rot_first_flag=1, 
+    rot_first_flag=1,
     close_shutter_at_end=True,
     note="",
     simu=False,
@@ -305,7 +305,7 @@ def test_scan2(
 
         if close_shutter_at_end:
             yield from _close_shutter(simu=simu)
-        
+
 
     uid = yield from inner_scan()
     yield from mv(KinetixU.cam.image_mode, 2)
@@ -367,12 +367,12 @@ def z_scan(
         x_out = x_ini + out_x if not (out_x is None) else x_ini
         y_out = y_ini + out_y if not (out_y is None) else y_ini
         z_out = z_ini + out_z if not (out_z is None) else z_ini
-        
+
     else:
         x_out = out_x if not (out_x is None) else x_ini
         y_out = out_y if not (out_y is None) else y_ini
         z_out = out_z if not (out_z is None) else z_ini
-        
+
 
     if scan_motor == 'zp_x':
         zp_ini = zp.x.position  # zp.x intial position
@@ -972,7 +972,7 @@ def load_cell_scan(
             pos_list = pbsl_y_pos_list[::-1]
         else:
             pos_list = pbsl_y_pos_list.copy()
-        idx += 1 
+        idx += 1
         for pbsl_pos in pos_list:
             yield from mv(pbsl.y_ctr, pbsl_pos)
             for i in range(num):
@@ -1137,7 +1137,7 @@ def beam_profile_scan(
         mot = pbsl.y_ctr
     elif dir == 'x':
         pbsl_ctr_ini = pbsl.x_ctr.position
-        mot = pbsl.x_ctr   
+        mot = pbsl.x_ctr
 
     pbsl_pos_list = np.linspace(start, end, steps, endpoint=True)
     num_pbsl_pos = steps
@@ -1593,7 +1593,7 @@ def knife_edge_scan_for_condensor(
     from numpy import polyfit, poly1d
     from scipy.optimize import curve_fit, least_squares
     from scipy.special import erf
-    from scipy.signal import gaussian
+    from scipy.signal.windows import gaussian
 
     yield from rel_grid_scan(
         det,
