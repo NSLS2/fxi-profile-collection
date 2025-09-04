@@ -8,7 +8,7 @@ version = "2025.3.0"
 libc = "2.17"
 
 [feature.profile.dependencies]
-bluesky-base = "*"
+bluesky-base = "==1.14.4"
 bluesky-queueserver = "*"
 matplotlib-base= ">=3.9.3,<4"
 networkx = ">=3.4.2,<4"
@@ -38,7 +38,6 @@ magicgui = ">=0.10.1,<0.11"
 pystackreg = ">=0.2.8,<0.3"
 hdf5-external-filter-plugins = ">=0.1.0,<0.2"
 blosc-hdf5-plugin = ">=1.0.1,<2"
-bluesky = "==1.14.4"
 databroker = "==2.0.0b68"
 
 
@@ -60,8 +59,9 @@ qs-server = "uvicorn --host localhost --port 60610 bluesky_httpserver.server:app
 
 
 [feature.terminal.dependencies]
-ipython = "*"
+ipython = ">=9.5.0"
 pyside6 = "*"
+numpy = ">2"
 
 
 [feature.terminal.tasks]
@@ -71,3 +71,6 @@ pvs = "ipython --profile-dir=. -c 'get_pv_types(); exit()'"
 [environments]
 terminal = {features=["profile", "terminal"], solve-group="profile"}
 qs = {features=["profile", "qs"], solve-group="profile"}
+
+[dependencies]
+python = ">=3.12,<3.13"
