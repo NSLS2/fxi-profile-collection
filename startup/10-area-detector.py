@@ -8,7 +8,7 @@ from ophyd.areadetector.filestore_mixins import (
     resource_factory,
 )
 from pathlib import PurePath
-from ophyd import EpicsSignal, AreaDetector
+from ophyd import EpicsSignal, EpicsSignalRO, AreaDetector
 from ophyd import (
     ImagePlugin,
     TransformPlugin,
@@ -30,6 +30,8 @@ from nslsii.ad33 import SingleTriggerV33
 from ophyd.areadetector.trigger_mixins import TriggerBase, ADTriggerStatus
 from ophyd.device import Staged
 from ophyd.status import SubscriptionStatus
+
+from bluesky.plan_stubs import abs_set
 
 global TimeStampRecord
 TimeStampRecord = []
@@ -76,6 +78,30 @@ class SingleTriggerV33(TriggerBase):
 
 '''
 class AndorCam(CamV33Mixin, AreaDetectorCam):
+    def __init__(self, *args, **kwargs):
+        AreaDetectorCam.__init__(self, *args, **kwargs)
+        self.stage_sigs["wait_for_plugins"] = "Yes"
+
+    def ensure_nonblocking(self):
+        self.stage_sigs["wait_for_plugins"] = "Yes"
+        for c in self.parent.component_names:
+            cpt = getattr(self.parent, c)
+            if cpt is self:
+                continue
+            if hasattr(cpt, "ensure_nonblocking"):
+                cpt.ensure_nonblocking()
+
+
+class KinetixCam(CamV33Mixin, AreaDetectorCam):
+    readout_port_idx = Cpt(EpicsSignal, "ReadoutPortIdx")
+    readout_port_names = ('Sensitivity', 'Speed', 'Dynamic Range', 'Sub-Electron')
+    speed_idx = Cpt(EpicsSignal, "SpeedIdx")
+    gain_idx = Cpt(EpicsSignal, "GainIdx")
+    apply_readout_mode = Cpt(EpicsSignal, "ApplyReadoutMode")
+    readout_mode_state = Cpt(EpicsSignalRO, "ReadoutModeValid_RBV")
+    data_type = Cpt(EpicsSignalRO, "DataType_RBV")
+    aquire_status = Cpt(EpicsSignalRO, "StatusMessage_RBV")
+
     def __init__(self, *args, **kwargs):
         AreaDetectorCam.__init__(self, *args, **kwargs)
         self.stage_sigs["wait_for_plugins"] = "Yes"
@@ -244,14 +270,31 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
 
     #@timing
     def unstage(self, *args, **kwargs):
+        # import itertools
+        # #self._acquisition_signal.put(0, wait=True)
+        # for j in itertools.count():
+        #     try:
+        #         print(f"unstage attempt {j}")
+        #         ret = super().unstage()
+        #     except TimeoutError:
+        #         N_try = 20
+        #         if j < N_try:
+        #             print(f"failed to unstage on attempt {j}/{N_try}, may try again")
+        #             continue
+        #         else:
+        #             raise
+        #     else:
+        #         break
+        # return ret
         import itertools
         #self._acquisition_signal.put(0, wait=True)
         for j in itertools.count():
             try:
                 print(f"unstage attempt {j}")
-                ret = super().unstage()
+                self.cam.image_mode.set(1, timeout=5).wait()
+                self.cam.trigger_mode.set(0, timeout=5).wait()
             except TimeoutError:
-                N_try = 20
+                N_try = 5
                 if j < N_try:
                     print(f"failed to unstage on attempt {j}/{N_try}, may try again")
                     continue
@@ -259,7 +302,202 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
                     raise
             else:
                 break
-        return ret
+        return super().unstage()
+    
+    #@timing
+    def zfly_stage(self):
+        import itertools
+        if self.cam.detector_state.get() != 0:
+            raise RuntimeError("Kinetix must be in the Idle state to stage.")
+        
+        staged_devices = super().stage()
+                
+        for j in itertools.count():
+            try:
+                print(f"stage attempt {j}")
+                print(f"{self.cam.image_mode.value=}")
+                self.cam.image_mode.set(0, timeout=5).wait()
+                self.cam.trigger_mode.set(2, timeout=5).wait()
+                break
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to stage on try{j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+        return staged_devices
+
+    #@timing
+    def zfly_unstage(self, *args, **kwargs):
+        import itertools
+        #self._acquisition_signal.put(0, wait=True)
+        for j in itertools.count():
+            try:
+                print(f"unstage attempt {j}")
+                self.cam.image_mode.set(1, timeout=5).wait()
+                self.cam.trigger_mode.set(0, timeout=5).wait()
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to unstage on attempt {j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+            else:
+                break
+        return super().unstage()
+
+
+
+class KinetixKlass(SingleTriggerV33, DetectorBase):
+    cam = Cpt(KinetixCam, "cam1:")
+    image = Cpt(ImagePlugin, "image:")
+    
+    trans1 = Cpt(TransformPlugin, "Trans1:")
+    roi1 = Cpt(ROIPlugin, "ROI1:")
+    roi2 = Cpt(ROIPlugin, "ROI2:")
+    roi3 = Cpt(ROIPlugin, "ROI3:")
+    roi4 = Cpt(ROIPlugin, "ROI4:")
+    proc1 = Cpt(ProcessPlugin, "Proc1:")
+
+    def cam_name(self):
+        print(self.prefix.split("{")[1].strip("}").split(":")[1])
+        
+    root_path = "/nsls2/data/fxi-new/legacy/Kinetix"
+    hdf5 = Cpt(
+        HDF5PluginWithFileStore,
+        suffix="HDF1:",
+        write_path_template=f"{root_path}/%Y/%m/%d/",
+        root=root_path,
+    )
+
+    def stop(self):
+        self.hdf5.capture.put(0)
+        return super().stop()
+
+    def pause(self):
+        self.hdf5.capture.put(0)
+        return super().pause()
+
+    def resume(self):
+        self.hdf5.capture.put(1)
+        # The AD HDF5 plugin bumps its file_number and starts writing into a
+        # *new file* because we toggled capturing off and on again.
+        # Generate a new Resource document for the new file.
+
+        # grab the stashed result from make_filename
+        filename, read_path, write_path = self.hdf5._ret
+        self.hdf5._fn = self.hdf5.file_template.get() % (
+            read_path,
+            filename,
+            self.hdf5.file_number.get() - 1,
+        )
+        # file_number is *next*
+        # iteration
+        res_kwargs = {"frame_per_point": self.hdf5.get_frames_per_point()}
+        self.hdf5._generate_resource(res_kwargs)
+        return super().resume()
+
+    #@timing
+    def stage(self):
+        import itertools
+        if self.cam.detector_state.get() != 0:
+            raise RuntimeError("Kinetix must be in the Idle state to stage.")
+        
+        staged_devices = super().stage()
+                
+        for j in itertools.count():
+            try:
+                print(f"stage attempt {j}")
+                self.cam.image_mode.set(1, timeout=5).wait()
+                break
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to stage on try{j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+        return staged_devices
+
+    #@timing
+    def unstage(self, *args, **kwargs):
+        # import itertools
+        # #self._acquisition_signal.put(0, wait=True)
+        # for j in itertools.count():
+        #     try:
+        #         print(f"unstage attempt {j}")
+        #         ret = super().unstage()
+        #     except TimeoutError:
+        #         N_try = 20
+        #         if j < N_try:
+        #             print(f"failed to unstage on attempt {j}/{N_try}, may try again")
+        #             continue
+        #         else:
+        #             raise
+        #     else:
+        #         break
+        # return ret
+        import itertools
+        #self._acquisition_signal.put(0, wait=True)
+        for j in itertools.count():
+            try:
+                print(f"unstage attempt {j}")
+                self.cam.image_mode.set(2, timeout=5).wait()
+                self.cam.trigger_mode.set(0, timeout=5).wait()
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to unstage on attempt {j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+            else:
+                break
+        return super().unstage()
+    
+    #@timing
+    def zfly_stage(self):
+        import itertools
+        if self.cam.detector_state.get() != 0:
+            raise RuntimeError("Kinetix must be in the Idle state to stage.")
+        
+        staged_devices = super().stage()
+                
+        for j in itertools.count():
+            try:
+                print(f"stage attempt {j}")
+                self.cam.image_mode.set(1, timeout=5).wait()
+                break
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to stage on try{j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+        return staged_devices
+
+    #@timing
+    def zfly_unstage(self, *args, **kwargs):
+        import itertools
+        #self._acquisition_signal.put(0, wait=True)
+        for j in itertools.count():
+            try:
+                print(f"unstage attempt {j}")
+                self.cam.image_mode.set(2, timeout=5).wait()
+                self.cam.trigger_mode.set(0, timeout=5).wait()
+            except TimeoutError:
+                N_try = 5
+                if j < N_try:
+                    print(f"failed to unstage on attempt {j}/{N_try}, may try again")
+                    continue
+                else:
+                    raise
+            else:
+                break
+        return super().unstage()
 
 
 class Manta(SingleTrigger, AreaDetector):
@@ -375,14 +613,47 @@ Andor.hdf5.time_stamp.name = "Andor_timestamps"
 
 #########################################
 # added by XH
-MaranaU = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="Andor")
+MaranaU = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="MaranaU")
 MaranaU.cam.ensure_nonblocking()
 MaranaU.read_attrs = ['hdf5']
 MaranaU.hdf5.read_attrs = ["time_stamp"]
 MaranaU.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "trans1", "roi1", "proc1"):
     getattr(MaranaU, k).ensure_nonblocking()
-MaranaU.hdf5.time_stamp.name = "Andor_timestamps"
+MaranaU.hdf5.time_stamp.name = "MaranaU_timestamps"
+
+#########################################
+# added by XH
+MaranaD = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="MaranaD")
+MaranaD.cam.ensure_nonblocking()
+MaranaD.read_attrs = ['hdf5']
+MaranaD.hdf5.read_attrs = ["time_stamp"]
+MaranaD.stage_sigs["cam.image_mode"] = 0
+for k in ("image", "trans1", "roi1", "proc1"):
+    getattr(MaranaD, k).ensure_nonblocking()
+MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
+
+#########################################
+# added by XH
+KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU")
+KinetixU.cam.ensure_nonblocking()
+KinetixU.read_attrs = ['hdf5']
+KinetixU.hdf5.read_attrs = ["time_stamp"]
+KinetixU.stage_sigs["cam.image_mode"] = 0
+for k in ("image", "trans1", "roi1", "proc1"):
+    getattr(KinetixU, k).ensure_nonblocking()
+KinetixU.hdf5.time_stamp.name = "KinetixU_timestamps"
+
+#########################################
+# added by XH
+KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD")
+KinetixD.cam.ensure_nonblocking()
+KinetixD.read_attrs = ['hdf5']
+KinetixD.hdf5.read_attrs = ["time_stamp"]
+KinetixD.stage_sigs["cam.image_mode"] = 0
+for k in ("image", "trans1", "roi1", "proc1"):
+    getattr(KinetixD, k).ensure_nonblocking()
+KinetixD.hdf5.time_stamp.name = "KinetixD_timestamps"
 
 #############################################
 # vlm = Manta("XF:18IDB-BI{VLM:1}", name="vlm")
@@ -416,6 +687,42 @@ for det in [detA1]:
 #############################################
 # added by XH
 CAM_RD_CFG = {
+    "KINETIX": {
+        "rd_time": {
+            'Sensitivity': 0.011363636363636364, 
+            'Speed': 0.002008032128514056, 
+            'Dynamic Range': 0.012048192771084338,
+            'Sub-Electron': 0.1923076923076923,
+        },
+        "pxl_encoding": {
+            'Sensitivity': 'Standard, 12bpp', 
+            'Speed': 'Full Well, 8bpp', 
+            'Dynamic Range': 'Standard, 16bpp',
+            'Sub-Electron': 'Standard, 16bpp',
+            },
+        "image_mode": ['Single', 'Multiple', 'Continuous'],
+        "trigger_mode": ['Internal', 'Rising Edge', 'Exp. Gate'],
+        "fly_scan_mode": ['Multiple', 'Internal'],
+        "zfly_scan_mode": ['Multiple', 'Rising Edge'],
+    },
+    "KINETIX22": {
+        "rd_time": {
+            'Sensitivity': 0.00847457627118644, 
+            'Speed': 0.0015060240963855422, 
+            'Dynamic Range': 0.009009009009009009,
+            'Sub-Electron': 0.14492753623188406,
+        },
+        "pxl_encoding": {
+            'Sensitivity': 'Standard, 12bpp', 
+            'Speed': 'Full Well, 8bpp', 
+            'Dynamic Range': 'Standard, 16bpp',
+            'Sub-Electron': 'Standard, 16bpp',
+            },
+        "image_mode": ['Single', 'Multiple', 'Continuous'],
+        "trigger_mode": ['Internal', 'Rising Edge', 'Exp. Gate'],
+        "fly_scan_mode": ['Multiple', 'Internal'],
+        "zfly_scan_mode": ['Multiple', 'Rising Edge'],
+    },
     "MARANA-4BV6X": {
         "rd_time": {
             '12-bit (low noise)': 0.02327893333333333, 
@@ -426,8 +733,10 @@ CAM_RD_CFG = {
             '12-bit (low noise)': 'Mono16', 
             '16-bit (high dynamic rang': 'Mono16', 
             '11-bit (high speed)': 'Mono12'},
-        "image_mode": MaranaU.cam.image_mode.metadata["enum_strs"],
-        "trigger_mode": MaranaU.cam.trigger_mode.metadata["enum_strs"],
+        "image_mode": ['Fixed', 'Continuous'],
+        "trigger_mode": ['Internal', 'Software', 'External', 'External Start', 'External Exposure'],
+        "fly_scan_mode": ['Fixed', 'Internal'],
+        "zfly_scan_mode": ['Fixed', 'External'],
     },
     "SONA-4BV6X": {
         "rd_time": {
@@ -439,12 +748,52 @@ CAM_RD_CFG = {
             '12-bit (low noise)': 'Mono16', 
             '16-bit (high dynamic rang': 'Mono16', 
             '11-bit (high speed)': 'Mono12'},
-        "image_mode": MaranaU.cam.image_mode.metadata["enum_strs"],
-        "trigger_mode": MaranaU.cam.trigger_mode.metadata["enum_strs"],
+        "image_mode": ['Fixed', 'Continuous'],
+        "trigger_mode": ['Internal', 'Software', 'External', 'External Start', 'External Exposure'],
+        "fly_scan_mode": ['Fixed', 'Internal'],
+        "zfly_scan_mode": ['Fixed', 'External'],
     },
 }
+
+
+def _get_image_and_trigger_mode_ids(cam, scan_type='fly'):
+    if scan_type == 'fly':
+        image_mode_id = CAM_RD_CFG[cam]["image_mode"].index(CAM_RD_CFG[cam]['fly_scan_mode'][0])
+        trigger_mode_id = CAM_RD_CFG[cam]["trigger_mode"].index(CAM_RD_CFG[cam]['fly_scan_mode'][1])
+    elif scan_type == 'zfly':
+        image_mode_id = CAM_RD_CFG[cam]["image_mode"].index(CAM_RD_CFG[cam]['zfly_scan_mode'][0])
+        trigger_mode_id = CAM_RD_CFG[cam]["trigger_mode"].index(CAM_RD_CFG[cam]['zfly_scan_mode'][1])
+    return image_mode_id, trigger_mode_id
+
 
 def cfg_cam_encoding(cam):
     cam_model = cam.cam.model.value
     yield from abs_set(cam.pxl_encoding, CAM_RD_CFG[cam_model]["pxl_encoding"][cam.pre_amp.enum_strs[cam.pre_amp.value]], wait=True)
 
+
+def _sel_cam(cam):
+    try:
+        if cam is None:
+            return KinetixU
+        elif cam.upper() == "MARANAU":
+            return MaranaU
+        elif cam.upper() == "KINETIXU":
+            return KinetixU
+        elif cam.upper() == "MARANAD":
+            return MaranaD
+        elif cam.upper() == "KINETIXD":
+            return KinetixD
+    except:
+        return cam
+    
+
+def _get_cam_model(cam):
+    model = cam.cam.model.value
+    if model.upper() == 'KINETIX':
+        sensor_size = cam.cam.max_size.max_size_x.value
+        if sensor_size == 2400:
+            return 'KINETIX22'
+        elif sensor_size == 3200:
+            return 'KINETIX'
+    else:
+        return model.upper()

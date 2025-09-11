@@ -825,7 +825,7 @@ def show_global_para():
     for k in CALIBER.keys():
         if "mag" in k:
             print(f"{k} = {CALIBER[k]} X")
-    print(f"\nFor MaranaU camera, current pixel size = {6500./GLOBAL_MAG:3.1f} nm")
+    print(f"\nFor KinetixU camera, current pixel size = {6500./GLOBAL_MAG:3.1f} nm")
     print("\nChange parameters if necessary.\n\n")
 
 
@@ -1264,12 +1264,12 @@ def plot_ic(scan_id=[-1], ics=[]):
 
 def plot2dsum(scan_id=-1, fn="Det_Image", save_flag=0):
     """
-    valid only if the scan using MaranaU or detA1 camera
+    valid only if the scan using KinetixU or detA1 camera
     """
     h = db[scan_id]
     if scan_id == -1:
         scan_id = h.start["scan_id"]
-    if "MaranaU" in h.start["detectors"]:
+    if "KinetixU" in h.start["detectors"]:
         det = "Andor_image"
         find_areaDet = 1
     elif "detA1" in h.start["detectors"]:
@@ -1334,7 +1334,7 @@ def plot1d(scan_id=-1, detectors=[], plot_time_stamp=0, return_flag=0):
     y_sig = {}
     for i in range(n):
         det_name = detectors[i]
-        if det_name == "detA1" or det_name == "MaranaU":
+        if det_name == "detA1" or det_name == "KinetixU":
             det_name = det_name + "_stats1_total"
         y = np.abs(np.array(list(h.data(det_name))))
         title_txt = f"scan#{scan_id}:   {det_name}"
@@ -1441,7 +1441,7 @@ def print_baseline_list():
             i += 1
 
 
-def get_img(h, det="MaranaU", sli=[]):
+def get_img(h, det="KinetixU", sli=[]):
     "Take in a Header and return a numpy array of detA1 image(s)."
     det_name = f"{det}_image"
     if len(sli) == 2:
@@ -1499,6 +1499,18 @@ def get_scan_timestamp_legacy(scan_id, return_flag=0):
         return scan_time.split("#")[-1]
 
 
+def get_image_timestamp(scan_id):
+    h0 = dbv0[scan_id]
+    det_name = h0.start["detectors"][0]
+    with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+        ts = list(h0.data(f"{det_name}_image", stream_name="primary"))[0]
+    try:
+        dt = [datetime.fromtimestamp(t) for t in ts]
+    except:
+        dt = [datetime.fromtimestamp(ts)]
+    t1 = [t.strftime('%Y-%m-%d %H:%M:%S.%f') for t in dt]
+    return t1
+
 def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, print_flag=1):  
     tmp = list(db(scan_id=scan_id))
     n = len(tmp)    
@@ -1534,7 +1546,7 @@ def get_scan_file_name(scan_id):
     fpath_root = res_doc["root"]
     fpath_relative = res_doc["resource_path"]
     fpath = fpath_root + "/" + fpath_relative
-    fpath_remote = "/nsls2/xf18id1/backup/DATA/MaranaU/" + fpath_relative
+    fpath_remote = "/nsls2/xf18id1/backup/DATA/KinetixU/" + fpath_relative
     return print(f"local path: {fpath}\nremote path: {fpath_remote}")
 
 
@@ -1713,7 +1725,6 @@ def split_fly_scan(fn, num=1):
 def abs_set_wait(pv, val, timeout=5, settle_time=0.5, wait=True):
     while pv.value != val:
         yield from abs_set(pv, val, timeout=timeout, settle_time=settle_time, wait=True) 
-        #yield from bps.sleep(0.5)
     return      
         
 

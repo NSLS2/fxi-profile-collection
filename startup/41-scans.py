@@ -75,8 +75,8 @@ def tomo_scan(
     """
     global ZONE_PLATE
 
-    detectors = [MaranaU, ic3]
-    yield from _set_andor_param(
+    detectors = [KinetixU, ic3]
+    yield from _set_cam_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=20
     )
 
@@ -147,7 +147,7 @@ def tomo_scan(
             detectors, motor, num=1, chunk_size=20, stream_name="dark", simu=simu
         )
         # Open shutter, tomo images
-        yield from _set_Andor_chunk_size(detectors, chunk_size=imgs_per_angle)
+        yield from _set_cam_chunk_size(detectors, chunk_size=imgs_per_angle)
         yield from _open_shutter(simu)
         print("shutter opened, starting tomo_scan...")
         for step in steps:  # take tomography images
@@ -263,13 +263,13 @@ def fly_scan(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     #offset_angle = -1 * rs
     offset_angle = 0
     current_rot_angle = zps.pi_r.position
     target_rot_angle = current_rot_angle + relative_rot_angle
     _md = {
-        "detectors": ["MaranaU"],
+        "detectors": ["KinetixU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -309,7 +309,7 @@ def fly_scan(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    yield from _set_andor_param(
+    yield from _set_cam_param(
         exposure_time=exposure_time, period=period, chunk_size=20, binning=binning
     )
     yield from _set_rotation_speed(rs=np.abs(rs))
@@ -332,13 +332,13 @@ def fly_scan(
         )
 
         # open shutter, tomo_images
-        true_period = yield from rd(MaranaU.cam.acquire_period)
+        true_period = yield from rd(KinetixU.cam.acquire_period)
         rot_time = np.abs(relative_rot_angle) / np.abs(rs)
         num_img = int(rot_time / true_period) + 2
 
         yield from _open_shutter(simu=simu)
         print("\nshutter opened, taking tomo images...")
-        yield from _set_Andor_chunk_size(detectors, chunk_size=num_img)
+        yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         # yield from mv(zps.pi_r, current_rot_angle + offset_angle)
         status = yield from abs_set(zps.pi_r, target_rot_angle, wait=False)
         # yield from bps.sleep(1)
@@ -384,7 +384,7 @@ def fly_scan(
             yield from mv(flt, 0)
 
     uid = yield from fly_inner_scan()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -407,7 +407,7 @@ def radiography_scan(
     md=None,
 ):
     """
-    Take multiple images (MaranaU camera)
+    Take multiple images (KinetixU camera)
 
     Input:
     ------------
@@ -424,9 +424,9 @@ def radiography_scan(
     num_img: int, number of images to take
     """
 
-    yield from _set_andor_param(exposure_time, period_time, 1)
+    yield from _set_cam_param(exposure_time, period_time, 1)
 
-    detectors = [MaranaU]
+    detectors = [KinetixU]
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
     motor_z_ini = zps.sz.position
@@ -447,7 +447,7 @@ def radiography_scan(
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
     _md = {
-        "detectors": ["MaranaU"],
+        "detectors": ["KinetixU"],
         "motors": [mot.name for mot in motors],
         "XEng": XEng.position,
         "plan_args": {
@@ -481,7 +481,7 @@ def radiography_scan(
             yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
 
         yield from _open_shutter(simu=simu)
-        yield from _set_Andor_chunk_size(detectors, chunk_size=num_img)
+        yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         yield from _take_image(detectors, motors, num=1, stream_name="primary")
 
 
@@ -512,7 +512,7 @@ def radiography_scan(
         )
 
     uid = yield from inner_scan()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     #yield from _close_shutter(simu=simu)
     txt = get_scan_parameter()
     insert_text(txt)
@@ -593,7 +593,7 @@ def fly_scan(
     """
     global ZONE_PLATE
 
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     offset_angle = -1 * rs
     current_rot_angle = zps.pi_r.position
     target_rot_angle = current_rot_angle + relative_rot_angle
@@ -604,7 +604,7 @@ def fly_scan(
     motor_r_ini = zps.pi_r.position
     
     out_r_frac = out_r - (out_r // 360) * 360
-    out_r_relative = ((target_rot_angle-0.01) // 360) * 360 + out_r_frac
+    out_r_relative = ((target_rot_angle-1) // 360) * 360 + out_r_frac
 
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
@@ -624,7 +624,7 @@ def fly_scan(
 
     
     _md = {
-        "detectors": ["MaranaU"],
+        "detectors": ["KinetixU"],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -667,7 +667,7 @@ def fly_scan(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    yield from _set_andor_param(
+    yield from _set_cam_param(
         exposure_time=exposure_time, period=period, chunk_size=20, binning=binning
     )
     yield from _set_rotation_speed(rs=np.abs(rs))
@@ -691,13 +691,22 @@ def fly_scan(
             )
 
         # open shutter, tomo_images
-        true_period = yield from rd(MaranaU.cam.acquire_period)
-        rot_time = np.abs(relative_rot_angle) / np.abs(rs)
-        num_img = int(rot_time / true_period) + 2
+
+        ###############  need to revise after fixing camera ######################
+        """
+        the Camera has problem in determine the acquire_period. The exact period is determined by the exposure time
+        temporary solution is to calculate the period by exposure time
+        #true_period = yield from rd(KinetixU.cam.acquire_period)
+        """
+        true_period = exposure_time # temperary solution
+        ###########################################################################
+
+        rot_time = np.abs(relative_rot_angle) / np.abs(rs) + 1 # it seems acceleration/de-acceleration take more time
+        num_img = int(rot_time / true_period) 
 
         yield from _open_shutter(simu=simu)
         print("\nshutter opened, taking tomo images...")
-        yield from _set_Andor_chunk_size(detectors, chunk_size=num_img)
+        yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         # yield from mv(zps.pi_r, current_rot_angle + offset_angle)
         status = yield from abs_set(zps.pi_r, target_rot_angle, wait=False)
         # yield from bps.sleep(1)
@@ -750,7 +759,7 @@ def fly_scan(
             yield from mv(flt, 0)
 
     uid = yield from fly_inner_scan()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter(print_flag=0)
     insert_text(txt)
@@ -818,9 +827,9 @@ def xanes_scan2(
 
     """
     global ZONE_PLATE
-    detectors = [MaranaU, ic3, ic4]
+    detectors = [KinetixU, ic3, ic4]
     period = exposure_time if exposure_time >= 0.05 else 0.05
-    yield from _set_andor_param(exposure_time, period, chunk_size)
+    yield from _set_cam_param(exposure_time, period, chunk_size)
     motor_eng = XEng
     eng_ini = XEng.position
 
@@ -963,7 +972,7 @@ def xanes_scan2(
                 yield from bps.sleep(0.5)
 
     yield from xanes_inner_scan()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     txt1 = get_scan_parameter()
     eng_list = np.round(eng_list, 5)
     if len(eng_list) > 10:
@@ -1031,9 +1040,9 @@ def xanes_scan(
 
     """
     global ZONE_PLATE
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     period = exposure_time if exposure_time >= 0.05 else 0.05
-    yield from _set_andor_param(exposure_time, period, chunk_size)
+    yield from _set_cam_param(exposure_time, period, chunk_size)
     motor_eng = XEng
     eng_ini = XEng.position
 
@@ -1207,9 +1216,9 @@ def xanes_scan_img_only(
 
     """
     global ZONE_PLATE
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     period = exposure_time if exposure_time >= 0.05 else 0.05
-    yield from _set_andor_param(exposure_time, period, chunk_size)
+    yield from _set_cam_param(exposure_time, period, chunk_size)
     motor_eng = XEng
     eng_ini = XEng.position
 
@@ -1340,7 +1349,7 @@ def _eng_scan_basic(
 
     num: int, number of energies
 
-    detectors: list, detector list, e.g.[ic3, ic4, MaranaU]
+    detectors: list, detector list, e.g.[ic3, ic4, KinetixU]
 
     delay_time: float, delay time after moving motors, in sec
 
@@ -1537,7 +1546,7 @@ def eng_scan(
 
     num: int, number of energies
 
-    detectors: list, detector list, e.g.[ic3, ic4, MaranaU]
+    detectors: list, detector list, e.g.[ic3, ic4, KinetixU]
 
     delay_time: float, delay time after moving motors, in sec
 
@@ -1596,12 +1605,12 @@ def grid2D_rel(
 ):
     # detectors=[ic3, ic4]
     global ZONE_PLATE
-    detectors = [MaranaU, ic3]
-    yield from mv(MaranaU.cam.acquire, 0)
-    yield from mv(MaranaU.cam.image_mode, 0)
-    yield from mv(MaranaU.cam.num_images, 1)
+    detectors = [KinetixU, ic3]
+    yield from mv(KinetixU.cam.acquire, 0)
+    yield from mv(KinetixU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.num_images, 1)
     yield from mv(detectors[0].cam.acquire_time, exposure_time)
-    yield from mv(MaranaU.cam.acquire_period, exposure_time)
+    yield from mv(KinetixU.cam.acquire_period, exposure_time)
 
     motor1_ini = motor1.position
     motor2_ini = motor2.position
@@ -1758,7 +1767,7 @@ def delay_scan(
 
     Inputs:
     ---------
-    detectors: list of dectectors, e.g., [MaranaU, ic3]
+    detectors: list of dectectors, e.g., [KinetixU, ic3]
 
     motor: list of motors, e.g., zps.sx
 
@@ -1780,8 +1789,8 @@ def delay_scan(
 
     """
     global ZONE_PLATE
-    if MaranaU in detectors:
-        yield from _set_andor_param(exposure_time, period=exposure_time, chunk_size=1)
+    if KinetixU in detectors:
+        yield from _set_cam_param(exposure_time, period=exposure_time, chunk_size=1)
 
     # motor = dcm.th2
     # motor = pzt_dcm_th2.setpos
@@ -1908,7 +1917,7 @@ def raster_2D_scan(
     Filters will be inserted at all time, including: img, img_bkg, and img_dark    
     
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
     
     
@@ -1937,9 +1946,9 @@ def raster_2D_scan(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -1956,8 +1965,8 @@ def raster_2D_scan(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [MaranaU, ic3]
-    yield from _set_andor_param(
+    detectors = [KinetixU, ic3]
+    yield from _set_cam_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=chunk_size
     )
 
@@ -2042,7 +2051,7 @@ def raster_2D_scan(
         print("open shutter ...")
         yield from _open_shutter(simu)
 
-        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
+        yield from _set_cam_chunk_size(detectors, chunk_size=chunk_size)
 
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
@@ -2089,7 +2098,7 @@ def raster_2D_scan(
         yield from _close_shutter(simu=simu)
 
     yield from raster_2D_inner()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
@@ -2123,7 +2132,7 @@ def raster_2D_scan_modify(
     Filters will be inserted at all time, including: img, img_bkg, and img_dark    
     
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
     
     
@@ -2152,9 +2161,9 @@ def raster_2D_scan_modify(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2171,8 +2180,8 @@ def raster_2D_scan_modify(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [MaranaU, ic3]
-    yield from _set_andor_param(
+    detectors = [KinetixU, ic3]
+    yield from _set_cam_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=chunk_size
     )
 
@@ -2258,7 +2267,7 @@ def raster_2D_scan_modify(
             print("open shutter ...")
             yield from _open_shutter(simu)
 
-        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
+        yield from _set_cam_chunk_size(detectors, chunk_size=chunk_size)
 
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
@@ -2305,7 +2314,7 @@ def raster_2D_scan_modify(
             yield from _close_shutter(simu=simu)
 
     yield from raster_2D_inner()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
@@ -2339,7 +2348,7 @@ def raster_2D_scan_filter_bkg(
     Filters will ONLY be inserted when taking background image   
 
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Inputs:
@@ -2367,9 +2376,9 @@ def raster_2D_scan_filter_bkg(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2386,7 +2395,7 @@ def raster_2D_scan_filter_bkg(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
 
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -2468,7 +2477,7 @@ def raster_2D_scan_filter_bkg(
 
         print("open shutter ...")
         yield from _open_shutter(simu)
-        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
+        yield from _set_cam_chunk_size(detectors, chunk_size=chunk_size)
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
             if scan_x_flag == 1:
@@ -2520,7 +2529,7 @@ def raster_2D_scan_filter_bkg(
         yield from _close_shutter(simu)
 
     yield from raster_2D_inner()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
@@ -2547,7 +2556,7 @@ def raster_2D_scan_individal_bkg(
     md=None,
 ):
     """
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for MaranaU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Different from raster_2D_scan that this scan will take backgound image for every movement
@@ -2577,9 +2586,9 @@ def raster_2D_scan_individal_bkg(
         relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
         NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
 
-    img_sizeX: int, default is 2048, it is the pixel number for MaranaU camera horizontal
+    img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for MaranaU camera vertical
+    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2596,7 +2605,7 @@ def raster_2D_scan_individal_bkg(
     """
     global ZONE_PLATE
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     
     motor_x_ini = zps.sx.position
     motor_y_ini = zps.sy.position
@@ -2678,7 +2687,7 @@ def raster_2D_scan_individal_bkg(
 
         print("open shutter ...")
         yield from _open_shutter(simu)
-        yield from _set_Andor_chunk_size(detectors, chunk_size=chunk_size)
+        yield from _set_cam_chunk_size(detectors, chunk_size=chunk_size)
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
             for jj in np.arange(y_range[0], y_range[1] + 1):
@@ -2727,7 +2736,7 @@ def raster_2D_scan_individal_bkg(
         yield from _close_shutter(simu)
 
     yield from raster_2D_inner()
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
     txt = get_scan_parameter()
     insert_text(txt)
@@ -2885,11 +2894,11 @@ def multipos_2D_xanes_scan2(
     global ZONE_PLATE
     txt = "starting multipos_2D_xanes_scan2:"
     insert_text(txt)
-    detectors = [MaranaU, ic3, ic4]
+    detectors = [KinetixU, ic3, ic4]
     period = max(0.05, exposure_time)
-    yield from mv(MaranaU.cam.acquire, 0)
-    yield from mv(MaranaU.cam.bin_y, binning[0], MaranaU.cam.bin_x, binning[1])
-    yield from _set_andor_param(exposure_time, period=period, chunk_size=chunk_size)
+    yield from mv(KinetixU.cam.acquire, 0)
+    yield from mv(KinetixU.cam.bin_y, binning[0], KinetixU.cam.bin_x, binning[1])
+    yield from _set_cam_param(exposure_time, period=period, chunk_size=chunk_size)
 
     eng_ini = XEng.position
 
@@ -3120,9 +3129,9 @@ def multipos_2D_xanes_scan3(
     global ZONE_PLATE
     txt = "starting multipos_2D_xanes_scan3"
     insert_text(txt)
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     period = max(0.05, exposure_time)
-    yield from _set_andor_param(exposure_time, period=period, chunk_size=chunk_size)
+    yield from _set_cam_param(exposure_time, period=period, chunk_size=chunk_size)
     eng_ini = XEng.position
 
     motor_x_ini = zps.sx.position
@@ -3413,11 +3422,11 @@ def multipos_count(
     md=None,
 ):
     global ZONE_PLATE
-    detectors = [MaranaU, ic3]
+    detectors = [KinetixU, ic3]
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
     _md = {
-        "detectors": ["MaranaU"],
+        "detectors": ["KinetixU"],
         "motors": "zps_sx, zps_sy, zps_sz",
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -3444,7 +3453,7 @@ def multipos_count(
     }
 
     period = max(0.05, exposure_time)
-    yield from _set_andor_param(exposure_time, period=period, chunk_size=1)
+    yield from _set_cam_param(exposure_time, period=period, chunk_size=1)
 
     txt = f"multipos_count(x_list, y_list, z_list,  out_x={out_x}, out_y={out_y}, out_z={out_z}, out_r={out_r}, exposure_time={exposure_time}, repeat_num={repeat_num}, sleep_time={sleep_time}, note={note})"
     insert_text(txt)
@@ -3461,7 +3470,7 @@ def multipos_count(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    @stage_decorator(list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r])
+    @stage_decorator(list([KinetixU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r])
     @run_decorator(md=_md)
     def inner_scan():
         print("\nshutter closed, taking 10 dark images...")
@@ -3493,12 +3502,12 @@ def multipos_count(
                     z_target = out_z if not (out_z is None) else z_ini
                     r_target = out_r if not (out_r is None) else r_ini
                 yield from trigger_and_read(
-                    list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
+                    list([KinetixU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
                 )
                 yield from mv(zps.pi_r, r_target)
                 yield from mv(zps.sx, x_target, zps.sy, y_target, zps.sz, z_target)
                 yield from trigger_and_read(
-                    list([MaranaU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
+                    list([KinetixU, ic3]) + [zps.sx, zps.sy, zps.sz, zps.pi_r]
                 )
                 yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
                 yield from mv(zps.pi_r, r_ini)
@@ -3556,7 +3565,7 @@ def xanes_3D(
             binning=binning,
         )
         yield from bps.sleep(1)
-    yield from mv(MaranaU.cam.image_mode, 1)
+    yield from mv(KinetixU.cam.image_mode, 2)
     export_pdf(1)
 
 '''

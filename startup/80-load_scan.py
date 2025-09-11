@@ -23,10 +23,11 @@ def timestamp_to_float(t):
 
 def get_fly_scan_angle(scan_id):
     h = dbv0[scan_id]
+    det_name = h.start["detectors"][0]
     with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
-        timestamp_tomo = list(h.data("Andor_image", stream_name="primary"))[0]
-        #timestamp_dark = list(h.data("Andor_image", stream_name="dark"))[0]
-        #timestamp_bkg = list(h.data("Andor_image", stream_name="flat"))[0]
+        timestamp_tomo = list(h.data(f"{det_name}_image", stream_name="primary"))[0]
+        #timestamp_dark = list(h.data(f"{det_name}_image", stream_name="dark"))[0]
+        #timestamp_bkg = list(h.data(f"{det_name}_image", stream_name="flat"))[0]
     assert "zps_pi_r_monitor" in h.stream_names
     pos = h.table("zps_pi_r_monitor")
     timestamp_mot = timestamp_to_float(pos["time"])
@@ -218,6 +219,7 @@ def export_tomo_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     scan_type = "tomo_scan"
     scan_id = h.start["scan_id"]
     try:
@@ -231,10 +233,10 @@ def export_tomo_scan(h, fpath=None):
     angle_e = h.start["plan_args"]["stop"]
     angle_n = h.start["plan_args"]["num"]
     exposure_t = h.start["plan_args"]["exposure_time"]
-    img = np.array(list(h.data("Andor_image", stream_name="primary")))
+    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
     img_tomo = np.median(img, axis=1)
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
 
     img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
     img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
@@ -266,6 +268,7 @@ def export_fly_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "fly_scan"
@@ -285,14 +288,14 @@ def export_fly_scan(h, fpath=None):
     img_angle = get_fly_scan_angle(uid)
     id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
 
-    img_tomo = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    img_tomo = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
     s = img_tomo.shape
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
     except:
         img_dark = np.zeros((1, s[1], s[2]))
     try:
-        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
     except:
         img_bkg = np.ones((1, s[1], s[2]))
 
@@ -339,6 +342,7 @@ def export_fly_scan2(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "fly_scan2"
@@ -361,19 +365,19 @@ def export_fly_scan2(h, fpath=None):
     # # sanity check: make sure we remembered the right stream name
     # assert "zps_pi_r_monitor" in h.stream_names
     # pos = h.table("zps_pi_r_monitor")
-    # #    imgs = list(h.data("Andor_image"))
-    # img_dark = np.array(list(h.data("Andor_image"))[-1][:])
-    # img_bkg = np.array(list(h.data("Andor_image"))[-2][:])
+    # #    imgs = list(h.data(f"{det_name}_image"))
+    # img_dark = np.array(list(h.data(f"{det_name}_image"))[-1][:])
+    # img_bkg = np.array(list(h.data(f"{det_name}_image"))[-2][:])
     # s = img_dark.shape
     # img_dark_avg = np.mean(img_dark, axis=0).reshape(1, s[1], s[2])
     # img_bkg_avg = np.mean(img_bkg, axis=0).reshape(1, s[1], s[2])
 
-    # imgs = np.array(list(h.data("Andor_image"))[:-2])
+    # imgs = np.array(list(h.data(f"{det_name}_image"))[:-2])
     # s1 = imgs.shape
     # imgs = imgs.reshape([s1[0] * s1[1], s1[2], s1[3]])
 
     # with db.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
-    #     chunked_timestamps = list(h.data("Andor_image"))
+    #     chunked_timestamps = list(h.data(f"{det_name}_image"))
 
     # chunked_timestamps = chunked_timestamps[:-2]
     # raw_timestamps = []
@@ -452,9 +456,9 @@ def export_fly_scan2(h, fpath=None):
     x_eng = h.start["XEng"]
     img_angle = get_fly_scan_angle(uid)
 
-    img_tomo = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_tomo = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
 
     img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
     img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
@@ -492,6 +496,7 @@ def export_xanes_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -509,11 +514,11 @@ def export_xanes_scan(h, fpath=None):
     chunk_size = h.start["chunk_size"]
     num_eng = h.start["num_eng"]
 
-    img_xanes = np.array(list(h.data("Andor_image", stream_name="primary")))
+    img_xanes = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
     img_xanes_avg = np.mean(img_xanes, axis=1)
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
     img_dark_avg = np.mean(img_dark, axis=1)
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))
     img_bkg_avg = np.mean(img_bkg, axis=1)
 
     eng_list = list(h.start["eng_list"])
@@ -558,6 +563,7 @@ def export_xanes_scan_with_binning(h, fpath=None, binning=1):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -577,8 +583,8 @@ def export_xanes_scan_with_binning(h, fpath=None, binning=1):
 
     img_xanes_avg = []
     img_bkg_avg = []
-    img_list = list(h.data("Andor_image", stream_name="primary"))
-    bkg_list = list(h.data("Andor_image", stream_name="flat"))
+    img_list = list(h.data(f"{det_name}_image", stream_name="primary"))
+    bkg_list = list(h.data(f"{det_name}_image", stream_name="flat"))
     for i in trange(num_eng):
         img_xanes_sub = np.array(img_list[i])        
         img_xanes_sub_avg = np.median(img_xanes_sub, axis=0)
@@ -592,7 +598,7 @@ def export_xanes_scan_with_binning(h, fpath=None, binning=1):
 
     
 
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
     img_dark_avg = np.mean(img_dark, axis=1)[0]
     img_bin = rescale(img_dark_avg, 1/binning)
     img_dark_avg = np.expand_dims(img_bin, axis=0)
@@ -632,6 +638,7 @@ def export_xanes_scan_img_only(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -649,9 +656,9 @@ def export_xanes_scan_img_only(h, fpath=None):
     chunk_size = h.start["chunk_size"]
     num_eng = h.start["num_eng"]
 
-    img_xanes = np.array(list(h.data("Andor_image", stream_name="primary")))
+    img_xanes = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
     img_xanes_avg = np.mean(img_xanes, axis=1)
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
     img_dark_avg = np.mean(img_dark, axis=1)
     img_bkg = np.ones(img_xanes.shape)
     img_bkg_avg = np.ones(img_dark_avg.shape)
@@ -696,6 +703,7 @@ def export_z_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -711,10 +719,10 @@ def export_z_scan(h, fpath=None):
     chunk_size = h.start["plan_args"]["chunk_size"]
     note = h.start["plan_args"]["note"] if h.start["plan_args"]["note"] else "None"
     
-    img_zscan = np.mean(np.array(list(h.data("Andor_image", stream_name="primary"))), axis=1)
-    img_bkg = np.mean(np.array(list(h.data("Andor_image", stream_name="flat"))), axis=1).squeeze()
-    img_dark = np.mean(np.array(list(h.data("Andor_image", stream_name="dark"))), axis=1).squeeze()
-    # img = np.array(list(h.data("Andor_image", stream_name="primary")))
+    img_zscan = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="primary"))), axis=1)
+    img_bkg = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="flat"))), axis=1).squeeze()
+    img_dark = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="dark"))), axis=1).squeeze()
+    # img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
     # img_zscan = np.mean(img[:num], axis=1)
     # img_bkg = np.mean(img[num], axis=0, keepdims=False)
     # img_dark = np.mean(img[-1], axis=0, keepdims=False)
@@ -749,6 +757,7 @@ def export_z_scan2(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -763,7 +772,7 @@ def export_z_scan2(h, fpath=None):
     num = h.start["plan_args"]["steps"]
     chunk_size = h.start["plan_args"]["chunk_size"]
     note = h.start["plan_args"]["note"] if h.start["plan_args"]["note"] else "None"
-    img = np.mean(np.array(list(h.data("Andor_image"))), axis=1)
+    img = np.mean(np.array(list(h.data(f"{det_name}_image"))), axis=1)
     img = np.squeeze(img)
     img_dark = img[0]
     l1 = np.arange(1, len(img), 2)
@@ -807,6 +816,7 @@ def export_test_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -822,16 +832,16 @@ def export_test_scan(h, fpath=None):
         x_eng = h.start["x_ray_energy"]
     num = h.start["plan_args"]["num_img"]
 
-    img = np.array(list(h.data("Andor_image", stream_name="primary")))[:,0]
+    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[:,0]
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
     except:
         img_dark = np.zeros((1, img.shape[1], img.shape[2]))
         img_dark_avg = img_dark
         print('img dark not taken')
     try:
-        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
         img_bkg_avg = np.median(img_bkg, axis=0, keepdims=True)
     except:
         img_bkg = np.zeros((1, img.shape[1], img.shape[2]))
@@ -879,6 +889,7 @@ def export_test_scan2(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -894,14 +905,14 @@ def export_test_scan2(h, fpath=None):
         x_eng = h.start["x_ray_energy"]
     num = h.start["plan_args"]["num_img"]
 
-    img = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.mean(img_dark, axis=0, keepdims=True)
     except:
         img_dark = np.zeros((1, img.shape[1], img.shape[2]))
         img_dark_avg = img_dark
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
     img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
 
     img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
@@ -945,6 +956,7 @@ def export_radiography_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -960,14 +972,14 @@ def export_radiography_scan(h, fpath=None):
         x_eng = h.start["x_ray_energy"]
     num = h.start["plan_args"]["num_img"]
 
-    img = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.mean(img_dark, axis=0, keepdims=True)
     except:
         img_dark = np.zeros((1, img.shape[1], img.shape[2]))
         img_dark_avg = img_dark
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
     img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
 
     img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
@@ -1005,7 +1017,7 @@ def export_radiography_scan(h, fpath=None):
 
 def export_count_img(h, fpath=None):
     """
-    load images (e.g. RE(count([MaranaU], 10)) ) and save to .h5 file
+    load images (e.g. RE(count([KinetixU], 10)) ) and save to .h5 file
     """
     if fpath is None:
         fpath = "./"
@@ -1059,7 +1071,7 @@ def export_delay_scan(h, fpath=None):
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
-    if det == "detA1" or det == "MaranaU":
+    if det == "detA1" or det == "KinetixU":
         img = get_img(h, det)
         fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
         with h5py.File(fname, "w") as hf:
@@ -1088,6 +1100,7 @@ def export_multipos_count(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     scan_type = h.start["plan_name"]
     scan_id = h.start["scan_id"]
     uid = h.start["uid"]
@@ -1099,7 +1112,7 @@ def export_multipos_count(h, fpath=None):
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
-    img_raw = list(h.data("Andor_image"))
+    img_raw = list(h.data(f"{det_name}_image"))
     img_dark = np.squeeze(np.array(img_raw[:num_dark]))
     img_dark_avg = np.mean(img_dark, axis=0, keepdims=True)
     num_repeat = np.int(
@@ -1139,6 +1152,7 @@ def export_grid2D_rel(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -1151,7 +1165,7 @@ def export_grid2D_rel(h, fpath=None):
     x_eng = h.start["XEng"]
     num1 = h.start["plan_args"]["num1"]
     num2 = h.start["plan_args"]["num2"]
-    img = np.squeeze(np.array(list(h.data("Andor_image"))))
+    img = np.squeeze(np.array(list(h.data(f"{det_name}_image"))))
 
     fname = scan_type + "_id_" + str(scan_id)
     # cwd = os.getcwd()
@@ -1177,6 +1191,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "grid2D_rel"
@@ -1196,17 +1211,17 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
-    img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
+    img_raw = np.array(list(h.data(f"{det_name}_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
     s = img.shape
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
         img_dark_avg = np.zeros((1, *s[1:]))
 
     try:
-        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
         img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
         img_bkg_avg = np.ones((1, *s[1:]))
@@ -1311,6 +1326,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         if not fpath[-1] == "/":
             fpath += "/"
 
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "grid2D_rel"
@@ -1335,17 +1351,17 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     else:
         h_ref = h
 
-    img_raw = np.array(list(h.data("Andor_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
+    img_raw = np.array(list(h.data(f"{det_name}_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
     s = img.shape # (9, 1020, 1024)
     try:
-        img_dark = np.array(list(h_ref.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h_ref.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
         img_dark_avg = np.zeros((1, *s[1:]))    
 
     try:
-        img_bkg = np.array(list(h_ref.data("Andor_image", stream_name="flat")))[0]
+        img_bkg = np.array(list(h_ref.data(f"{det_name}_image", stream_name="flat")))[0]
         img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
         img_bkg_avg = np.ones((1, *s[1:]))
@@ -1461,6 +1477,7 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     scan_type = h.start["plan_name"]
     uid = h.start["uid"]
     note = h.start["note"]
@@ -1478,9 +1495,9 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
     pxl_sz = 6500.0 / M
     repeat_num = 1
 
-    img_xanes = np.array(list(h.data("Andor_image", stream_name="primary")))
-    img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))
-    img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))
+    img_xanes = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
+    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))
 
     img_xanes = np.median(img_xanes, axis=1)
     img_dark = np.median(img_dark, axis=1)
@@ -1580,6 +1597,7 @@ def export_multipos_2D_xanes_scan3(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     zp_z_pos = h.table("baseline")["zp_z"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
@@ -1596,7 +1614,7 @@ def export_multipos_2D_xanes_scan3(h, fpath=None):
     num_eng = h.start["num_eng"]
     num_pos = h.start["num_pos"]
     #    repeat_num = h.start['plan_args']['repeat_num']
-    imgs = np.array(list(h.data("Andor_image")))
+    imgs = np.array(list(h.data(f"{det_name}_image")))
     imgs = np.mean(imgs, axis=1)
     img_dark = imgs[0]
     eng_list = list(h.start["eng_list"])
@@ -1651,6 +1669,7 @@ def export_user_fly_only(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = h.start["plan_name"]
@@ -1670,21 +1689,21 @@ def export_user_fly_only(h, fpath=None):
     # sanity check: make sure we remembered the right stream name
     assert "zps_pi_r_monitor" in h.stream_names
     pos = h.table("zps_pi_r_monitor")
-    imgs = np.array(list(h.data("Andor_image")))
+    imgs = np.array(list(h.data(f"{det_name}_image")))
 
     s1 = imgs.shape
     chunk_size = s1[1]
     imgs = imgs.reshape(-1, s1[2], s1[3])
 
     # load darks and bkgs
-    img_dark = np.array(list(db[dark_scan_id].data("Andor_image")))[0]
-    img_bkg = np.array(list(db[bkg_scan_id].data("Andor_image")))[0]
+    img_dark = np.array(list(db[dark_scan_id].data(f"{det_name}_image")))[0]
+    img_bkg = np.array(list(db[bkg_scan_id].data(f"{det_name}_image")))[0]
     s = img_dark.shape
     img_dark_avg = np.mean(img_dark, axis=0).reshape(1, s[1], s[2])
     img_bkg_avg = np.mean(img_bkg, axis=0).reshape(1, s[1], s[2])
 
     with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
-        chunked_timestamps = list(h.data("Andor_image"))
+        chunked_timestamps = list(h.data(f"{det_name}_image"))
 
     raw_timestamps = []
     for chunk in chunked_timestamps:
@@ -1791,6 +1810,7 @@ def export_scan_change_expo_time(h, fpath=None, save_range_x=[], save_range_y=[]
         fpath = os.getcwd()
     if not fpath[-1] == "/":
         fpath += "/"
+    det_name = h.start["detectors"][0]
     scan_id = h.start["scan_id"]
     fpath += f"scan_{scan_id}/"
     fpath_t1 = fpath + "t1/"
@@ -1821,7 +1841,7 @@ def export_scan_change_expo_time(h, fpath=None, save_range_x=[], save_range_y=[]
     x_range = h.start["plan_args"]["x_range"]
     y_range = h.start["plan_args"]["y_range"]
 
-    imgs = list(h.data("Andor_image"))
+    imgs = list(h.data(f"{det_name}_image"))
     s = imgs[0].shape
 
     if len(save_range_x) == 0:
@@ -1888,6 +1908,7 @@ def export_moving_x_scan(h, fpath=None):
     else:
         if not fpath[-1] == "/":
             fpath += "/"
+    det_name = h.start["detectors"][0]
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "moving_x_scan"
@@ -1904,14 +1925,14 @@ def export_moving_x_scan(h, fpath=None):
 
     x_eng = h.start["XEng"]
 
-    img = np.array(list(h.data("Andor_image", stream_name="primary")))[0]
+    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
     s = img.shape
     try:
-        img_dark = np.array(list(h.data("Andor_image", stream_name="dark")))[0]
+        img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
     except:
         img_dark = np.zeros((1, s[1], s[2]))
     try:
-        img_bkg = np.array(list(h.data("Andor_image", stream_name="flat")))[0]
+        img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
     except:
         img_bkg = np.ones((1, s[1], s[2]))
 
@@ -1956,8 +1977,9 @@ def export_moving_x_scan(h, fpath=None):
 
 def get_moving_x_scan_position(scan_id):
     h = dbv0[scan_id]
+    det_name = h.start["detectors"][0]
     with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
-        timestamp_img = list(h.data("Andor_image", stream_name="primary"))[0]
+        timestamp_img = list(h.data(f"{det_name}_image", stream_name="primary"))[0]
     assert "zps_sx_monitor" in h.stream_names
     pos = h.table("zps_sx_monitor")
     timestamp_mot = timestamp_to_float(pos["time"])

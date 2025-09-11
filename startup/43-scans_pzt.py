@@ -13,7 +13,7 @@ print(f"Loading {__file__}...")
 )
 def pzt_scan(pzt_motor, start, stop, steps, detectors=[Vout2], sleep_time=1, md=None):
     """
-    scan the pzt_motor (e.g., pzt_dcm_th2), detectors can be any signal or motor (e.g., MaranaU, dcm.th2)
+    scan the pzt_motor (e.g., pzt_dcm_th2), detectors can be any signal or motor (e.g., KinetixU, dcm.th2)
 
     Inputs:
     ---------
@@ -25,17 +25,17 @@ def pzt_scan(pzt_motor, start, stop, steps, detectors=[Vout2], sleep_time=1, md=
 
     steps: int, number of steps
 
-    detectors: list of detectors, e.g., [Vout2, MaranaU, ic3]
+    detectors: list of detectors, e.g., [Vout2, KinetixU, ic3]
 
     sleep time: float, in unit of sec
 
     """
-    if MaranaU in detectors:
-        exposure_time = yield from bps.rd(MaranaU.cam.acquire_time)
-        yield from mv(MaranaU.cam.acquire, 0)
-        yield from mv(MaranaU.cam.image_mode, 0)
-        yield from mv(MaranaU.cam.num_images, 1)
-        MaranaU.cam.acquire_period.put(exposure_time)
+    if KinetixU in detectors:
+        exposure_time = yield from bps.rd(KinetixU.cam.acquire_time)
+        yield from mv(KinetixU.cam.acquire, 0)
+        yield from mv(KinetixU.cam.image_mode, 0)
+        yield from mv(KinetixU.cam.num_images, 1)
+        KinetixU.cam.acquire_period.put(exposure_time)
 
     motor = pzt_motor.setpos
     motor_readback = pzt_motor.pos
@@ -196,7 +196,7 @@ def pzt_scan_multiple(
     """
     Repeat scanning the pzt (e.g. pzt_dcm_ch2, pzt_dcm_th2), and read the detector outputs. Images and .csv data file will be saved
     Use as:
-    e.g., pzt_scan_multiple(pzt_dcm_th2,-4, -2, 3, [Vout2, MaranaU,ic1, dcm.th2], repeat_num=2, save_file_dir='/home/xf18id/Documents/FXI_commision/DCM_scan/')
+    e.g., pzt_scan_multiple(pzt_dcm_th2,-4, -2, 3, [Vout2, KinetixU,ic1, dcm.th2], repeat_num=2, save_file_dir='/home/xf18id/Documents/FXI_commision/DCM_scan/')
 
     Inputs:
     ---------
@@ -210,7 +210,7 @@ def pzt_scan_multiple(
     steps:  int
         steps of scanning
     detectors: list of detector device or signals
-        e.g., [dcm.th2, MaranaU, ic3, Vout2]
+        e.g., [dcm.th2, KinetixU, ic3, Vout2]
     repeat_num: int
         repeat scanning for "repeat_num" times
     save_file_dir: str
@@ -252,7 +252,7 @@ def pzt_scan_multiple(
         for i in range(len(detector_signal)):
             det = detector_signal[i]
 
-            if (det == "MaranaU") or (det == "detA1"):
+            if (det == "KinetixU") or (det == "detA1"):
                 det = det + "_stats1_total"
             det_readout = np.array(list(h.data(det)))
             col_y_prefix = det
@@ -334,7 +334,7 @@ def pzt_energy_scan(
     eng_list: list or array(float)
         e.g. [8.9, 9.0]
     detectors: list of detector device or signals
-        e.g., [dcm.th2, MaranaU, ic3, Vout2]
+        e.g., [dcm.th2, KinetixU, ic3, Vout2]
     repeat_num: int
         repeat scanning for "repeat_num" times
     save_file_dir: str
@@ -416,7 +416,7 @@ def pzt_overnight_scan(
     eng_list: list or array(float)
         e.g. [8.9, 9.0]
     detectors: list of detector device or signals
-        e.g., [dcm.th2, MaranaU, ic3, Vout2]
+        e.g., [dcm.th2, KinetixU, ic3, Vout2]
     repeat_num: int
         single step: repeat scanning for "repeat_num" times
     sleep_time: float
