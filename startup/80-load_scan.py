@@ -912,8 +912,12 @@ def export_test_scan2(h, fpath=None):
     except:
         img_dark = np.zeros((1, img.shape[1], img.shape[2]))
         img_dark_avg = img_dark
-    img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
-    img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
+    try:
+        img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
+        img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
+    except:
+        img_bkg = np.ones((1, img.shape[1], img.shape[2]))
+        img_bkg_avg = img_bkg
 
     img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
     img_norm[np.isnan(img_norm)] = 0

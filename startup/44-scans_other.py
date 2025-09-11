@@ -190,8 +190,10 @@ def test_scan2(
     out_r=0,
     num_img=10,
     take_dark_img=True,
+    take_bkg_img=True,
     relative_move_flag=1,
     rot_first_flag=1, 
+    close_shutter_at_end=True,
     note="",
     simu=False,
     md=None,
@@ -270,40 +272,43 @@ def test_scan2(
             print("\nshutter closed, taking dark images...")
             yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
 
-        yield from _open_shutter(simu=simu)
+        if take_bkg_img:
+            # taking out sample and take background image
+            print("\nTaking background images...")
+            yield from _open_shutter(simu=simu)
+            yield from _take_bkg_image(
+                motor_x_out,
+                motor_y_out,
+                motor_z_out,
+                motor_r_out,
+                detectors,
+                [],
+                num=1,
+                chunk_size=20,
+                rot_first_flag=rot_first_flag,
+                stream_name="flat",
+                simu=simu,
+            )
+
+            yield from _move_sample_in(
+                motor_x_ini,
+                motor_y_ini,
+                motor_z_ini,
+                motor_r_ini,
+                trans_first_flag=rot_first_flag,
+                repeat=3,
+            )
+
+        #yield from _open_shutter(simu=simu)
         yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         yield from _take_image(detectors, motors, num=1, stream_name="primary")
 
-
-        # taking out sample and take background image
-        print("\nTaking background images...")
-        yield from _take_bkg_image(
-            motor_x_out,
-            motor_y_out,
-            motor_z_out,
-            motor_r_out,
-            detectors,
-            [],
-            num=1,
-            chunk_size=20,
-            rot_first_flag=rot_first_flag,
-            stream_name="flat",
-            simu=simu,
-        )
-        if take_dark_img:
+        if close_shutter_at_end:
             yield from _close_shutter(simu=simu)
-        yield from _move_sample_in(
-            motor_x_ini,
-            motor_y_ini,
-            motor_z_ini,
-            motor_r_ini,
-            trans_first_flag=rot_first_flag,
-            repeat=3,
-        )
+        
 
     uid = yield from inner_scan()
-    yield from mv(KinetixU.cam.image_mode, 1)
-    #yield from _close_shutter(simu=simu)
+    yield from mv(KinetixU.cam.image_mode, 2)
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
@@ -311,7 +316,7 @@ def test_scan2(
 
 
 def z_scan(
-    scan_motor='zp_z',
+    scan_motor='"zp.z"',
     start=-0.03,
     stop=0.03,
     steps=31,
