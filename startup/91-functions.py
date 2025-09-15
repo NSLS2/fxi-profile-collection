@@ -651,7 +651,10 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
     for k in CALIBER.keys():
         if "XEng" in k:
             ENG_val.append(CALIBER[k])
-            ENG_idx.append(int(k[-1]))
+            tmp_str = k.split('pos')
+            idx = int(tmp_str[-1])
+            ENG_idx.append(idx)
+
     t = find_nearest(eng_new, ENG_val)
     eng1 = ENG_val.pop(t)
     id1 = ENG_idx.pop(t)
