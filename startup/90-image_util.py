@@ -2,12 +2,12 @@ print(f"Loading {__file__}...")
 
 import numpy as np
 from copy import deepcopy
-from scipy.ndimage.interpolation import shift
+from scipy.ndimage import shift
 import scipy.fftpack as sf
 import math
 import matplotlib.pyplot as mplp
 import scipy.ndimage as sn
-from scipy.ndimage.filters import median_filter as medfilt
+from scipy.ndimage import median_filter as medfilt
 from PIL import Image
 from matplotlib.widgets import Slider
 
@@ -39,7 +39,7 @@ def pad(img, thick, direction):
     def update(val):
         im.set_data(data.take(val,axis=axis))
         fig.canvas.draw_idle()
-   
+
     im_slider.on_changed(update)
     plt.show()
     return im_slider
@@ -854,7 +854,7 @@ def plot3D(data,axis=0,index_init=None):
     def update(val):
         im.set_data(data.take(val,axis=axis))
         fig.canvas.draw_idle()
-   
+
     im_slider.on_changed(update)
     plt.show()
     return im_slider
