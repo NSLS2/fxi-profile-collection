@@ -288,7 +288,8 @@ def export_fly_scan(h, fpath=None):
     img_angle = get_fly_scan_angle(uid)
     id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
 
-    img_tomo = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[0]
+    tmp = list(h.data(f"{det_name}_image", stream_name="primary"))[0]
+    img_tomo = np.array(tmp[:len(img_angle)])
     s = img_tomo.shape
     try:
         img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
@@ -832,7 +833,19 @@ def export_test_scan(h, fpath=None):
         x_eng = h.start["x_ray_energy"]
     num = h.start["plan_args"]["num_img"]
 
-    img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[:,0]
+
+    img_list = list(h.data(f"{det_name}_image", stream_name="primary"))
+    n = len(img_list)
+    for i in range(n-1, 0, -1):    
+        try:
+            #print(i)
+            img = np.array(img_list[:i])[:, 0]
+        except:
+            continue
+        break
+    if i < n:
+        print(f'few images are lost, only {i}/{n} images saved')
+    #img = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))[:,0]
     try:
         img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.median(img_dark, axis=0, keepdims=True)
@@ -1215,6 +1228,13 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
 
+    rot_angle = h.table("baseline")["zps_pi_r"][1]
+    scan_x_flag = h.start['plan_args']['scan_x_flag']
+    if scan_x_flag:
+        pix = pix * np.cos(rot_angle/180.*np.pi)
+    else:
+        pix = pix * np.sin(rot_angle/180.*np.pi)
+
     img_raw = np.array(list(h.data(f"{det_name}_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
     s = img.shape
@@ -1346,9 +1366,16 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     pix = h.start["plan_args"]["pxl"]
     chunk_size = h.start["plan_args"]["chunk_size"]
     zp_z_pos = h.table("baseline")["zp_z"][1]
+    rot_angle = h.table("baseline")["zps_pi_r"][1]
     DetU_z_pos = h.table("baseline")["DetU_z"][1]
     M = (DetU_z_pos / zp_z_pos - 1) * 10.0
     pxl_sz = 6500.0 / M
+
+    scan_x_flag = h.start['plan_args']['scan_x_flag']
+    if scan_x_flag:
+        pix = pix * np.cos(rot_angle/180.*np.pi)
+    else:
+        pix = pix * np.sin(rot_angle/180.*np.pi)
 
     if not bkg_scan_id is None:
         h_ref = db[norm_bkg_scan_id]
@@ -1472,7 +1499,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         write_lakeshore_to_file(h, fn_h5_save)
     except:
         print(f"fails to write lakeshore info into {fn_h5_save}")
-    
+    del img, img_patch, img_raw, img_dark, img_bkg
 
 
 def export_multipos_2D_xanes_scan2(h, fpath=None):

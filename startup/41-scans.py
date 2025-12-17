@@ -399,6 +399,7 @@ def radiography_scan(
     out_z=0,
     out_r=0,
     num_img=10,
+    num_bkg=10,
     take_dark_img=True,
     relative_move_flag=1,
     rot_first_flag=1, 
@@ -457,7 +458,7 @@ def radiography_scan(
             "out_z": out_z,
             "out_r": out_r,
             "num_img": num_img,
-            "num_bkg": 20,
+            "num_bkg": num_bkg,
             "note": note if note else "None",
         },
         "plan_name": "radiography_scan",
@@ -478,7 +479,7 @@ def radiography_scan(
         # close shutter, dark images: numer=chunk_size (e.g.20)
         if take_dark_img:
             print("\nshutter closed, taking dark images...")
-            yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
+            yield from _take_dark_image(detectors, motors, num=1, chunk_size=num_bkg, stream_name="dark", simu=simu)
 
         yield from _open_shutter(simu=simu)
         yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
@@ -495,7 +496,7 @@ def radiography_scan(
             detectors,
             [],
             num=1,
-            chunk_size=20,
+            chunk_size=num_bkg,
             rot_first_flag=rot_first_flag,
             stream_name="flat",
             simu=simu,
@@ -1189,6 +1190,7 @@ def xanes_scan_img_only(
     exposure_time=0.1,
     chunk_size=5,
     simu=False,
+    filters=[],
     note="",
     md=None,
 ):
@@ -1900,7 +1902,7 @@ def raster_2D_scan(
     out_z=None,
     out_r=None,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     chunk_size=1,
     simu=False,
@@ -2819,9 +2821,10 @@ def multipos_2D_xanes_scan2(
     chunk_size=5,
     simu=False,
     relative_move_flag=True,
+    binning=[2, 2],
     note="",
     md=None,
-    binning=[1, 1],
+    
 ):
     """
     Different from multipos_2D_xanes_scan. In the current scan, it take image at all locations and then move out sample to take background image.
@@ -2992,7 +2995,7 @@ def multipos_2D_xanes_scan2(
             print(f"repeat multi-pos xanes scan #{rep}")
             for eng in eng_list:
                 yield from move_zp_ccd(eng, move_flag=1, info_flag=0)
-                yield from _open_shutter(simu)
+                #yield from _open_shutter(simu)
                 for i in range(num):
                     # take image at multiple positions
                     yield from mv(
@@ -3005,6 +3008,7 @@ def multipos_2D_xanes_scan2(
                         zps.pi_r,
                         r_list[i],
                     )
+                    """
                     yield from mv(
                         zps.sx,
                         x_list[i],
@@ -3015,7 +3019,10 @@ def multipos_2D_xanes_scan2(
                         zps.pi_r,
                         r_list[i],
                     )
-                    yield from trigger_and_read(list(detectors) + motor)
+                    """
+                    yield from trigger_and_read(list(detectors) + motor, name="primary")
+                   
+                    
                 # move sample out to take background
                 yield from _take_bkg_image(
                     motor_x_out,
@@ -3335,7 +3342,7 @@ def raster_2D_xanes2(
         motor_r_out,
         chunk_size=chunk_size,
         exposure_time=exposure_time,
-        repeat_num=1,
+        #repeat_num=1,
         sleep_time=0,
         relative_move_flag=0,
         note=note,
@@ -3565,6 +3572,7 @@ def xanes_3D(
             binning=binning,
         )
         yield from bps.sleep(1)
+        KinetixU.unstage()
     yield from mv(KinetixU.cam.image_mode, 2)
     export_pdf(1)
 

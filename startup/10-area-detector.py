@@ -352,7 +352,7 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
 
 class KinetixKlass(SingleTriggerV33, DetectorBase):
     cam = Cpt(KinetixCam, "cam1:")
-    image = Cpt(ImagePlugin, "image:")
+    image = Cpt(ImagePlugin, "image1:")
     
     trans1 = Cpt(TransformPlugin, "Trans1:")
     roi1 = Cpt(ROIPlugin, "ROI1:")
@@ -410,7 +410,7 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
-                self.cam.image_mode.set(1, timeout=5).wait()
+                self.cam.image_mode.set(1).wait()
                 break
             except TimeoutError:
                 N_try = 5
@@ -423,29 +423,13 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
 
     #@timing
     def unstage(self, *args, **kwargs):
-        # import itertools
-        # #self._acquisition_signal.put(0, wait=True)
-        # for j in itertools.count():
-        #     try:
-        #         print(f"unstage attempt {j}")
-        #         ret = super().unstage()
-        #     except TimeoutError:
-        #         N_try = 20
-        #         if j < N_try:
-        #             print(f"failed to unstage on attempt {j}/{N_try}, may try again")
-        #             continue
-        #         else:
-        #             raise
-        #     else:
-        #         break
-        # return ret
         import itertools
         #self._acquisition_signal.put(0, wait=True)
         for j in itertools.count():
             try:
                 print(f"unstage attempt {j}")
-                self.cam.image_mode.set(2, timeout=5).wait()
-                self.cam.trigger_mode.set(0, timeout=5).wait()
+                self.cam.image_mode.set(2).wait()
+                self.cam.trigger_mode.set(0).wait()
             except TimeoutError:
                 N_try = 5
                 if j < N_try:
@@ -468,7 +452,7 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
-                self.cam.image_mode.set(1, timeout=5).wait()
+                self.cam.image_mode.set(1).wait()
                 break
             except TimeoutError:
                 N_try = 5
@@ -486,8 +470,8 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
         for j in itertools.count():
             try:
                 print(f"unstage attempt {j}")
-                self.cam.image_mode.set(2, timeout=5).wait()
-                self.cam.trigger_mode.set(0, timeout=5).wait()
+                self.cam.image_mode.set(2).wait()
+                self.cam.trigger_mode.set(0).wait()
             except TimeoutError:
                 N_try = 5
                 if j < N_try:
@@ -797,3 +781,12 @@ def _get_cam_model(cam):
             return 'KINETIX'
     else:
         return model.upper()
+    
+
+def _get_overhead(cam):
+    model = _get_cam_model(cam)
+    if model.upper() in ['KINETIX', 'KINETIX22']:
+        return CAM_RD_CFG[model]["rd_time"][cam.cam.readout_port_names[cam.cam.readout_port_idx.value]]
+    elif model.upper() in ['MARANA-4BV6X', 'SONA-4BV6X']:
+        return 
+        # return CAM_RD_CFG[model]["rd_time"][]

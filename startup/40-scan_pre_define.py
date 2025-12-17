@@ -21,12 +21,12 @@ def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
 
     for i in range(repeat):
         if rot_first_flag:
-            if np.abs(r_ini - r_out) > 0.02:
+            if np.abs(r_ini - r_out) > 0.5:
                 yield from mv(zps.pi_r, r_out)
             yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
         else:
             yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
-            if np.abs(r_ini - r_out) > 0.02:
+            if np.abs(r_ini - r_out) > 0.5:
                 yield from mv(zps.pi_r, r_out)
 
 
@@ -38,10 +38,10 @@ def _move_sample_in(in_x, in_y, in_z, in_r, repeat=1, trans_first_flag=1):
     for i in range(repeat):
         if trans_first_flag:
             yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
-            if np.abs(r_ini - in_r) > 0.02:
+            if np.abs(r_ini - in_r) > 0.5:
                 yield from mv(zps.pi_r, in_r)
         else:
-            if np.abs(r_ini - in_r) > 0.02:
+            if np.abs(r_ini - in_r) > 0.5:
                 yield from mv(zps.pi_r, in_r)
             yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
 
@@ -58,26 +58,37 @@ def _take_image(detectors, motor, num, stream_name="primary"):
 def _set_Andor_chunk_size(detectors, chunk_size):
     for detector in detectors:
         yield from unstage(detector)
-    yield from abs_set_wait(KinetixU.cam.acquire, 0)
-    yield from abs_set_wait(KinetixU.cam.image_mode, 0)
-    yield from abs_set_wait(KinetixU.cam.num_images, chunk_size, wait=True)
+    yield from mv(KinetixU.cam.acquire, 0)
+    yield from bps.sleep(0.2)
+    yield from mv(KinetixU.cam.image_mode, 0)
+    yield from bps.sleep(0.2)
+    yield from mv(KinetixU.cam.num_images, chunk_size)
     for detector in detectors:
         yield from stage(detector)
 
 
 def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
-    for detector in detectors:
-        yield from unstage(detector)
-
+    if detectors[0].cam.num_images.value == chunk_size:
+        return 
     cam_name = _get_cam_model(detectors[0])
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
-        cam_name, scan_type=scan_type
-        )
-    yield from abs_set_wait(detectors[0].cam.acquire, 0)
-    yield from abs_set_wait(detectors[0].cam.image_mode, image_mode_id)
-    yield from abs_set_wait(detectors[0].cam.trigger_mode, trigger_mode_id)
-    yield from abs_set_wait(detectors[0].cam.num_images, chunk_size, wait=True)
+            cam_name, scan_type=scan_type
+            )    
+    print('change chunk size')
+    print(image_mode_id, trigger_mode_id)
     for detector in detectors:
+        yield from unstage(detector)
+        yield from bps.sleep(0.2)
+        
+    yield from mv(detectors[0].cam.acquire, 0)
+    yield from bps.sleep(0.2)
+    yield from mv(detectors[0].cam.image_mode, image_mode_id)
+    yield from bps.sleep(0.2)
+    yield from mv(detectors[0].cam.trigger_mode, trigger_mode_id)
+    yield from bps.sleep(0.2)
+    yield from mv(detectors[0].cam.num_images, chunk_size)
+    for detector in detectors:
+        yield from bps.sleep(0.2)
         yield from stage(detector)
 
 
@@ -85,10 +96,10 @@ def _take_dark_image(
     detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False
 ):
     yield from _close_shutter(simu)
-    original_num_images = yield from rd(detectors[0].cam.num_images)
+    #original_num_images = yield from rd(detectors[0].cam.num_images)
     yield from _set_cam_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
-    yield from _set_cam_chunk_size(detectors, original_num_images)
+    #yield from _set_cam_chunk_size(detectors, original_num_images)
 
 
 def _take_bkg_image(
@@ -107,24 +118,10 @@ def _take_bkg_image(
     yield from _move_sample_out(
         out_x, out_y, out_z, out_r, repeat=2, rot_first_flag=rot_first_flag
     )
-    original_num_images = yield from rd(detectors[0].cam.num_images)
+    #original_num_images = yield from rd(detectors[0].cam.num_images)
     yield from _set_cam_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
-    yield from _set_cam_chunk_size(detectors, original_num_images)
-
-
-# def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1]):
-#     for i in range(2):
-#         yield from abs_set_wait(KinetixU.cam.acquire, 0)
-#         yield from bps.sleep(0.2)
-#     for i in range(2):
-#         yield from abs_set_wait(KinetixU.cam.image_mode, 0)
-#         yield from bps.sleep(0.5)
-#     yield from abs_set_wait(KinetixU.cam.num_images, chunk_size)
-#     period_cor = max(period, exposure_time+0.024)    
-    
-#     yield from abs_set_wait(KinetixU.cam.acquire_time, exposure_time)
-#     yield from abs_set_wait(KinetixU.cam.acquire_period, period_cor)
+    #yield from _set_cam_chunk_size(detectors, original_num_images)
 
 
 def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None):
@@ -132,19 +129,20 @@ def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], 
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
         _get_cam_model(cam), scan_type='fly'
         )
-    yield from abs_set_wait(cam.cam.trigger_mode, trigger_mode_id)
+    print(image_mode_id, trigger_mode_id)
+    yield from mv(cam.cam.trigger_mode, trigger_mode_id)
         
     for i in range(2):
-        yield from abs_set_wait(cam.cam.acquire, 0)
+        yield from mv(cam.cam.acquire, 0)
         yield from bps.sleep(0.2)
     for i in range(2):
-        yield from abs_set_wait(cam.cam.image_mode, image_mode_id)
+        yield from mv(cam.cam.image_mode, image_mode_id)
         yield from bps.sleep(0.5)
-    yield from abs_set_wait(cam.cam.num_images, chunk_size)
+    yield from mv(cam.cam.num_images, chunk_size)
     period_cor = max(period, exposure_time+0.024)    
     
-    yield from abs_set_wait(cam.cam.acquire_time, exposure_time)
-    yield from abs_set_wait(cam.cam.acquire_period, period_cor)
+    yield from mv(cam.cam.acquire_time, exposure_time)
+    yield from mv(cam.cam.acquire_period, period_cor)
 
 
 def _xanes_per_step(
@@ -177,7 +175,7 @@ def _close_shutter(simu=False):
         i = 0
         reading = yield from bps.rd(shutter_status)
         while not reading:  # if 1:  closed; if 0: open
-            yield from abs_set_wait(shutter_close, 1, wait=True)
+            yield from abs_set(shutter_close, 1, wait=True)
             yield from bps.sleep(1)
             i += 1
             print(f"try closing {i} time(s) ...")
@@ -196,7 +194,7 @@ def _open_shutter(simu=False):
         i = 0
         reading = yield from bps.rd(shutter_status)
         while reading:  # if 1:  closed; if 0: open
-            yield from abs_set_wait(shutter_open, 1, wait=True)
+            yield from abs_set(shutter_open, 1, wait=True)
             print(f"try opening {i} time(s) ...")
             yield from bps.sleep(1)
             i += 1
@@ -208,7 +206,7 @@ def _open_shutter(simu=False):
 
 
 def _set_rotation_speed(rs=30):
-    yield from abs_set_wait(zps.pi_r.velocity, rs)
+    yield from abs_set(zps.pi_r.velocity, rs, wait=True)
 
 
 def _move_sample(x_pos, y_pos, z_pos, r_pos, repeat=1):
@@ -222,8 +220,14 @@ def _move_sample(x_pos, y_pos, z_pos, r_pos, repeat=1):
         repeat (int, optional): number of trials. Defaults to 1.
     """
     for i in range(repeat):
+        # yield from mv(zps.pi_r, r_pos)
+        # set_and_wait(
+        #         zps.pi_r.user_setpoint, r_pos, rtol=2.286585e-3
+        #     )
+        # yield from move_and_wait(zps.pi_r, r_pos, atol=0.1)
         yield from mv(zps.pi_r, r_pos)
         yield from mv(zps.sx, x_pos, zps.sy, y_pos, zps.sz, z_pos)
+        # yield from bps.sleep(6)
 
 
 def _set_cam_chunk_size_xhx(cam, chunk_size, scan_type='fly'):
@@ -231,10 +235,11 @@ def _set_cam_chunk_size_xhx(cam, chunk_size, scan_type='fly'):
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
         cam_name, scan_type=scan_type
         )
-    yield from abs_set_wait(cam.cam.acquire, 0)
-    yield from abs_set_wait(cam.cam.image_mode, image_mode_id)
-    yield from abs_set_wait(cam.cam.trigger_mode, trigger_mode_id)
-    yield from abs_set_wait(cam.cam.num_images, chunk_size, wait=True)
+
+    yield from mv(cam.cam.acquire, 0)
+    yield from mv(cam.cam.image_mode, image_mode_id)
+    yield from mv(cam.cam.trigger_mode, trigger_mode_id)
+    yield from mv(cam.cam.num_images, chunk_size)
 
 
 def _take_ref_image(
@@ -246,27 +251,53 @@ def _take_ref_image(
     simu=False,
 ):
     if stream_name == "flat":
+        print(f"ref move sam starts at {ttime.asctime()}")
         yield from _move_sample(
             mots_pos["x"], mots_pos["y"], mots_pos["z"], mots_pos["r"], repeat=2
         )
+        print(f"ref open shutter starts at {ttime.asctime()}")
         yield from _open_shutter_xhx(simu)
+        print(f"ref open shutter finishes at {ttime.asctime()}")
     elif stream_name == "dark":
+        print(f"ref close shutter starts at {ttime.asctime()}")
         yield from _close_shutter_xhx(simu)
+        print(f"ref close shutter finishes at {ttime.asctime()}")
 
+    print(f"ref set cam starts at {ttime.asctime()}")
     yield from _set_cam_chunk_size_xhx(dets[0], chunk_size, scan_type='fly')
+    print(f"ref set cam finishes at {ttime.asctime()}")
     for d in dets:
         try:
             d.stage()
         except Exception as e:
             print(f"error: {e}")
-            unstage(d)
-            stage(d)           
+            d.unstage()
+            d.stage()           
+    print(f"ref take image starts at {ttime.asctime()}")
     yield from _take_image(dets, [], num, stream_name=stream_name)
+    print(f"ref take image finishes at {ttime.asctime()}")
     for d in dets:
         try:
             d.unstage()
         except Exception as e:
             print(f"error: {e}")
-            unstage(d)
+            d.unstage(d)
+    print(f"ref finishes at {ttime.asctime()}")
     
 
+def move_and_wait(motor, target, attr="user_setpoint", atol=0.1, timeout=10.0):
+    yield from mv(motor, target)    
+
+    import time
+    t0 = time.time()
+    while True:
+        rbv = motor.user_readback.value
+        if abs(rbv - target) <= atol:
+            break
+        if (time.time() - t0) > timeout:
+            raise TimeoutError(
+                f"Motor did not reach target within {timeout}s, last rbv={rbv}"
+            )
+        yield from bps.sleep(0.1)
+
+        

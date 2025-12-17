@@ -1502,11 +1502,23 @@ def get_scan_timestamp_legacy(scan_id, return_flag=0):
         return scan_time.split("#")[-1]
 
 
-def get_image_timestamp(scan_id):
-    h0 = dbv0[scan_id]
+def get_image_timestamp(scan_id, h=None):
+    if h is None:
+        h0 = dbv0[scan_id]
+    else:
+        uid = h.start['uid']
+        h0 = dbv0[uid]
     det_name = h0.start["detectors"][0]
-    with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
-        ts = list(h0.data(f"{det_name}_image", stream_name="primary"))[0]
+    try:
+        with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+            ts = list(h0.data(f"{det_name}_image", stream_name="primary"))[0]
+    except:
+        try:
+            with dbv0.reg.handler_context({"AD_HDF5": AreaDetectorHDF5TimestampHandler}):
+                ts = list(h0.data("Andor_image", stream_name="primary"))[0]
+        except:
+            print('fail to get image timestamp')
+    
     try:
         dt = [datetime.fromtimestamp(t) for t in ts]
     except:
@@ -1629,7 +1641,7 @@ def reprint_scan(scan_id):
     for name, doc in h.documents():
         mybec(name, doc)
 
-def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2_bkg='img_bkg', arg2_dark='img_dark', scale_factor=1):
+def normalize_bkg_by_desired_scan_file(fn, fn_ref, arg1='img', arg2_bkg='img_bkg', arg2_dark='img_dark', scale_factor=1):
     '''
     take image from fn (e.g., test_scan_id_43471.h5'
     take img_bkg and or img_dark from fn_ref (e.g., fly_scan_id_43501.h5')
@@ -1663,7 +1675,61 @@ def normalize_bkg_by_desired_scan(fn, fn_ref, arg1='img', arg2_bkg='img_bkg', ar
     print(f'image saved: {fn_save}')
 
 
+def normalize_xanes_bkg_by_another_scan(sid, sid_bkg):
+    '''
+    e.g. normalize_xanes_bkg_by_another_scan(61696, 61694)# will use bkg from scan(61694) to normalize image (both "primary" and "flat")
+    '''
+    h = dbv0[sid]
+    h2 = dbv0[sid_bkg]
+    
+    det_name = h.start["detectors"][0]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos / zp_z_pos - 1) * 10.0
+    pxl_sz = 6500.0 / M
+    scan_type = h.start["plan_name"]
+    #    scan_type = 'xanes_scan'
+    uid = h.start["uid"]
+    note = h.start["note"]
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
+    try:
+        x_eng = h.start["XEng"]
+    except:
+        x_eng = h.start["x_ray_energy"]
+    chunk_size = h.start["chunk_size"]
+    num_eng = h.start["num_eng"]
 
+    img1 = np.array(list(h.data(f"{det_name}_image", stream_name="primary")))
+    img1_avg = np.mean(img1, axis=1)
+    img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
+    img_dark_avg = np.mean(img_dark, axis=1)
+    img2 = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))
+    img2_avg = np.mean(img2, axis=1)
+
+    eng_list = list(h.start["eng_list"])
+
+    img_bkg = np.array(list(h2.data(f"{det_name}_image", stream_name="flat")))
+    img_bkg_avg = np.mean(img_bkg, axis=1)
+
+    img1_norm = (img1_avg - img_dark_avg) / (img_bkg_avg - img_dark_avg)
+    img2_norm = (img2_avg - img_dark_avg) / (img_bkg_avg - img_dark_avg)
+
+
+    sid_norm = h2.start["scan_id"]
+    fname = scan_type + "_id_" + str(scan_id) + f"_normalized_by_scan_{sid_norm}.h5"
+    with h5py.File(fname, "w") as hf:
+        hf.create_dataset("uid", data=uid)
+        hf.create_dataset("scan_id", data=scan_id)
+        hf.create_dataset("note", data=str(note))
+        hf.create_dataset("scan_time", data=scan_time)
+        hf.create_dataset("X_eng", data=eng_list)
+        hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, dtype=np.float32))
+        hf.create_dataset("img_dark", data=np.array(img_dark_avg, dtype=np.float32))
+        hf.create_dataset("img_xanes1", data=np.array(img1_norm, dtype=np.float32))
+        hf.create_dataset("img_xanes2", data=np.array(img2_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
 
 def get_lakeshore_param(scan_id, print_flag=0, return_flag=0):
     h = db[scan_id]

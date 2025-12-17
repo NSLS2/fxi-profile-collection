@@ -20,7 +20,7 @@ def test_scan(
     out_r=0,
     period=0.1,
     num_img=10,
-    #num_bkg=10,
+    num_bkg=10,
     relative_move_flag=False,    
     sleep_time=0, 
     rot_first_flag=1, 
@@ -91,7 +91,7 @@ def test_scan(
             "out_z": out_z,
             "out_r": out_r,
             "num_img": num_img,
-            #"num_bkg": num_bkg,
+            "num_bkg": num_bkg,
             "relative_move_flag": relative_move_flag,
             "close_shutter_in_scan":close_shutter_in_scan,
             "sleep_time":sleep_time,
@@ -123,7 +123,7 @@ def test_scan(
                 yield from _open_shutter(simu=simu)
 
         # taking out sample and take background image
-        print(f'\nmove sample out and take 20 backgound image')
+        print(f'\nmove sample out and take {num_bkg} backgound image')
         yield from _take_bkg_image(
                 motor_x_out,
                 motor_y_out,
@@ -132,7 +132,7 @@ def test_scan(
                 detectors,
                 [],
                 num=1,
-                chunk_size=20,
+                chunk_size=num_bkg,
                 rot_first_flag=rot_first_flag,
                 stream_name="flat",
                 simu=simu,
@@ -145,8 +145,8 @@ def test_scan(
             yield from trigger_and_read(list(detectors))
         '''
 
-        print(f'\nclose shutter and take 20 dark image')
-        yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
+        print(f'\nclose shutter and take {num_bkg} dark image')
+        yield from _take_dark_image(detectors, motors, num=1, chunk_size=num_bkg, stream_name="dark", simu=simu)
         '''
         for i in range(num_bkg):
             yield from trigger_and_read(list(detectors))
@@ -302,7 +302,6 @@ def test_scan2(
         #yield from _open_shutter(simu=simu)
         yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         yield from _take_image(detectors, motors, num=1, stream_name="primary")
-
         if close_shutter_at_end:
             yield from _close_shutter(simu=simu)
         

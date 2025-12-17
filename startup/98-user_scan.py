@@ -1432,21 +1432,25 @@ def _move_sample_out_xhx(
     if enable_z:
         for i in range(repeat):
             if rot_first_flag:
-                yield from mv(zps.pi_r, r_out)
+                # yield from mv(zps.pi_r, r_out)
+                yield from move_and_wait(zps.pi_r, r_out, atol=0.1)
                 yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
                 # yield from mv(zps.sx, x_out, zps.sz, z_out)
             else:
                 # yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
                 yield from mv(zps.sx, x_out, zps.sy, y_out, zps.sz, z_out)
-                yield from mv(zps.pi_r, r_out)
+                # yield from mv(zps.pi_r, r_out)
+                yield from move_and_wait(zps.pi_r, r_out, atol=0.1)
     else:
         for i in range(repeat):
             if rot_first_flag:
-                yield from mv(zps.pi_r, r_out)
+                # yield from mv(zps.pi_r, r_out)
+                yield from move_and_wait(zps.pi_r, r_out, atol=0.1)
                 yield from mv(zps.sx, x_out, zps.sy, y_out)
             else:
                 yield from mv(zps.sx, x_out, zps.sy, y_out)
-                yield from mv(zps.pi_r, r_out)
+                # yield from mv(zps.pi_r, r_out)
+                yield from move_and_wait(zps.pi_r, r_out, atol=0.1)
 
 
 def _move_sample_in_xhx(
@@ -1460,18 +1464,22 @@ def _move_sample_in_xhx(
             if trans_first_flag:
                 yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
                 # yield from mv(zps.sx, in_x, zps.sz, in_z)
-                yield from mv(zps.pi_r, in_r)
+                # yield from mv(zps.pi_r, in_r)
+                yield from move_and_wait(zps.pi_r, in_r, atol=0.1)
             else:
-                yield from mv(zps.pi_r, in_r)
+                # yield from mv(zps.pi_r, in_r)
+                yield from move_and_wait(zps.pi_r, in_r, atol=0.1)
                 yield from mv(zps.sx, in_x, zps.sy, in_y, zps.sz, in_z)
                 # yield from mv(zps.sx, in_x, zps.sz, in_z)
     else:
         for i in range(repeat):
             if trans_first_flag:
                 yield from mv(zps.sx, in_x, zps.sy, in_y)
-                yield from mv(zps.pi_r, in_r)
+                # yield from mv(zps.pi_r, in_r)
+                yield from move_and_wait(zps.pi_r, in_r, atol=0.1)
             else:
-                yield from mv(zps.pi_r, in_r)
+                # yield from mv(zps.pi_r, in_r)
+                yield from move_and_wait(zps.pi_r, in_r, atol=0.1)
                 yield from mv(zps.sx, in_x, zps.sy, in_y)
 
 
@@ -1505,7 +1513,7 @@ def multi_edge_xanes_zebra(
     bin_fac=None,
     bulk=False,
     bulk_intgr=10,
-    roi=None,
+    roi={"min_x": 178, "size_x": 2048, "min_y": 178, "size_y": 2048},
     simu=False,
     sleep=0,
     settle_time=0,
@@ -2903,7 +2911,7 @@ def record_calib_pos_new_xh(n=None):
         if sorted_calib_dict:
             idx = []
             for key in sorted_calib_dict.keys():
-                if round(XEng.position, 3) == round(sorted_calib_dict[key]['XEng'], 3):
+                if round(XEng.position, 4) == round(sorted_calib_dict[key]['XEng'], 4):
                     n = int(sorted_calib_dict[key]['pos'].strip('pos'))
                 else:
                     idx.append(int(sorted_calib_dict[key]['pos'].strip('pos')))
@@ -2920,7 +2928,7 @@ def record_calib_pos_new_xh(n=None):
 
     print(n)
     CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
-    CALIBER[f"XEng_pos{n}"] = XEng.position
+    CALIBER[f"XEng_pos{n}"] = round(XEng.position, 4)
     CALIBER[f"zp_x_pos{n}"] = zp.x.position
     CALIBER[f"zp_y_pos{n}"] = zp.y.position
     CALIBER[f"th2_motor_pos{n}"] = dcm.th2.position
@@ -2951,6 +2959,28 @@ def record_calib_pos_new_xh(n=None):
         f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}'
     )
     yield from bps.sleep(0.5)
+
+
+def remove_caliber_pos_new_xh(n):
+    global CALIBER_FLAG, CURRENT_MAG, CALIBER
+    df = pd.DataFrame.from_dict(CALIBER, orient="index")
+    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_backup.csv")
+    CALIBER_backup = CALIBER.copy()
+    try:
+        for k in CALIBER_backup.keys():
+            if str(n) == k.split('pos')[1]:
+                del CALIBER[k]
+            if str(n) == k.split('mag')[1]:
+                del CALIBER[k]
+        df = pd.DataFrame.from_dict(CALIBER, orient="index")
+        # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
+        df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    except:
+        CALIBER = CALIBER.copy()
+        print(f"fails to remove CALIBER postion {n}, or it does not exist")
+        print("CALIBER not changed")
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(CALIBER)
 
 
 def cal_calib_pos_xh():
@@ -3172,10 +3202,13 @@ def move_zp_ccd_xh(
     zp_final, det_final, _, _, _ = cal_zp_ccd_xh(
         eng_new, mag1 / GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False
     )
+    _, det_final_bl, _, _, _ = cal_zp_ccd_xh(
+        eng_new+0.1, mag1 / GLOBAL_VLM_MAG, zp_cfg=zp_cfg, show=False
+    )
     zp_delta = zp_final - zp_ini
     det_delta = det_final - det_ini
 
-    if (det_final < det.z.low_limit.value) or (det_final > det.z.high_limit.value):
+    if (det_final < det.z.low_limit.value) or (det_final_bl > det.z.high_limit.value):
         print(
             "Trying to move DetU to {0:2.2f}. Movement is out of travel range ({1:2.2f}, {2:2.2f})\nTry to move the bottom stage manually.".format(
                 det_final, det.z.low_limit.value, det.z.high_limit.value
@@ -3342,9 +3375,13 @@ def move_zp_ccd_xh(
             yield from mv(dcm_th2.feedback, th2_motor_target)
             yield from mv(dcm_th2.feedback_enable, 1)
 
-            yield from mv(zp.x, zp_x_target, zp.y, zp_y_target)
-            yield from mv(aper.x, aper_x_target, aper.y, aper_y_target)
-            yield from mv(zp.z, zp_final, det.z, det_final, XEng, eng_new)
+            yield from mv(zp.x, zp_x_target, zp.y, zp_y_target, wait=False)
+            yield from mv(aper.x, aper_x_target, aper.y, aper_y_target, wait=False)
+            yield from mv(zp.z, zp_final, det.z, det_final, wait=False)
+            if eng_new > eng_ini:    
+                yield from mv(XEng, eng_new+0.1)
+                yield from bps.sleep(2)
+            yield from mv(XEng, eng_new)            
 
             if move_clens_flag:
                 yield from mv(
@@ -4003,33 +4040,56 @@ def dummy_scan(
     yield from _set_cam_param(
         exposure_time=exposure_time, period=period
     )
-    yield from abs_set_wait(cam.cam.image_mode, 1)
+    yield from abs_set_wait(cam.cam.image_mode, 2)
     yield from abs_set_wait(cam.cam.acquire, 1)
 
     @stage_decorator(motors)
-    @bpp.monitor_during_decorator([zps.pi_r])
-    @run_decorator(md=_md)
+    # @bpp.monitor_during_decorator([zps.pi_r])
+    # @run_decorator(md=_md)
     def fly_inner_scan():
         # open shutter, tomo_images
+        # yield from _open_shutter_xhx(simu=simu)
+        # print("\nshutter opened, taking tomo images...")
+        # yield from _set_rotation_speed(rs=rs)
+        # yield from abs_set(zps.pi_r, ang_s + taxi_ang, wait=True)
+        """# yield from abs_set_wait(zps.pi_r.user_setpoint, ang_e - taxi_ang)
+        # status = yield from abs_set(zps.pi_r, ang_e - taxi_ang, wait=True)
+        # while not status.done:
+        #     yield from bps.sleep(1)"""
+        # yield from abs_set(zps.pi_r, ang_e - taxi_ang, wait=True)
+        # yield from _set_rotation_speed(rs=30)
+        # print("set rotation speed: {} deg/sec".format(rs))
+        """# status = yield from abs_set(zps.pi_r, ang_s + taxi_ang, wait=False)
+        # while not status.done:
+        #     yield from bps.sleep(1)"""
+        # yield from abs_set(zps.pi_r.user_setpoint, ang_s + taxi_ang, wait=True)
+        # yield from abs_set(zps.sx.user_setpoint, motor_x_out, wait=True)
+        # yield from abs_set(zps.sy.user_setpoint, motor_y_out, wait=True)
+        # yield from abs_set(zps.pi_r.user_setpoint, motor_r_out, wait=True)
+
+        # yield from abs_set(zps.sx.user_setpoint, motor_x_ini, wait=True)
+        # yield from abs_set(zps.sy.user_setpoint, motor_y_ini, wait=True)
+        # yield from abs_set(zps.pi_r.user_setpoint, motor_r_ini, wait=True)
+
         yield from _open_shutter_xhx(simu=simu)
         print("\nshutter opened, taking tomo images...")
         yield from _set_rotation_speed(rs=rs)
-        yield from mv(zps.pi_r, ang_s + taxi_ang)
-        status = yield from abs_set(zps.pi_r, ang_e - taxi_ang, wait=False)
-        while not status.done:
-            yield from bps.sleep(1)
+        # taxi to starting postion
+        yield from abs_set(zps.pi_r, ang_s + taxi_ang, wait=True)
+        # rotate to stopping postion
+        yield from abs_set(zps.pi_r, ang_e - taxi_ang, wait=True)
+        # move back to initial position
         yield from _set_rotation_speed(rs=30)
         print("set rotation speed: {} deg/sec".format(rs))
-        status = yield from abs_set(zps.pi_r, ang_s + taxi_ang, wait=False)
-        while not status.done:
-            yield from bps.sleep(1)
-        yield from abs_set(zps.sx, motor_x_out, wait=True)
-        yield from abs_set(zps.sy, motor_y_out, wait=True)
-        yield from abs_set(zps.pi_r, motor_r_out, wait=True)
+        # taxi to starting postion for FF dummy scan
+        yield from abs_set(zps.pi_r.user_setpoint, ang_s + taxi_ang, wait=True)
+        yield from abs_set(zps.sx.user_setpoint, motor_x_out, wait=True)
+        yield from abs_set(zps.sy.user_setpoint, motor_y_out, wait=True)
+        yield from abs_set(zps.pi_r.user_setpoint, motor_r_out, wait=True)
 
-        yield from abs_set(zps.sx, motor_x_ini, wait=True)
-        yield from abs_set(zps.sy, motor_y_ini, wait=True)
-        yield from abs_set(zps.pi_r, motor_r_ini, wait=True)
+        yield from abs_set(zps.sx.user_setpoint, motor_x_ini, wait=True)
+        yield from abs_set(zps.sy.user_setpoint, motor_y_ini, wait=True)
+        yield from abs_set(zps.pi_r.user_setpoint, motor_r_ini, wait=True)
 
     for ii in range(repeat):
         yield from fly_inner_scan()
@@ -4073,7 +4133,7 @@ def radiographic_record(
     yield from FXITomoFlyer.prime_det(cam)
     yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
 
-    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period, binning)
+    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period)
     if acq_p > period:
         print(
               "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
@@ -4167,6 +4227,21 @@ def radiographic_record(
 """
 
 
+def _set_cam_param_xh(exposure_time=0.1, period=0.1, chunk_size=1, cam=None):
+    cam = _sel_cam(cam)
+    image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
+        _get_cam_model(cam), scan_type='fly'
+        )
+    print(image_mode_id, trigger_mode_id)
+    yield from mv(cam.cam.trigger_mode, trigger_mode_id)       
+    yield from mv(cam.cam.image_mode, image_mode_id)
+    yield from mv(cam.cam.num_images, chunk_size)
+    acq_p, _ = FXITomoFlyer.check_cam_acq_p(cam, exposure_time, period)  
+    
+    yield from mv(cam.cam.acquire_time, exposure_time)
+    yield from mv(cam.cam.acquire_period, acq_p)
+
+
 def radiographic_record(
     exp_t=0.1,
     period=0.1,
@@ -4176,6 +4251,7 @@ def radiographic_record(
     out_pos=None,
     flts=[],
     binning=None,
+    no_zps_y=False,
     md={},
     note="",
     simu=False,
@@ -4216,15 +4292,7 @@ def radiographic_record(
     yield from FXITomoFlyer.prime_det(cam)
     yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
 
-    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period, binning)
-    if acq_p > period:
-        print(
-            "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
-        )
-        period = acq_p
-
-        if exp_t > (acq_p - acq_min):
-            exp_t = acq_p - acq_min
+    acq_p, _ = yield from FXITomoFlyer.check_cam_acq_p(cam, exp_t, period)
 
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     dets = [cam, ic3]
@@ -4257,12 +4325,6 @@ def radiographic_record(
     }
     _md.update(md or {})
 
-    yield from abs_set_wait(cam.cam.acquire, 0)
-    yield from _set_cam_param(
-        exposure_time=exp_t, period=period
-    )
-    yield from abs_set_wait(cam.cam.image_mode, 0)
-
     @stage_decorator(list(dets))
     @run_decorator(md=_md)
     def rad_record_inner():
@@ -4273,40 +4335,56 @@ def radiographic_record(
         scn_cfg = {}
         scn_cfg["exp_t"] = exp_t
         scn_cfg["num_images"] = int(t_span / period)
-        scn_cfg["num_images"] = int(t_span / period)
         yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
+        yield from mv(cam.cam.acquire_period, acq_p)
 
         yield from trigger_and_read([cam], name="primary")
 
-        yield from mv(
-            zps.sx,
-            motor_x_out,
-            zps.sy,
-            motor_y_out,
-            zps.sz,
-            motor_z_out,
-            zps.pi_r,
-            motor_r_out,
-        )
-        yield from _set_cam_param(
-            exposure_time=exp_t, period=exp_t + 0.1
-        )
-        yield from abs_set_wait(cam.cam.num_images, 10)
+        if no_zps_y:
+            yield from mv(
+                zps.sx,
+                motor_x_out,
+                zps.sz,
+                motor_z_out,
+                zps.pi_r,
+                motor_r_out,
+            )
+        else:
+            yield from mv(
+                zps.sx,
+                motor_x_out,
+                zps.sy,
+                motor_y_out,
+                zps.sz,
+                motor_z_out,
+                zps.pi_r,
+                motor_r_out,
+            )
+        yield from mv(cam.cam.num_images, 10)
         yield from trigger_and_read([cam], name="flat")
         yield from _close_shutter_xhx(simu=simu)
-        yield from mv(
-            zps.sx,
-            motor_x_ini,
-            zps.sy,
-            motor_y_ini,
-            zps.sz,
-            motor_z_ini,
-            zps.pi_r,
-            motor_r_ini,
-        )
+        if no_zps_y:
+            yield from mv(
+                zps.sx,
+                motor_x_ini,
+                zps.sz,
+                motor_z_ini,
+                zps.pi_r,
+                motor_r_ini,
+            )
+        else:
+            yield from mv(
+                zps.sx,
+                motor_x_ini,
+                zps.sy,
+                motor_y_ini,
+                zps.sz,
+                motor_z_ini,
+                zps.pi_r,
+                motor_r_ini,
+            )
         yield from trigger_and_read([cam], name="dark")
         yield from mv(cam.cam.image_mode, 1)
-        yield from abs_set_wait(cam.cam.image_mode, 1)
         yield from select_filters([])
 
     yield from rad_record_inner()
