@@ -20,17 +20,10 @@ def test_scan(
     out_r=0,
     period=0.1,
     num_img=10,
-<<<<<<< HEAD
     num_bkg=10,
     relative_move_flag=False,    
     sleep_time=0, 
     rot_first_flag=1, 
-=======
-    #num_bkg=10,
-    relative_move_flag=False,
-    sleep_time=0,
-    rot_first_flag=1,
->>>>>>> tacaswell/pixi
     close_shutter_in_scan=False,
     note="",
 
