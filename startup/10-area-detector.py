@@ -594,7 +594,7 @@ for k in ("image", "trans1", "roi1", "proc1"):
     getattr(Andor, k).ensure_nonblocking()
 Andor.hdf5.time_stamp.name = "Andor_timestamps"
 """
-
+'''
 #########################################
 # added by XH
 MaranaU = AndorKlass("XF:18IDB-ES{Det:Marana1}", name="MaranaU")
@@ -616,7 +616,7 @@ MaranaD.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "trans1", "roi1", "proc1"):
     getattr(MaranaD, k).ensure_nonblocking()
 MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
-
+'''
 #########################################
 # added by XH
 KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU")

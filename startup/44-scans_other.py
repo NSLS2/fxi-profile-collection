@@ -266,7 +266,6 @@ def test_scan2(
     @stage_decorator(list(detectors) + motors)
     @run_decorator(md=_md)
     def inner_scan():
-
         # close shutter, dark images: numer=chunk_size (e.g.20)
         if take_dark_img:
             print("\nshutter closed, taking dark images...")

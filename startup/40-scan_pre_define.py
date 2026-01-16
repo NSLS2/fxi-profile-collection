@@ -57,28 +57,35 @@ def _take_image(detectors, motor, num, stream_name="primary"):
 
 def _set_Andor_chunk_size(detectors, chunk_size):
     for detector in detectors:
-        yield from unstage(detector)
+        yield from detector.unstage()
     yield from mv(KinetixU.cam.acquire, 0)
     yield from bps.sleep(0.2)
     yield from mv(KinetixU.cam.image_mode, 0)
     yield from bps.sleep(0.2)
     yield from mv(KinetixU.cam.num_images, chunk_size)
     for detector in detectors:
-        yield from stage(detector)
+        yield from detector.stage()
 
 
 def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     if detectors[0].cam.num_images.value == chunk_size:
         return 
+    print(detectors[0])
     cam_name = _get_cam_model(detectors[0])
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
             cam_name, scan_type=scan_type
             )    
     print('change chunk size')
     print(image_mode_id, trigger_mode_id)
+
+    
     for detector in detectors:
-        yield from unstage(detector)
+        #print(f'try to unstage:\n {detector}\n')
+        #yield from unstage(detector)
+        detector.unstage()
+        #print('sleep 0.2 sec')
         yield from bps.sleep(0.2)
+
         
     yield from mv(detectors[0].cam.acquire, 0)
     yield from bps.sleep(0.2)
@@ -87,19 +94,21 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     yield from mv(detectors[0].cam.trigger_mode, trigger_mode_id)
     yield from bps.sleep(0.2)
     yield from mv(detectors[0].cam.num_images, chunk_size)
+
+    yield from bps.sleep(0.2)
+        
     for detector in detectors:
         yield from bps.sleep(0.2)
-        yield from stage(detector)
-
+        #yield from stage(detector)
+        detector.stage()
+    
 
 def _take_dark_image(
     detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False
 ):
     yield from _close_shutter(simu)
-    #original_num_images = yield from rd(detectors[0].cam.num_images)
     yield from _set_cam_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
-    #yield from _set_cam_chunk_size(detectors, original_num_images)
 
 
 def _take_bkg_image(
@@ -118,10 +127,8 @@ def _take_bkg_image(
     yield from _move_sample_out(
         out_x, out_y, out_z, out_r, repeat=2, rot_first_flag=rot_first_flag
     )
-    #original_num_images = yield from rd(detectors[0].cam.num_images)
     yield from _set_cam_chunk_size(detectors, chunk_size)
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
-    #yield from _set_cam_chunk_size(detectors, original_num_images)
 
 
 def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None):

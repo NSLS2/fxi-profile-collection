@@ -1919,7 +1919,7 @@ def raster_2D_scan(
     Filters will be inserted at all time, including: img, img_bkg, and img_dark    
     
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2048 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
     
     
@@ -1950,7 +1950,7 @@ def raster_2D_scan(
 
     img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
+    img_sizeY: int, default is 2048, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2068,6 +2068,7 @@ def raster_2D_scan(
             for jj in np.arange(y_range[0], y_range[1] + 1):
                 yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
                 yield from _take_image(detectors, motor, 1, stream_name="primary")
+                yield from bps.sleep(0.1)
         #                yield from trigger_and_read(list(detectors) + motor)
 
         print("moving sample out to take 5 background image")
@@ -2115,7 +2116,7 @@ def raster_2D_scan_modify(
     out_z=None,
     out_r=None,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     chunk_size=1,
     simu=False,
@@ -2134,7 +2135,7 @@ def raster_2D_scan_modify(
     Filters will be inserted at all time, including: img, img_bkg, and img_dark    
     
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2048 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
     
     
@@ -2165,7 +2166,7 @@ def raster_2D_scan_modify(
 
     img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
+    img_sizeY: int, default is 2048, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2332,7 +2333,7 @@ def raster_2D_scan_filter_bkg(
     out_z=None,
     out_r=None,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     chunk_size=1,
     simu=False,
@@ -2350,7 +2351,7 @@ def raster_2D_scan_filter_bkg(
     Filters will ONLY be inserted when taking background image   
 
 
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2048 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Inputs:
@@ -2380,7 +2381,7 @@ def raster_2D_scan_filter_bkg(
 
     img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
+    img_sizeY: int, default is 2048, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -2547,7 +2548,7 @@ def raster_2D_scan_individal_bkg(
     out_z=0,
     out_r=0,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     chunk_size=1,
     simu=False,
@@ -2558,7 +2559,7 @@ def raster_2D_scan_individal_bkg(
     md=None,
 ):
     """
-    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2040 x 2048)
+    scanning large area by moving samples at different 2D block position, defined by x_range and y_range, only work for KinetixU camera at full resolution (2048 x 2048)
     for example, set x_range=[-1,1] and y_range=[-2, 2] will totally take 3 x 5 = 15 images and stitch them together
 
     Different from raster_2D_scan that this scan will take backgound image for every movement
@@ -2590,7 +2591,7 @@ def raster_2D_scan_individal_bkg(
 
     img_sizeX: int, default is 2048, it is the pixel number for KinetixU camera horizontal
 
-    img_sizeY: int, default is 2040, it is the pixel number for KinetixU camera vertical
+    img_sizeY: int, default is 2048, it is the pixel number for KinetixU camera vertical
 
     pxl: float, pixel size, default is 17.2, in unit of nm/pix
 
@@ -3287,7 +3288,7 @@ def raster_2D_xanes2(
     out_z=None,
     out_r=None,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     chunk_size=5,
     simu=False,
@@ -3360,7 +3361,7 @@ def raster_2D_xanes3(
     out_z=None,
     out_r=None,
     img_sizeX=2048,
-    img_sizeY=2040,
+    img_sizeY=2048,
     pxl=20,
     simu=False,
     relative_move_flag=1,
