@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
-from PyPDF2 import PdfFileMerger, PdfFileReader, PdfMerger, PdfReader
+# from PyPDF2 import PdfFileMerger, PdfFileReader, PdfMerger, PdfReader
+from PyPDF2 import PdfMerger, PdfReader
 import shutil
 import os
 import skimage.io
 import glob
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtGui import QPixmap
+# from PyQt5.QtWidgets import QApplication
+# from PyQt5.QtGui import QPixmap
 from datetime import datetime
 
 # from reportlab.platypus import Paragraph, Frame, Image
