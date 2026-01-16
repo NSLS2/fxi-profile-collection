@@ -16,3 +16,6 @@ startup/calib_copy_Feb10_2019.csv
 startup/hs_err_pid7527.log
 startup/existing_plans_and_devices.yaml
 .vscode/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
