@@ -1,3 +1,6 @@
+import nslsii
+import os
+
 ###############################################################################
 # TODO: remove this block once https://github.com/bluesky/ophyd/pull/959 is
 # merged/released.
@@ -48,7 +51,7 @@ from ophyd.signal import EpicsSignalBase
 EpicsSignalBase.set_defaults(timeout=10, connection_timeout=10)  # new style
 EpicsSignal.set_defaults(timeout=10, connection_timeout=10)  # new style
 
-import nslsii
+
 from datetime import datetime
 
 # Register bluesky IPython magics.
@@ -63,10 +66,17 @@ from bluesky.preprocessors import stage_decorator, run_decorator
 from databroker.v0 import Broker as BrokerV0
 dbv0 = BrokerV0.named("fxi")
 
+with open('/etc/bluesky/redis.secret') as f:
+    redis_secret = f.read().strip()
+    os.environ['REDIS_PASSWORD'] = redis_secret
+
 nslsii.configure_base(get_ipython().user_ns,'fxi',
                       bec=True,
-                      redis_url='info.fxi.nsls2.bnl.gov'
+                      redis_url='xf18id1-fxi-redis1.nsls2.bnl.gov',
+                      redis_port=6380,
+                      redis_ssl=True
                       )
+
 
 nslsii.configure_kafka_publisher(RE, "fxi")
 
