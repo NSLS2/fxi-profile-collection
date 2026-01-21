@@ -33,7 +33,7 @@ blosc-hdf5-plugin = ">=1.0.1,<2"
 databroker = "==2.0.0"
 epicscorelibs = ">=7.0.7.99.1.1,<8"
 bluesky-tiled-plugins = ">=2.0.0b68"
-ophyd-async = ">=0.13.7,<0.14"
+# ophyd-async = ">=0.13.7,<0.14"
 
 
 [feature.profile.pypi-dependencies]
@@ -55,8 +55,9 @@ qs-server = "uvicorn --host localhost --port 60610 bluesky_httpserver.server:app
 
 [feature.terminal.dependencies]
 ipython = ">=9.5.0"
-pyside6 = "*"
 numpy = ">2"
+pyqt = ">=5,<6"
+qtconsole = ">=5.7.0,<6"
 
 
 [feature.terminal.tasks]
