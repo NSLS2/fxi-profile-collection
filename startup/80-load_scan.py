@@ -286,12 +286,7 @@ def export_fly_scan(h, fpath=None):
 
     x_eng = h.start["XEng"]
     img_angle = get_fly_scan_angle(uid)
-
-    print(f"ANGLE {img_angle.shape}")
-
     id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
-
-    print(f"IDSTOP {id_stop}")
 
     tmp = list(h.data(f"{det_name}_image", stream_name="primary"))[0]
     img_tomo = np.array(tmp[:len(img_angle)])

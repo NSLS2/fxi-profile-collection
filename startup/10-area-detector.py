@@ -349,6 +349,31 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
         return super().unstage()
 
 
+class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
+    def _update_paths(self):
+        self.reg_root = self.root_path_str
+        self.write_path_template = self.path_template_str
+
+    @property
+    def root_path_str(self):
+        md = self.parent._md
+        data_session = md["data_session"]
+        cycle = md["cycle"]
+        if md["proposal"]["type"] == "Commissioning":
+            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/kinetix22/"
+        else:
+            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/kinetix22/"
+        return root_path
+
+    @property
+    def path_template_str(self):
+        path_template = "%Y/%m/%d"
+        return path_template
+
+    def stage(self, *args, **kwargs):
+        self._update_paths()
+        super().stage(*args, **kwargs)
+
 
 class KinetixKlass(SingleTriggerV33, DetectorBase):
     cam = Cpt(KinetixCam, "cam1:")
@@ -364,14 +389,16 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
     def cam_name(self):
         print(self.prefix.split("{")[1].strip("}").split(":")[1])
         
-    # root_path = "/nsls2/data/fxi-new/legacy/Kinetix"
-    root_path = "/nsls2/data/fxi-new/legacy/Marana"  # CHANGE IT BACK ONCE THE FOLDERS ARE CREATED !!!!!!!!!!!!!!!!!!
     hdf5 = Cpt(
-        HDF5PluginWithFileStore,
+        FXIHDF5PluginWithFileStore,
         suffix="HDF1:",
-        write_path_template=f"{root_path}/%Y/%m/%d/",
-        root=root_path,
+        root="/",
+        write_path_template="",
     )
+
+    def __init__(self, *args, md=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._md = md if md is not None else {}
 
     def stop(self):
         self.hdf5.capture.put(0)
@@ -620,7 +647,7 @@ MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
 '''
 #########################################
 # added by XH
-KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU")
+KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU", md=RE.md)
 KinetixU.cam.ensure_nonblocking()
 KinetixU.read_attrs = ['hdf5']
 KinetixU.hdf5.read_attrs = ["time_stamp"]
@@ -631,7 +658,7 @@ KinetixU.hdf5.time_stamp.name = "KinetixU_timestamps"
 
 #########################################
 # added by XH
-KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD")
+KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD", md=RE.md)  # Placeholder, uses the same PVs as KinetixU
 KinetixD.cam.ensure_nonblocking()
 KinetixD.read_attrs = ['hdf5']
 KinetixD.hdf5.read_attrs = ["time_stamp"]

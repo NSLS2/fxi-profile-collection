@@ -66,9 +66,9 @@ from bluesky.preprocessors import stage_decorator, run_decorator
 from databroker.v0 import Broker as BrokerV0
 dbv0 = BrokerV0.named("fxi")
 
-with open('/etc/bluesky/redis.secret') as f:
-    redis_secret = f.read().strip()
-    os.environ['REDIS_PASSWORD'] = redis_secret
+# with open('/etc/bluesky/redis.secret') as f:
+#     redis_secret = f.read().strip()
+#     os.environ['REDIS_PASSWORD'] = redis_secret
 
 nslsii.configure_base(get_ipython().user_ns,'fxi',
                       bec=True,
