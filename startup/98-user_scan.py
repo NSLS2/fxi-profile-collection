@@ -124,10 +124,10 @@ def user_scan(
     # Co
     print('start taking tomo and xanes of Co')
     yield from mv(zps.pi_r, angle_ini)
-    yield from move_zp_ccd(7.75, move_flag=1) 
+    yield from move_zp_ccd(7.75, move_flag=1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
 
-    yield from move_zp_ccd(7.66, move_flag=1)  
+    yield from move_zp_ccd(7.66, move_flag=1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
     yield from mv(zps.pi_r, xanes_angle)
     if xanes_flag:
@@ -141,11 +141,11 @@ def user_scan(
     yield from move_zp_ccd(6.59, move_flag=1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
 
-    yield from move_zp_ccd(6.49, move_flag=1)  
+    yield from move_zp_ccd(6.49, move_flag=1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
     yield from mv(zps.pi_r, xanes_angle)
     if xanes_flag:
-        yield from xanes_scan2(eng_list_Mn, 0.1, chunk_size=5, out_x=out_x, out_y=out_y,note=note) 
+        yield from xanes_scan2(eng_list_Mn, 0.1, chunk_size=5, out_x=out_x, out_y=out_y,note=note)
     yield from mv(zps.pi_r, angle_ini)
 
     """
@@ -168,24 +168,24 @@ def user_xanes(out_x, out_y, note=""):
 
 """
 def user_flyscan(out_x, out_y, note=''):
-    yield from move_zp_ccd(8.35, move_flag=1, xanes_flag='2D') 
+    yield from move_zp_ccd(8.35, move_flag=1, xanes_flag='2D')
     yield from bps.sleep(1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
-    yield from move_zp_ccd(8.3, move_flag=1, xanes_flag='2D') 
-    yield from bps.sleep(1)
-    yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
-
-    yield from move_zp_ccd(7.75, move_flag=1, xanes_flag='2D') 
-    yield from bps.sleep(1)
-    yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
-    yield from move_zp_ccd(7.66, move_flag=1, xanes_flag='2D') 
+    yield from move_zp_ccd(8.3, move_flag=1, xanes_flag='2D')
     yield from bps.sleep(1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
 
-    yield from move_zp_ccd(6.59, move_flag=1, xanes_flag='2D') 
+    yield from move_zp_ccd(7.75, move_flag=1, xanes_flag='2D')
     yield from bps.sleep(1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
-    yield from move_zp_ccd(6.49, move_flag=1, xanes_flag='2D') 
+    yield from move_zp_ccd(7.66, move_flag=1, xanes_flag='2D')
+    yield from bps.sleep(1)
+    yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
+
+    yield from move_zp_ccd(6.59, move_flag=1, xanes_flag='2D')
+    yield from bps.sleep(1)
+    yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
+    yield from move_zp_ccd(6.49, move_flag=1, xanes_flag='2D')
     yield from bps.sleep(1)
     yield from fly_scan(0.05, relative_rot_angle=180, period=0.05, out_x=out_x, out_y=out_y,out_z=0, rs=2, parkpos=0, note=note)
 """
@@ -1198,8 +1198,8 @@ def _multi_pos_xanes_2D_xh(
                         d.stage()
                     except Exception as e:
                         print(f"error: {e}")
-                        unstage(d)
-                        stage(d)           
+                        d.unstage()
+                        d.stage()
                 for i in range(num):
                     yield from _move_sample_in_xhx(
                         x_list[i],
@@ -1217,8 +1217,8 @@ def _multi_pos_xanes_2D_xh(
                         d.unstage()
                     except Exception as e:
                         print(f"error: {e}")
-                        unstage(d)
-                    
+                        d.unstage()
+
                 yield from _take_ref_image(
                     detectors,
                     mots_pos = {'x': motor_x_out, 'y': motor_y_out, 'z': motor_z_out, 'r': motor_r_out},
@@ -1226,7 +1226,7 @@ def _multi_pos_xanes_2D_xh(
                     chunk_size=chunk_size,
                     stream_name="flat",
                     simu=simu,
-                ) 
+                )
                 yield from _move_sample_in_xhx(
                     motor_x_ini,
                     motor_y_ini,
@@ -1354,7 +1354,7 @@ def _check_xanes_scan_params(elem, flts, exp_t, acq_p, edge_list):
             print("Use default acquisition period 0.05 sec")
     eng_list = _mk_eng_list(edge_list[elem], bulk=False)
     return flt, exposure, period, eng_list
-    
+
 
 def _exp_t_sanity_check(exp_t, binning=None):
     if binning is None:
@@ -1519,7 +1519,6 @@ def multi_edge_xanes_zebra(
     settle_time=0,
     repeat=None,
     ref_flat_scan=False,
-    use_gui_pos=False,
     cam=None,
     flyer=None,
 ):
@@ -1530,21 +1529,6 @@ def multi_edge_xanes_zebra(
     if repeat is None:
         repeat = 1
     repeat = int(repeat)
-
-    if use_gui_pos:
-        global _XANES_POS_XH
-        if _XANES_POS_XH["in_pos"]:
-            in_pos_list = _XANES_POS_XH["in_pos"]
-        else:
-            in_pos_list = [
-                [None, None, None, None],
-            ]
-
-        if _XANES_POS_XH["out_pos"]:
-            out_pos = _XANES_POS_XH["out_pos"]
-        else:
-            print("Out position is not defined")
-            return
 
     if bin_fac is None and scan_type == "2D":
         bin_fac = 0
@@ -2302,7 +2286,7 @@ def fly_scan2(
             stream_name="dark",
             simu=simu,
         )
-        
+
         # open shutter, tomo_images
         true_period = yield from rd(cam.cam.acquire_period)
         rot_time = np.abs(rel_rot_ang) / np.abs(rs)
@@ -2328,7 +2312,7 @@ def fly_scan2(
             chunk_size=10,
             stream_name="flat",
             simu=simu,
-        ) 
+        )
         yield from _close_shutter_xhx(simu=simu)
         # _close_shutter_xhx(simu=simu)
         if move_to_ini_pos:
@@ -2525,7 +2509,7 @@ def fly_scan3(
                 chunk_size=10,
                 stream_name="dark",
                 simu=simu,
-            )    
+            )
 
         # open shutter, tomo_images
         true_period = yield from rd(cam.cam.acquire_period)
@@ -2557,7 +2541,7 @@ def fly_scan3(
                 chunk_size=10,
                 stream_name="flat",
                 simu=simu,
-            ) 
+            )
 
         if not noDark:
             yield from _close_shutter_xhx(simu=simu)
@@ -2755,7 +2739,7 @@ def rock_scan(
                 chunk_size=10,
                 stream_name="dark",
                 simu=simu,
-            )  
+            )
 
         # open shutter, tomo_images
         yield from _set_cam_chunk_size(dets, chunk_size=num_img)
@@ -2786,7 +2770,7 @@ def rock_scan(
                 chunk_size=10,
                 stream_name="flat",
                 simu=simu,
-            ) 
+            )
 
         if move_to_ini_pos:
             yield from _move_sample_in_xhx(
@@ -2893,7 +2877,7 @@ def record_calib_pos_new_xh(n=None):
 
     def find_missing_or_next(nums):
         nums = sorted(set(nums))  # Sort and remove duplicates
-    
+
         # If the smallest number is greater than 1, return the integer smaller than all numbers
         if nums[0] > 1:
             return nums[0] - 1
@@ -3062,7 +3046,7 @@ def update_CALIBER_th2_and_lock_xh(msg=""):
         print(msg)
     else:
         print("th2 new calibration sync has been done!")
-    
+
 
 
 def trans_calib_xh():
@@ -3127,7 +3111,7 @@ def cal_zp_ccd_xh(eng, mag, zp_cfg=None, show=True):
 def set_zp_ccd_xh(eng, mag, zp_cfg=None):
     p, det_pos, _, _, _ = cal_zp_ccd_xh(eng, mag, zp_cfg=zp_cfg)
     yield from mv(zp.z.set_use_switch, 1)
-    yield from mv(zp.z, p) 
+    yield from mv(zp.z, p)
     yield from mv(zp.z.set_use_switch, 0)
 
     yield from mv(det.z.set_use_switch, 1)
@@ -3378,10 +3362,10 @@ def move_zp_ccd_xh(
             yield from mv(zp.x, zp_x_target, zp.y, zp_y_target, wait=False)
             yield from mv(aper.x, aper_x_target, aper.y, aper_y_target, wait=False)
             yield from mv(zp.z, zp_final, det.z, det_final, wait=False)
-            if eng_new > eng_ini:    
+            if eng_new > eng_ini:
                 yield from mv(XEng, eng_new+0.1)
                 yield from bps.sleep(2)
-            yield from mv(XEng, eng_new)            
+            yield from mv(XEng, eng_new)
 
             if move_clens_flag:
                 yield from mv(
@@ -3800,20 +3784,20 @@ def mosaic_2D_rel_grid_xh(
         mot2_snake,
     )
     yield from mv(zps.sx, x_out, zps.sy, y_out, wait=True)
-    yield from stage(cam)
+    cam.stage()
     yield from bps.sleep(1)
     yield from trigger_and_read(list(dets) + [mot1, mot2], name="flat")
     yield from mv(zps.sx, x_ini, zps.sy, y_ini, wait=True)
     yield from bps.sleep(1)
     yield from _close_shutter_xhx(simu=simu)
     # _close_shutter_xhx(simu=simu)
-    yield from stage(cam)
+    cam.stage()
     yield from bps.sleep(1)
     yield from trigger_and_read(list(dets) + [mot1, mot2], name="dark")
 
     yield from mv(zps.sx, x_ini)
     yield from mv(zps.sy, y_ini)
-    yield from unstage(cam)
+    cam.unstage()
     yield from abs_set_wait(cam.cam.image_mode, 1)
     yield from _close_shutter_xhx(simu=simu)
 
@@ -3937,7 +3921,7 @@ def mosaic_2D_xh(
             chunk_size=5,
             stream_name="dark",
             simu=simu,
-        )  
+        )
 
         print("open shutter ...")
         yield from _open_shutter_xhx(simu)
@@ -3968,7 +3952,7 @@ def mosaic_2D_xh(
                 chunk_size=5,
                 stream_name="flat",
                 simu=simu,
-            )  
+            )
 
         # move sample in
         yield from _move_sample_in_xhx(
@@ -4118,7 +4102,7 @@ def radiographic_record(
      motor_z_ini,
      motor_r_ini) = FXITomoFlyer.get_txm_cur_pos()
 
-    out_x, out_y, out_z, out_r = out_pos 
+    out_x, out_y, out_z, out_r = out_pos
     (motor_x_out,
      motor_y_out,
      motor_z_out,
@@ -4139,7 +4123,7 @@ def radiographic_record(
               "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
              )
         period = acq_p
-        
+
         if exp_t > (acq_p - acq_min):
             exp_t = acq_p - acq_min
 
@@ -4178,7 +4162,7 @@ def radiographic_record(
     yield from _set_cam_param(exposure_time=exp_t, period=period)
     yield from abs_set_wait(cam.cam.image_mode, 0)
 
-    
+
     @stage_decorator(list(dets))
     @run_decorator(md=_md)
     def rad_record_inner():
@@ -4221,7 +4205,7 @@ def radiographic_record(
         yield from mv(cam.cam.image_mode, 1)
         yield from abs_set_wait(cam.cam.image_mode, 1)
         yield from select_filters([])
-        
+
     yield from rad_record_inner()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 """
@@ -4233,11 +4217,11 @@ def _set_cam_param_xh(exposure_time=0.1, period=0.1, chunk_size=1, cam=None):
         _get_cam_model(cam), scan_type='fly'
         )
     print(image_mode_id, trigger_mode_id)
-    yield from mv(cam.cam.trigger_mode, trigger_mode_id)       
+    yield from mv(cam.cam.trigger_mode, trigger_mode_id)
     yield from mv(cam.cam.image_mode, image_mode_id)
     yield from mv(cam.cam.num_images, chunk_size)
-    acq_p, _ = FXITomoFlyer.check_cam_acq_p(cam, exposure_time, period)  
-    
+    acq_p, _ = FXITomoFlyer.check_cam_acq_p(cam, exposure_time, period)
+
     yield from mv(cam.cam.acquire_time, exposure_time)
     yield from mv(cam.cam.acquire_period, acq_p)
 
@@ -5152,7 +5136,7 @@ def damon_scan(
             yield from mv(filter4, 1)
         yield from xanes_scan2() # for Mn
 
-        
+
         yield from move_zp_ccd(9)
         for i in range(4):
             yield from mv(filter2, 1)
@@ -6046,14 +6030,14 @@ def scan_change_expo_time(
 def moving_x_scan(
     exposure_time=0.005,
     period=0.025,
-    zps_sx_speed=0.5, 
+    zps_sx_speed=0.5,
     zps_sx_travel_dis=40,
     out_x=-100,
     out_y=-100,
     out_z=0,
-    out_r=0,  
+    out_r=0,
     relative_move_flag=0,
-    note="",    
+    note="",
     simu=False,
     md=None,
 ):
@@ -6081,7 +6065,7 @@ def moving_x_scan(
     zps_sx_defalut_base_speed = 50
 
     yield from mv(zps.sx.velocity, max(zps_sx_speed, 0.5))
-    
+
     yield from _set_cam_param(
         exposure_time=exposure_time, period=period, chunk_size=20
     )
@@ -6090,7 +6074,7 @@ def moving_x_scan(
     print(f'true_period={true_period}')
     print(zps_sx_travel_dis)
     motor_time = np.abs(zps_sx_travel_dis) / zps_sx_speed
-    num_img = int(motor_time / true_period / 2) 
+    num_img = int(motor_time / true_period / 2)
 
     detectors = [KinetixU]
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
@@ -6111,7 +6095,7 @@ def moving_x_scan(
         motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
     zps_sx_target = motor_x_ini + zps_sx_travel_dis
-    
+
 
     _md = {
         "detectors": ["KinetixU"],
@@ -6155,7 +6139,7 @@ def moving_x_scan(
     def inner_scan():
         yield from _open_shutter(simu=simu)
         yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
-        
+
         status = yield from abs_set(zps.sx, zps_sx_target, wait=False)
         yield from _take_image(detectors, motors, num=1, stream_name="primary")
         while not status.done:
@@ -6182,9 +6166,9 @@ def moving_x_scan(
         print(f'\nclose shutter and take 20 dark image')
         yield from _take_dark_image(detectors, motors, num=1, chunk_size=20, stream_name="dark", simu=simu)
 
-        
+
         print('move sample back to initial position')
-        
+
         yield from _move_sample_in(
             motor_x_ini,
             motor_y_ini,
@@ -6197,7 +6181,7 @@ def moving_x_scan(
     uid = yield from inner_scan()
     yield from mv(KinetixU.cam.image_mode, 1)
     yield from _close_shutter(simu=simu)
-    
+
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)

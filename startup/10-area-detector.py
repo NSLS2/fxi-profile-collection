@@ -364,7 +364,8 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
     def cam_name(self):
         print(self.prefix.split("{")[1].strip("}").split(":")[1])
         
-    root_path = "/nsls2/data/fxi-new/legacy/Kinetix"
+    # root_path = "/nsls2/data/fxi-new/legacy/Kinetix"
+    root_path = "/nsls2/data/fxi-new/legacy/Marana"  # CHANGE IT BACK ONCE THE FOLDERS ARE CREATED !!!!!!!!!!!!!!!!!!
     hdf5 = Cpt(
         HDF5PluginWithFileStore,
         suffix="HDF1:",

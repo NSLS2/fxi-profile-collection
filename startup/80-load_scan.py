@@ -34,7 +34,7 @@ def get_fly_scan_angle(scan_id):
 
     img_ini_timestamp = timestamp_tomo[0]
 
-    # something not correct in rotary stage. 
+    # something not correct in rotary stage.
     # we do following correction on 2023_5_16
     # mot_ini_timestamp = timestamp_mot[1]  # timestamp_mot[1] is the time when taking dark image
 
@@ -286,7 +286,12 @@ def export_fly_scan(h, fpath=None):
 
     x_eng = h.start["XEng"]
     img_angle = get_fly_scan_angle(uid)
+
+    print(f"ANGLE {img_angle.shape}")
+
     id_stop = find_nearest(img_angle, img_angle[0]+relative_rot_angle-1)
+
+    print(f"IDSTOP {id_stop}")
 
     tmp = list(h.data(f"{det_name}_image", stream_name="primary"))[0]
     img_tomo = np.array(tmp[:len(img_angle)])
@@ -587,17 +592,17 @@ def export_xanes_scan_with_binning(h, fpath=None, binning=1):
     img_list = list(h.data(f"{det_name}_image", stream_name="primary"))
     bkg_list = list(h.data(f"{det_name}_image", stream_name="flat"))
     for i in trange(num_eng):
-        img_xanes_sub = np.array(img_list[i])        
+        img_xanes_sub = np.array(img_list[i])
         img_xanes_sub_avg = np.median(img_xanes_sub, axis=0)
         img_bin1 = rescale(img_xanes_sub_avg, 1/binning)
         img_xanes_avg.append(img_bin1)
 
-        img_bkg_sub = np.array(bkg_list[i])        
+        img_bkg_sub = np.array(bkg_list[i])
         img_bkg_sub_avg = np.median(img_bkg_sub, axis=0)
         img_bin2 = rescale(img_bkg_sub_avg, 1/binning)
         img_bkg_avg.append(img_bin2)
 
-    
+
 
     img_dark = np.array(list(h.data(f"{det_name}_image", stream_name="dark")))
     img_dark_avg = np.mean(img_dark, axis=1)[0]
@@ -719,7 +724,7 @@ def export_z_scan(h, fpath=None):
     num = h.start["plan_args"]["steps"]
     chunk_size = h.start["plan_args"]["chunk_size"]
     note = h.start["plan_args"]["note"] if h.start["plan_args"]["note"] else "None"
-    
+
     img_zscan = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="primary"))), axis=1)
     img_bkg = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="flat"))), axis=1).squeeze()
     img_dark = np.mean(np.array(list(h.data(f"{det_name}_image", stream_name="dark"))), axis=1).squeeze()
@@ -836,7 +841,7 @@ def export_test_scan(h, fpath=None):
 
     img_list = list(h.data(f"{det_name}_image", stream_name="primary"))
     n = len(img_list)
-    for i in range(n-1, 0, -1):    
+    for i in range(n-1, 0, -1):
         try:
             #print(i)
             img = np.array(img_list[:i])[:, 0]
@@ -861,7 +866,7 @@ def export_test_scan(h, fpath=None):
         img_bkg_avg = img_bkg
         print('img background not taken')
 
-    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
+    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg)
     img_norm[np.isnan(img_norm)] = 0
     img_norm[np.isinf(img_norm)] = 0
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
@@ -932,7 +937,7 @@ def export_test_scan2(h, fpath=None):
         img_bkg = np.ones((1, img.shape[1], img.shape[2]))
         img_bkg_avg = img_bkg
 
-    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
+    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg)
     img_norm[np.isnan(img_norm)] = 0
     img_norm[np.isinf(img_norm)] = 0
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
@@ -999,7 +1004,7 @@ def export_radiography_scan(h, fpath=None):
     img_bkg = np.array(list(h.data(f"{det_name}_image", stream_name="flat")))[0]
     img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True)
 
-    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg) 
+    img_norm = (img - img_dark_avg) * 1.0 / (img_bkg_avg - img_dark_avg)
     img_norm[np.isnan(img_norm)] = 0
     img_norm[np.isinf(img_norm)] = 0
     fname = fpath + scan_type + "_id_" + str(scan_id) + ".h5"
@@ -1275,7 +1280,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     col_size = x_num * cl
     img_patch = np.zeros([1, row_size, col_size])
 
-    
+
     pos_file_for_print = np.zeros([x_num * y_num, 4])
     pos_file = ["cord_x\tcord_y\tx_pos_relative\ty_pos_relative\n"]
     index = 0
@@ -1303,7 +1308,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     except:
         img_patch_bin = img_patch
         binning = 1
-        
+
     fout_h5 = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.h5"
     fout_tiff = fpath + f"raster2D_scan_{scan_id}_binning_{binning}.tiff"
     fout_txt = fpath + f"raster2D_scan_{scan_id}_cord.txt"
@@ -1321,7 +1326,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
     """
     s = img.shape
     tmp = bin_ndarray(img, new_shape=(s[0], int(s[1]/binning), int(s[2]/binning)))
-    for i in range(num_img):  
+    for i in range(num_img):
         fout = f'{new_dir}/img_{i:02d}_binning_{binning}.tiff'
         print(f'saving {fout}')
         tifffile.imsave(fout, np.array(tmp[i], dtype=np.float32))
@@ -1389,21 +1394,21 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         img_dark = np.array(list(h_ref.data(f"{det_name}_image", stream_name="dark")))[0]
         img_dark_avg = np.mean(img_dark, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
-        img_dark_avg = np.zeros((1, *s[1:]))    
+        img_dark_avg = np.zeros((1, *s[1:]))
 
     try:
         img_bkg = np.array(list(h_ref.data(f"{det_name}_image", stream_name="flat")))[0]
         img_bkg_avg = np.mean(img_bkg, axis=0, keepdims=True) #(1, 1020, 1024)
     except:
         img_bkg_avg = np.ones((1, *s[1:]))
-    
+
     if reverse:
         img_raw = img_raw[:, ::-1, ::-1]
         img_dark_avg = img_dark_avg[:, ::-1, ::-1]
         img_bkg_avg = img_bkg_avg[:, ::-1, ::-1]
 
-    
-        
+
+
 
     img = (img - img_dark_avg) / (img_bkg_avg - img_dark_avg)
     x_num = round((x_range[1] - x_range[0]) + 1)
@@ -1416,7 +1421,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         pix = pxl_sz
     else:
         warn_msg = ''
-        
+
     frac = np.round(pix / pxl_sz, 2) # e.g., 10nm/20nm = 0.5
     rl = int(s[1] * frac) # num of pixel (row) in cropped_and_centered image
     rs = s[1]/2 * (1 - frac)
@@ -1436,7 +1441,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     col_size = x_num * cl
     img_patch = np.zeros([1, row_size, col_size])
 
-    
+
     pos_file_for_print = np.zeros([x_num * y_num, 4])
     pos_file = ["cord_x\tcord_y\tx_pos_relative\ty_pos_relative\n"]
     index = 0
@@ -1481,7 +1486,7 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     """
     s = img.shape
     tmp = bin_ndarray(img, new_shape=(s[0], int(s[1]/binning), int(s[2]/binning)))
-    for i in range(num_img):  
+    for i in range(num_img):
         fout = f'{new_dir}/img_{i:02d}_binning_{binning}.tiff'
         print(f'saving {fout}')
         tifffile.imsave(fout, np.array(tmp[i], dtype=np.float32))
@@ -1538,20 +1543,20 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
 
     len_img = len(img_xanes)
     len_bkg = len(img_bkg)
-    
+
     idx = int(len_img // num_pos)
 
     id_end = int(min(idx, len_bkg) * num_pos)
     img_xanes = img_xanes[:id_end]
-    eng_list = eng_list[:id_end]    
-    
+    eng_list = eng_list[:id_end]
+
 
     for j in range(num_pos):
         img = img_xanes[j::num_pos]
         img_n = (img - img_dark) / (img_bkg - img_dark)
         fn = fpath
         fname = (f"{fn}{scan_type}_id_{scan_id}_pos_{j:02d}.h5")
-        
+
         try:
             print(f"saving {fname}")
             with h5py.File(fname, "w") as hf:
@@ -1567,7 +1572,7 @@ def export_multipos_2D_xanes_scan2(h, fpath=None):
                     hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
         except Exception as err:
             print(err)
-    del img_xanes    
+    del img_xanes
     del img_bkg
     gc.collect()
     '''

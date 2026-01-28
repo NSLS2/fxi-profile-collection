@@ -82,7 +82,11 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     for detector in detectors:
         #print(f'try to unstage:\n {detector}\n')
         #yield from unstage(detector)
-        detector.unstage()
+        try:
+            detector.unstage()
+        except Exception as e:
+            print(e)
+            pass
         #print('sleep 0.2 sec')
         yield from bps.sleep(0.2)
 

@@ -594,7 +594,8 @@ def fly_scan(
     """
     global ZONE_PLATE
 
-    detectors = [KinetixU, ic3]
+    #detectors = [KinetixU, ic3]
+    detectors = [KinetixU]
     offset_angle = -1 * rs
     current_rot_angle = zps.pi_r.position
     target_rot_angle = current_rot_angle + relative_rot_angle
@@ -3548,9 +3549,10 @@ def xanes_3D(
 ):
     txt = "start 3D xanes scan, containing following fly_scan:\n"
     insert_text(txt)
+    print(txt)
 
     for eng in eng_list:
-        yield from move_zp_ccd(eng, move_flag=1)
+        yield from move_zp_ccd_TEST(eng, move_flag=1)
         my_note = note + f"_energy={eng}"
         yield from bps.sleep(1)
         print(f"current energy: {eng}")
@@ -3573,8 +3575,8 @@ def xanes_3D(
             binning=binning,
         )
         yield from bps.sleep(1)
-        KinetixU.unstage()
-    yield from mv(KinetixU.cam.image_mode, 2)
+        #KinetixU.unstage()
+    #yield from mv(KinetixU.cam.image_mode, 2)
     export_pdf(1)
 
 '''
