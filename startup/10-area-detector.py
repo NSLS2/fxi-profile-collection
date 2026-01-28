@@ -350,21 +350,16 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
 
 
 class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
-    def __init__(self, *args, md=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._md = md
-        if not kwargs["root"] or not kwargs["write_path_template"]:
-            self._update_paths()
-
     def _update_paths(self):
         self.reg_root = self.root_path_str
         self.write_path_template = self.path_template_str
 
     @property
     def root_path_str(self):
-        data_session = self._md["data_session"]
-        cycle = self._md["cycle"]
-        if self._md["proposal"]["type"] == "Commissioning":
+        md = self.parent._md
+        data_session = md["data_session"]
+        cycle = md["cycle"]
+        if md["proposal"]["type"] == "Commissioning":
             root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/kinetix22/"
         else:
             root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/kinetix22/"
@@ -399,7 +394,6 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
         suffix="HDF1:",
         root="/",
         write_path_template="",
-        md=RE.md,
     )
 
     def __init__(self, *args, md=None, **kwargs):
@@ -664,7 +658,7 @@ KinetixU.hdf5.time_stamp.name = "KinetixU_timestamps"
 
 #########################################
 # added by XH
-KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD", md=RE.md)
+KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD", md=RE.md)  # Placeholder, uses the same PVs as KinetixU
 KinetixD.cam.ensure_nonblocking()
 KinetixD.read_attrs = ['hdf5']
 KinetixD.hdf5.read_attrs = ["time_stamp"]
