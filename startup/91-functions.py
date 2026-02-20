@@ -1526,7 +1526,7 @@ def get_image_timestamp(scan_id, h=None):
     t1 = [t.strftime('%Y-%m-%d %H:%M:%S.%f') for t in dt]
     return t1
 
-def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, print_flag=1):  
+def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, date_start_from=None, print_flag=1):  
     tmp = list(db(scan_id=scan_id))
     n = len(tmp)    
     if date_end_by is None:    
@@ -1536,8 +1536,9 @@ def get_scan_timestamp(scan_id, return_flag=0, date_end_by=None, print_flag=1):
             uid = sid.start["uid"]
             timestamp = sid.start["time"]
             ts = pd.to_datetime(timestamp, unit="s").tz_localize("US/Eastern")
-            date_end = pd.Timestamp(date_end_by,).tz_localize('US/Eastern')
-            if ts < date_end:
+            date_end = pd.Timestamp(date_end_by).tz_localize('US/Eastern')
+            date_start = pd.Timestamp(date_start_from).tz_localize('US/Eastern')
+            if ts < date_end and ts > date_start:
                 h = db[uid]
                 break
 

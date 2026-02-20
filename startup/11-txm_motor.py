@@ -216,16 +216,25 @@ psh_cls_sts_xh = EpicsSignal("XF:18IDA-PPS{PSh}Sts:Cls-Sts", name="psh_cls_sts_x
 
 shutter = TwoButtonShutter("XF:18IDA-PPS{PSh}", name="shutter")
 
-filter1 = EpicsSignal("XF:18IDB-UT{Fltr:1}Cmd:In-Cmd", name="filter1")
-filter2 = EpicsSignal("XF:18IDB-UT{Fltr:2}Cmd:In-Cmd", name="filter2")
-filter3 = EpicsSignal("XF:18IDB-UT{Fltr:3}Cmd:In-Cmd", name="filter3")
-filter4 = EpicsSignal("XF:18IDB-UT{Fltr:4}Cmd:In-Cmd", name="filter4")
+filter1 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO1-Cmd", name="filter1")
+filter2 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO2-Cmd", name="filter2")
+filter3 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO3-Cmd", name="filter3")
+filter4 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO4-Cmd", name="filter4")
+filter5 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO5-Cmd", name="filter5")
+filter6 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO6-Cmd", name="filter6")
+filter7 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO7-Cmd", name="filter7")
+filter8 = EpicsSignal("XF:18IDB-ES{IOLOGIK5:E1211}:DO8-Cmd", name="filter8")
+
 
 FILTERS = {
     "filter1": filter1,
     "filter2": filter2,
     "filter3": filter3,
     "filter4": filter4,
+    "filter5": filter5,
+    "filter6": filter6,
+    "filter7": filter7,
+    "filter8": filter8,
 }
 
 beam_current = EpicsSignalRO("SR:OPS-BI{DCCT:1}I:Real-I", name="beam_current")
@@ -269,4 +278,8 @@ motor_txm = [
     filter2,
     filter3,
     filter4,
+    filter5,
+    filter6,
+    filter7,
+    filter8,
 ]

@@ -62,7 +62,7 @@ def select_filters(flts=[]):
         yield from mv(item, 0)
     if flts:
         for ii in flts:
-            yield from mv(FILTERS["filter" + str(ii)], 1)
+            yield from mv(FILTERS[f"filter{ii}"], 1)
 
 
 def user_scan(

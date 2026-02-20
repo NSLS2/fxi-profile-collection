@@ -605,8 +605,10 @@ def fly_scan(
     motor_z_ini = zps.sz.position
     motor_r_ini = zps.pi_r.position
 
+    """
     out_r_frac = out_r - (out_r // 360) * 360
     out_r_relative = ((target_rot_angle-1) // 360) * 360 + out_r_frac
+    """
 
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
@@ -615,12 +617,12 @@ def fly_scan(
         motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
         motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
         motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
-        motor_r_out = motor_r_ini + out_r_relative if not (out_r is None) else motor_r_ini
+        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
     else:
         motor_x_out = out_x if not (out_x is None) else motor_x_ini
         motor_y_out = out_y if not (out_y is None) else motor_y_ini
         motor_z_out = out_z if not (out_z is None) else motor_z_ini
-        motor_r_out = out_r_relative if not (out_r_relative is None) else motor_r_ini
+        motor_r_out = out_r if not (out_r is None) else motor_r_ini
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
@@ -685,14 +687,12 @@ def fly_scan(
                 yield from mv(flt, 1)
             yield from bps.sleep(1)
 
+
         # close shutter, dark images: numer=chunk_size (e.g.20)
         if take_dark_img:
             print("\nshutter closed, taking dark images...")
-            yield from _take_dark_image(
-                detectors, motor, num=1, chunk_size=20, stream_name="dark", simu=simu
-            )
+            yield from _take_dark_image(detectors, motor, num=1, chunk_size=20, stream_name="dark", simu=simu)
 
-        # open shutter, tomo_images
 
         ###############  need to revise after fixing camera ######################
         """
@@ -702,26 +702,39 @@ def fly_scan(
         """
         true_period = exposure_time # temperary solution
         ###########################################################################
-
+        
         rot_time = np.abs(relative_rot_angle) / np.abs(rs) + 1 # it seems acceleration/de-acceleration take more time
         num_img = int(rot_time / true_period)
 
+
         yield from _open_shutter(simu=simu)
         print("\nshutter opened, taking tomo images...")
+
         yield from _set_cam_chunk_size(detectors, chunk_size=num_img)
         # yield from mv(zps.pi_r, current_rot_angle + offset_angle)
         status = yield from abs_set(zps.pi_r, target_rot_angle, wait=False)
-        # yield from bps.sleep(1)
         yield from _take_image(detectors, motor, num=1, stream_name="primary")
         while not status.done:
             yield from bps.sleep(0.01)
             # yield from trigger_and_read(list(detectors) + motor)
 
-        # bkg images
-        print("\nTaking background images...")
         yield from _set_rotation_speed(rs=rot_back_velo)
-        #        yield from abs_set(zps.pi_r.velocity, rs)
 
+        
+        """
+                # move sample from bkg position back to sample position
+        print('move sample from bkg position back to sample position')
+        yield from _move_sample_in(
+                motor_x_ini,
+                motor_y_ini,
+                motor_z_ini,
+                motor_r_ini,
+                trans_first_flag=rot_first_flag,
+                repeat=3,
+            )    
+       """
+        #yield from _open_shutter(simu=simu)
+        print("\nshutter opened, taking background images...")
         if take_bkg_img:
             if add_bkg_filt_only:
                 for flt in filters:
@@ -746,6 +759,7 @@ def fly_scan(
                     yield from mv(flt, 0)
                     yield from mv(flt, 0)
                 yield from bps.sleep(1)
+
         if close_shutter_finish:
             yield from _close_shutter(simu=simu)
         if move_to_ini_pos:
@@ -759,6 +773,7 @@ def fly_scan(
             )
         for flt in filters:
             yield from mv(flt, 0)
+        
 
     uid = yield from fly_inner_scan()
     yield from mv(KinetixU.cam.image_mode, 2)

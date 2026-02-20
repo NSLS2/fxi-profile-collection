@@ -14,7 +14,7 @@ def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
     """
     x_out = out_x
     y_out = out_y
-    z_out = out_z
+    z_out = out_z 
     r_out = out_r
 
     r_ini = zps.pi_r.position
@@ -217,7 +217,8 @@ def _open_shutter(simu=False):
 
 
 def _set_rotation_speed(rs=30):
-    yield from abs_set(zps.pi_r.velocity, rs, wait=True)
+    if np.abs(zps.pi_r.velocity.value - rs) > 0.1: 
+        yield from abs_set(zps.pi_r.velocity, rs, wait=True)
 
 
 def _move_sample(x_pos, y_pos, z_pos, r_pos, repeat=1):

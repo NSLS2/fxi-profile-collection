@@ -1239,6 +1239,7 @@ def export_raster_2D_2(h, binning=4, fpath=None):
         pix = pix * np.cos(rot_angle/180.*np.pi)
     else:
         pix = pix * np.sin(rot_angle/180.*np.pi)
+    pix = np.abs(pix)
 
     img_raw = np.array(list(h.data(f"{det_name}_image", stream_name="primary"))) # (9, chunk_size, 1020, 2014)
     img = np.mean(img_raw, axis=1) # (9, 1020, 1024)
