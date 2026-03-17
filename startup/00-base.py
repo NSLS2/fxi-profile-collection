@@ -8,6 +8,8 @@ print(f"Loading {__file__}...")
 
 from datetime import datetime
 from ophyd.signal import EpicsSignalBase, EpicsSignal, DEFAULT_CONNECTION_TIMEOUT
+from bluesky.callbacks.tiled_writer import TiledWriter
+from tiled.client import from_profile, from_uri
 
 try:
     from bluesky_queueserver import is_re_worker_active, parameter_annotation_decorator
@@ -63,20 +65,16 @@ if not is_re_worker_active():
 from bluesky.preprocessors import stage_decorator, run_decorator
 
 # This is needed for backward compatitility of the export_scan code.
-from databroker.v0 import Broker as BrokerV0
-dbv0 = BrokerV0.named("fxi")
+tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
+tw = TiledWriter(tiled_writing_client)
 
-# with open('/etc/bluesky/redis.secret') as f:
-#     redis_secret = f.read().strip()
-#     os.environ['REDIS_PASSWORD'] = redis_secret
-
-nslsii.configure_base(get_ipython().user_ns,'fxi',
+nslsii.configure_base(get_ipython().user_ns, broker_name=None,
                       bec=True,
                       redis_url='xf18id1-fxi-redis1.nsls2.bnl.gov',
                       redis_port=6380,
                       redis_ssl=True
                       )
-
+RE.subscribe(tw)
 
 nslsii.configure_kafka_publisher(RE, "fxi")
 

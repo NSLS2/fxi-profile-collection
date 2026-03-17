@@ -367,7 +367,7 @@ class FXITomoFlyer(Device):
     _staging_delay = 0.010
     tspre = "s"  ## ['ms', 's', '10s']
 
-    def __init__(self, dets, zebra, *, reg=db.reg, scn_mode=0, **kwargs):
+    def __init__(self, dets, zebra, *, reg=None, scn_mode=0, **kwargs):
         super().__init__("", parent=None, **kwargs)
         self._state = "idle"
         self._dets = dets
@@ -1691,21 +1691,3 @@ def export_sis_data(ion, filepath, zebra):
         print("Scaler-save timed out! Continuing...")
 
     zs.file_stage.put("unstaged")
-
-
-class ZebraHDF5Handler(HandlerBase):
-    HANDLER_NAME = "ZEBRA_HDF51"
-
-    def __init__(self, resource_fn):
-        self._handle = h5py.File(resource_fn, "r")
-
-    def __call__(self, *, column):
-        return self._handle[column][:]
-
-    def close(self):
-        self._handle.close()
-        self._handle = None
-        super().close()
-
-
-db.reg.register_handler("ZEBRA_HDF51", ZebraHDF5Handler, overwrite=True)
