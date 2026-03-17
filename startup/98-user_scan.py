@@ -65,6 +65,14 @@ def select_filters(flts=[]):
             yield from mv(FILTERS[f"filter{ii}"], 1)
 
 
+def curr_filters():
+    curr = []
+    for key, item in FILTERS.items():
+        if item.get() == 1:
+            curr.append(int(key.strip('filter')))
+    return curr
+
+
 def user_scan(
     exposure_time,
     period,
@@ -1513,7 +1521,7 @@ def multi_edge_xanes_zebra(
     bin_fac=None,
     bulk=False,
     bulk_intgr=10,
-    roi={"min_x": 178, "size_x": 2048, "min_y": 178, "size_y": 2048},
+    roi={"min_x": 576, "size_x": 2048, "min_y": 576, "size_y": 2048},
     simu=False,
     sleep=0,
     settle_time=0,
@@ -5038,6 +5046,31 @@ def zps_motor_scan_with_Andor(
     txt = get_scan_parameter()
     insert_text(txt)
     print(txt)
+
+
+def diff_img(out_pos=[None, None, None], eng_1st=8.97, eng_2nd=8.92, flts=[], cam=None,):
+    yield from move_zp_ccd_xh(eng_1st)
+    cam = _sel_cam(cam)
+    yield from mv(cam.cam.acquire, 0)
+    x_ini, y_ini, z_ini = zps.sx.position, zps.sy.position, zps.sz.position
+    x_ref = x_ini + out_pos[0] if out_pos[0] is not None else x_ini
+    y_ref = y_ini + out_pos[1] if out_pos[1] is not None else y_ini
+    z_ref = z_ini + out_pos[2] if out_pos[2] is not None else z_ini
+    flts_ini = curr_filters()
+    yield from select_filters(flts)
+    yield from count([cam], 1)
+    yield from mv(zps.sx, x_ref, zps.sy, y_ref, zps.sz, z_ref)
+    yield from count([cam], 1)
+
+    yield from move_zp_ccd_xh(eng_2nd)
+    yield from count([cam], 1)
+    yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
+    yield from count([cam], 1)
+
+    yield from _close_shutter_xhx()
+    yield from count([cam], 1)
+    yield from select_filters(flts_ini)
+
 
 
 def diff_tomo(

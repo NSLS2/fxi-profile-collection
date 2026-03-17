@@ -6,6 +6,7 @@ tomo_ctrl/
 *.h5
 *.tif
 *.tiff
+*.csv
 history*.sqlite
 static/
 startup/Tomo_test/

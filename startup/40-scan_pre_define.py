@@ -249,9 +249,12 @@ def _set_cam_chunk_size_xhx(cam, chunk_size, scan_type='fly'):
         )
 
     yield from mv(cam.cam.acquire, 0)
-    yield from mv(cam.cam.image_mode, image_mode_id)
-    yield from mv(cam.cam.trigger_mode, trigger_mode_id)
-    yield from mv(cam.cam.num_images, chunk_size)
+    if cam.cam.image_mode.value != image_mode_id:
+        yield from mv(cam.cam.image_mode, image_mode_id)
+    if cam.cam.trigger_mode.value != trigger_mode_id:
+        yield from mv(cam.cam.trigger_mode, trigger_mode_id)
+    if cam.cam.num_images.value != chunk_size:
+        yield from mv(cam.cam.num_images, chunk_size)
 
 
 def _take_ref_image(
