@@ -6,10 +6,11 @@ import datetime
 import numpy as np
 import time as ttime
 
-from ophyd import Device, EpicsSignal, EpicsSignalRO
+from ophyd import Device, EpicsSignal, EpicsSignalRO, Signal
 from ophyd import Component as Cpt
 from ophyd import FormattedComponent as FC
 from ophyd.utils import set_and_wait
+from ophyd.status import SubscriptionStatus, WaitTimeoutError
 from ophyd.areadetector.filestore_mixins import new_short_uid, resource_factory
 from ophyd.sim import NullStatus
 from databroker.assets.handlers import HandlerBase
@@ -275,12 +276,40 @@ class FXIZebra(Zebra):
         )
 
 
+class ZebraSaver(Device):
+    """Device for saving zebra and scaler data via IOC."""
+    # Saving business logic
+    write_dir = Cpt(EpicsSignal, "write_dir", string=True)
+    file_name = Cpt(EpicsSignal, "file_name", string=True)
+    full_file_path = Cpt(EpicsSignalRO, "full_file_path")
+    acquire = Cpt(EpicsSignal, "acquire", string=True)
+    file_stage = Cpt(EpicsSignal, "stage")
+    dev_type = Cpt(EpicsSignal, "dev_type")
+
+    # Zebra-related PVs
+    enc1 = Cpt(EpicsSignal, "enc1")
+    enc2 = Cpt(EpicsSignal, "enc2")
+    enc3 = Cpt(EpicsSignal, "enc3")
+    zebra_time = Cpt(EpicsSignal, "zebra_time")
+
+    # Scaler-related PVs
+    i0 = Cpt(EpicsSignal, "i0")
+    im = Cpt(EpicsSignal, "im")
+    it = Cpt(EpicsSignal, "it")
+    sis_time = Cpt(EpicsSignal, "sis_time")
+
+
+zs = ZebraSaver("XF:18ID-ES{ZebraSaver:1}:", name="zs")
+
+
 ## Class below requires FXI specific changes
 class FXITomoFlyer(Device):
     """
     This is the flyer object for the Zebra.
     This is the position based flyer.
     """
+
+    fast_axis = Cpt(Signal, value="PI_R", kind="config")
 
     root_path = "/nsls2/data/fxi-new/legacy/"
     write_path_template = f"zebra/%Y/%m/%d/"
@@ -795,7 +824,18 @@ class FXITomoFlyer(Device):
         # Write the file.
         # @timer_wrapper
         def get_zebra_data():
-            export_zebra_data(self._encoder, self.__write_filepath)
+            try:
+                # TODO: Define condition for when to use nano export
+                # See SRX's approach: https://github.com/NSLS2/srx-profile-collection/blob/main/startup/32-zebra.py#L953
+                # Options: check flyer name, add use_nano_export signal, etc.
+                use_nano_export = False  # Placeholder - update trigger logic as needed
+                if use_nano_export:
+                    export_nano_zebra_data(self._encoder, self.__write_filepath, self.fast_axis.get())
+                else:
+                    export_zebra_data(self._encoder, self.__write_filepath)
+            except TimeoutError as ex:
+                print(f"Zebra data collection timeout error. {ex}")
+                print("Scan continuing...")
 
         get_zebra_data()
 
@@ -1502,6 +1542,155 @@ def export_zebra_data(zebra, filepath):
         dset0[...] = np.array(time_d)
         dset1 = f.create_dataset("enc1_pi_r", size, dtype="f")
         dset1[...] = np.array(enc1_d)
+
+
+def export_nano_zebra_data(zebra, filepath, fastaxis):
+    """
+    Export zebra position capture data using the ZebraSaver IOC.
+
+    Parameters
+    ----------
+    zebra : FXIZebra
+        The zebra device
+    filepath : str
+        Full path for the output HDF5 file
+    fastaxis : str
+        The fast scanning axis. Options:
+        - 'PI_R': rotation axis (adjusts enc1)
+        - 'SX': sample X axis (adjusts enc2)
+        - 'SY': sample Y axis (adjusts enc3)
+    """
+    j = 0
+    while zebra.pc.data_in_progress.get() == 1:
+        print("Waiting for zebra...")
+        ttime.sleep(0.1)
+        j += 1
+        if j > 10:
+            print("THE ZEBRA IS BEHAVING BADLY CARRYING ON")
+            break
+
+    time_d = zebra.pc.data.time.get()
+    enc1_d = zebra.pc.data.enc1.get()
+    enc2_d = zebra.pc.data.enc2.get()
+    enc3_d = zebra.pc.data.enc3.get()
+
+    px = zebra.pc.pulse_step.get()
+    if fastaxis == 'PI_R':
+        enc1_d = enc1_d + (px / 2)
+    elif fastaxis == 'SX':
+        enc2_d = enc2_d + (px / 2)
+    elif fastaxis == 'SY':
+        enc3_d = enc3_d + (px / 2)
+
+    zs.enc1.put(enc1_d)
+    zs.enc2.put(enc2_d)
+    zs.enc3.put(enc3_d)
+    zs.zebra_time.put(time_d)
+
+    write_dir = os.path.dirname(filepath)
+    file_name = os.path.basename(filepath)
+
+    zs.dev_type.put("zebra")
+    zs.write_dir.put(write_dir)
+    zs.file_name.put(file_name)
+    zs.file_stage.put("staged")
+
+    def cb(value, old_value, **kwargs):
+        if old_value in ["acquiring", 1] and value in ["idle", 0]:
+            return True
+        return False
+
+    st = SubscriptionStatus(zs.acquire, callback=cb, run=False)
+    zs.acquire.put(1)
+    try:
+        st.wait(timeout=60)
+    except WaitTimeoutError:
+        print("Zebra-save timed out! Continuing...")
+
+    zs.file_stage.put("unstaged")
+
+
+def export_sis_data(ion, filepath, zebra):
+    """
+    Export scaler/ion chamber data using the ZebraSaver IOC.
+
+    Parameters
+    ----------
+    ion : FXIScaler
+        The scaler device (sclr1)
+    filepath : str
+        Full path for the output HDF5 file
+    zebra : FXIZebra
+        The zebra device (for getting expected point count)
+    """
+    N = ion.nuse_all.get()
+    t = ion.mca1.get(timeout=5.0)
+    i = ion.mca2.get(timeout=5.0)
+    im = ion.mca3.get(timeout=5.0)
+    it = ion.mca4.get(timeout=5.0)
+
+    while len(t) == 0 and len(t) != len(i):
+        t = ion.mca1.get(timeout=5.0)
+        i = ion.mca2.get(timeout=5.0)
+        im = ion.mca3.get(timeout=5.0)
+        it = ion.mca4.get(timeout=5.0)
+
+    if len(i) != N:
+        print(f'Scaler did not collect enough points.')
+        t = ion.mca1.get(timeout=5.0)
+        i = ion.mca2.get(timeout=5.0)
+        im = ion.mca3.get(timeout=5.0)
+        it = ion.mca4.get(timeout=5.0)
+        if len(i) != N:
+            print(f'Nope. Only received {len(i)}/{N} points.')
+
+    correct_length = N // 2
+    # Only consider even points
+    t = t[1::2]
+    i = i[1::2]
+    im = im[1::2]
+    it = it[1::2]
+
+    if len(t) != correct_length:
+        correction_factor = correct_length - len(t)
+        print(f"Adding {correction_factor} points to scaler!")
+        correction_list = [1e10 for _ in range(0, int(correction_factor))]
+        new_t = list(t) + correction_list
+        new_i = list(i) + correction_list
+        new_im = list(im) + correction_list
+        new_it = list(it) + correction_list
+    else:
+        new_t = t
+        new_i = i
+        new_im = im
+        new_it = it
+
+    zs.i0.put(new_i)
+    zs.im.put(new_im)
+    zs.it.put(new_it)
+    zs.sis_time.put(new_t)
+
+    write_dir = os.path.dirname(filepath)
+    file_name = os.path.basename(filepath)
+
+    zs.dev_type.put("scaler")
+    zs.write_dir.put(write_dir)
+    zs.file_name.put(file_name)
+    zs.file_stage.put("staged")
+
+    def cb(value, old_value, **kwargs):
+        if old_value in ["acquiring", 1] and value in ["idle", 0]:
+            return True
+        return False
+
+    st = SubscriptionStatus(zs.acquire, callback=cb, run=False)
+    zs.acquire.put(1)
+    try:
+        st.wait(timeout=60)
+    except WaitTimeoutError:
+        print("Scaler-save timed out! Continuing...")
+
+    zs.file_stage.put("unstaged")
 
 
 class ZebraHDF5Handler(HandlerBase):
