@@ -311,11 +311,6 @@ class FXITomoFlyer(Device):
 
     fast_axis = Cpt(Signal, value="PI_R", kind="config")
 
-    root_path = "/nsls2/data/fxi-new/legacy/"
-    write_path_template = f"zebra/%Y/%m/%d/"
-    read_path_template = f"zebra/%Y/%m/%d/"
-    reg_root = f"zebra/"
-
     KNOWN_DETS = {"Andor", "MaranaU", "KinetixU", "MaranaD", "KinetixD", "Oryx"}
 
     CAM_MODES_IN_FLYER = {
@@ -367,7 +362,7 @@ class FXITomoFlyer(Device):
     _staging_delay = 0.010
     tspre = "s"  ## ['ms', 's', '10s']
 
-    def __init__(self, dets, zebra, *, reg=None, scn_mode=0, **kwargs):
+    def __init__(self, dets, zebra, *, md={}, scn_mode=0, **kwargs):
         super().__init__("", parent=None, **kwargs)
         self._state = "idle"
         self._dets = dets
@@ -379,7 +374,13 @@ class FXITomoFlyer(Device):
         self._stage_sigs = {}
         self._last_bulk = None  # self._last_bulk defines event document
 
-        self.reg = reg
+        self._md = md
+
+        self.root_path = self.root_path_str()
+        self.write_path_template = f"zebra/%Y/%m/%d/"
+        self.read_path_template = f"zebra/%Y/%m/%d/"
+        self.reg_root = f"zebra/"
+
         self.scn_mode = self.scn_modes[scn_mode]
         self.extra_stage_sigs = {}
         self.shutter_delay = 0.1  # unit: deg; _shutter_delay/rot_vel > unibliz shutter opening time 1.5ms
@@ -577,6 +578,15 @@ class FXITomoFlyer(Device):
         for key, val in pc_cfg[self.scn_mode].items():
             set_and_wait(getattr(self._encoder.pc, key), val, rtol=0.1)
 
+    def root_path_str(self):
+        data_session = self._md["data_session"]
+        cycle = self._md["cycle"]
+        if "Commissioning" in get_proposal_type():
+            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/"
+        else:
+            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/"
+        return root_path
+
     def make_filename(self):
         """Make a filename.
         Taken/Modified from ophyd.areadetector.filestore_mixins
@@ -599,6 +609,7 @@ class FXITomoFlyer(Device):
 
     def stage(self):
         self._stage_with_delay()
+        self.root_path = self.root_path_str()
         super.stage()
 
     def _stage_with_delay(self):
@@ -828,10 +839,12 @@ class FXITomoFlyer(Device):
                 # TODO: Define condition for when to use nano export
                 # See SRX's approach: https://github.com/NSLS2/srx-profile-collection/blob/main/startup/32-zebra.py#L953
                 # Options: check flyer name, add use_nano_export signal, etc.
-                use_nano_export = False  # Placeholder - update trigger logic as needed
+                use_nano_export = True  # Placeholder - update trigger logic as needed
                 if use_nano_export:
+                    # NOTE: this is a new export function which uses the caproto IOC for file saving into the proposal dirs.
                     export_nano_zebra_data(self._encoder, self.__write_filepath, self.fast_axis.get())
                 else:
+                    # NOTE: this export function is legacy and uses the operator account to write data.
                     export_zebra_data(self._encoder, self.__write_filepath)
             except TimeoutError as ex:
                 print(f"Zebra data collection timeout error. {ex}")
@@ -882,8 +895,14 @@ class FXITomoFlyer(Device):
         desc["enc1_pi_r"]["source"] = getattr(self._encoder.pc.data, "enc1").pvname
 
         # Handle the detectors we are going to get
+        from pprint import pprint as _pprint
+        from pprint import pformat
+
         for d in self.detectors:
+            print(f"{d.name = }\n{pformat(d.describe())}")
             desc.update(d.describe())
+
+        _pprint(desc)
 
         return {"primary": desc}
 
@@ -1476,6 +1495,7 @@ try:
         list((MaranaU,)),
         Zebra,
         name="tomo_maranau_flyer",
+        md=RE.md,
     )
 except:
     print("MaranaU is not online")
@@ -1485,24 +1505,28 @@ try:
         list((MaranaD,)),
         Zebra,
         name="tomo_maranad_flyer",
+        md=RE.md,
     )
 except:
     print("MaranaD is not online")
 
-try:
+# try:
+if True:
     tomo_kinetixu_flyer = FXITomoFlyer(
         list((KinetixU,)),
         Zebra,
         name="tomo_kinetixu_flyer",
+        md=RE.md,
     )
-except:
-    print("KinetixU is not online")
+# except:
+#     print("KinetixU is not online")
 
 try:
     tomo_kinetixd_flyer = FXITomoFlyer(
         list((KinetixD,)),
         Zebra,
         name="tomo_kinetixd_flyer",
+        md=RE.md,
     )
 except:
     print("KinetixD is not online")

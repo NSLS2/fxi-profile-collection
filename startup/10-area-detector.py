@@ -16,7 +16,7 @@ from ophyd import (
     HDF5Plugin,
     ProcessPlugin,
 )
-
+from nslsii.ophyd_async.providers import NSLS2PathProvider
 from ophyd.areadetector.trigger_mixins import SingleTrigger
 
 from ophyd.areadetector.cam import AreaDetectorCam
@@ -126,6 +126,9 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         self._ts_datum_factory = None
         self._ts_resource_uid = ""
         self._ts_counter = None
+        self._device_name = kwargs["device_name"] if "device_name" in kwargs else "kinetix"
+        # self.stage_sigs["file_template"] = "%s%s.h5"
+        # self._path_provider = NSLS2PathProvider(RE.md, tla_suffix = "-new")
 
     def stage(self):
         self._ts_counter = itertools.count()
@@ -136,13 +139,18 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
 
     def make_filename(self):
         # stash this so that it is available on resume
+        # self.write_path_template = self.read_path_template = self._path_provider(device_name="kinetix").generate_directory_path()
+        # self.reg_root = self._path_provider.get_beamline_proposals_dir()
         self._ret = super().make_filename()
+        print(f"HDF5PluginWithFileStore: {self._ret = }")
         return self._ret
 
     def _generate_resource(self, resource_kwargs):
         # don't re-write the "normal" code path .... yet
         super()._generate_resource(resource_kwargs)
         fn = PurePath(self._fn).relative_to(self.reg_root)
+        print(f"HDF5PluginWithFileStore: {fn = }")
+
 
         # Update the shape that describe() will report.
         self.time_stamp.shape = [self.get_frames_per_point()]
@@ -359,10 +367,11 @@ class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
         md = self.parent._md
         data_session = md["data_session"]
         cycle = md["cycle"]
+        device_name = self._device_name
         if md["proposal"]["type"] == "Commissioning":
-            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/kinetix22/"
+            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/{device_name}/"
         else:
-            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/kinetix22/"
+            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/{device_name}/"
         return root_path
 
     @property

@@ -12,7 +12,7 @@ bluesky-base = "==1.14.6"
 bluesky-queueserver = "*"
 matplotlib-base= ">=3.9.3,<4"
 networkx = ">=3.4.2,<4"
-# nslsii = ">=0.11.6,<0.12"
+nslsii = ">=0.11.6,<0.12"
 numpy = "*"
 ophyd = ">=1.11.0"
 pyepics = "*"
@@ -34,11 +34,16 @@ databroker = "==2.0.0"
 epicscorelibs = ">=7.0.7.99.1.1,<8"
 bluesky-tiled-plugins = ">=2.0.0b68"
 ophyd-async = ">=0.13.7,<0.14"
+bluesky-kafka = ">=0.10.0,<0.11"
+pip = ">=26.0.1,<27"
 
 
 [feature.profile.pypi-dependencies]
 pvxslibs = ">=1.3.2, <2"
-# nslsii = { path = "/home/xf18id/src/nslsii", editable = true }
+
+[feature.profile.tasks]
+nslsii-hotfix = "python -m pip install git+https://github.com/nsls-ii/nslsii --no-build-isolation --no-deps"
+# nslsii =  { git = "https://github.com/nsls-ii/nslsii", branch="master"}
 
 
 [feature.qs.dependencies]
@@ -51,6 +56,7 @@ bluesky-httpserver = "*"
 # the profile.  These will interact with the ansible roles for pushing out the
 # systemd units
 qs-backend = "start-re-manager --profile-dir=."
+# TODO: pixi run start-re-manager --zmq-publish-console=ON --use-ipython-kernel=ON --startup-profile=collection --keep-re
 qs-server = "uvicorn --host localhost --port 60610 bluesky_httpserver.server:app"
 
 
