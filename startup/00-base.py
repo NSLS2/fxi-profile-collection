@@ -78,7 +78,7 @@ class TiledInserter:
 
 tiled_inserter = TiledInserter()
 
-if not is_re_worker_active:
+if not is_re_worker_active():
     db = tiled_reading_client = from_uri("https://tiled.nsls2.bnl.gov/api/v1/metadata/fxi/raw", include_data_sources=True)
 
 nslsii.configure_base(get_ipython().user_ns,

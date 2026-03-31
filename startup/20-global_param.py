@@ -26,6 +26,7 @@ CURRENT_MAG = {}
 CALIBER_FLAG = 1
 
 CALIBER = {}
+# CALIBER = df.from_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
 
 ZP_8keV = {"D": 244,
            "dr": 30}
