@@ -32,6 +32,7 @@ from ophyd.device import Staged
 from ophyd.status import SubscriptionStatus
 
 from bluesky.plan_stubs import abs_set
+import numpy as np
 
 global TimeStampRecord
 TimeStampRecord = []
@@ -416,6 +417,11 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
     def pause(self):
         self.hdf5.capture.put(0)
         return super().pause()
+
+    def make_data_key(self):
+        ret = super().make_data_key()
+        ret["dtype_numpy"] = np.dtype(self.cam.data_type.get(as_string=True).lower()).str
+        return ret
 
     def resume(self):
         self.hdf5.capture.put(1)
