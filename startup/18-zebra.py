@@ -6,10 +6,11 @@ import datetime
 import numpy as np
 import time as ttime
 
-from ophyd import Device, EpicsSignal, EpicsSignalRO
+from ophyd import Device, EpicsSignal, EpicsSignalRO, Signal
 from ophyd import Component as Cpt
 from ophyd import FormattedComponent as FC
 from ophyd.utils import set_and_wait
+from ophyd.status import SubscriptionStatus, WaitTimeoutError
 from ophyd.areadetector.filestore_mixins import new_short_uid, resource_factory
 from ophyd.sim import NullStatus
 from databroker.assets.handlers import HandlerBase
@@ -275,6 +276,32 @@ class FXIZebra(Zebra):
         )
 
 
+class ZebraSaver(Device):
+    """Device for saving zebra and scaler data via IOC."""
+    # Saving business logic
+    write_dir = Cpt(EpicsSignal, "write_dir", string=True)
+    file_name = Cpt(EpicsSignal, "file_name", string=True)
+    full_file_path = Cpt(EpicsSignalRO, "full_file_path")
+    acquire = Cpt(EpicsSignal, "acquire", string=True)
+    file_stage = Cpt(EpicsSignal, "stage")
+    dev_type = Cpt(EpicsSignal, "dev_type")
+
+    # Zebra-related PVs
+    enc1 = Cpt(EpicsSignal, "enc1")
+    enc2 = Cpt(EpicsSignal, "enc2")
+    enc3 = Cpt(EpicsSignal, "enc3")
+    zebra_time = Cpt(EpicsSignal, "zebra_time")
+
+    # Scaler-related PVs
+    i0 = Cpt(EpicsSignal, "i0")
+    im = Cpt(EpicsSignal, "im")
+    it = Cpt(EpicsSignal, "it")
+    sis_time = Cpt(EpicsSignal, "sis_time")
+
+
+zs = ZebraSaver("XF:18ID-ES{ZebraSaver:1}:", name="zs")
+
+
 ## Class below requires FXI specific changes
 class FXITomoFlyer(Device):
     """
@@ -282,10 +309,7 @@ class FXITomoFlyer(Device):
     This is the position based flyer.
     """
 
-    root_path = "/nsls2/data/fxi-new/legacy/"
-    write_path_template = f"zebra/%Y/%m/%d/"
-    read_path_template = f"zebra/%Y/%m/%d/"
-    reg_root = f"zebra/"
+    fast_axis = Cpt(Signal, value="PI_R", kind="config")
 
     KNOWN_DETS = {"Andor", "MaranaU", "KinetixU", "MaranaD", "KinetixD", "Oryx"}
 
@@ -338,7 +362,7 @@ class FXITomoFlyer(Device):
     _staging_delay = 0.010
     tspre = "s"  ## ['ms', 's', '10s']
 
-    def __init__(self, dets, zebra, *, reg=db.reg, scn_mode=0, **kwargs):
+    def __init__(self, dets, zebra, *, md={}, scn_mode=0, **kwargs):
         super().__init__("", parent=None, **kwargs)
         self._state = "idle"
         self._dets = dets
@@ -350,7 +374,13 @@ class FXITomoFlyer(Device):
         self._stage_sigs = {}
         self._last_bulk = None  # self._last_bulk defines event document
 
-        self.reg = reg
+        self._md = md
+
+        self.root_path = self.root_path_str()
+        self.write_path_template = f"zebra/%Y/%m/%d/"
+        self.read_path_template = f"zebra/%Y/%m/%d/"
+        self.reg_root = f"zebra/"
+
         self.scn_mode = self.scn_modes[scn_mode]
         self.extra_stage_sigs = {}
         self.shutter_delay = 0.1  # unit: deg; _shutter_delay/rot_vel > unibliz shutter opening time 1.5ms
@@ -548,6 +578,15 @@ class FXITomoFlyer(Device):
         for key, val in pc_cfg[self.scn_mode].items():
             set_and_wait(getattr(self._encoder.pc, key), val, rtol=0.1)
 
+    def root_path_str(self):
+        data_session = self._md["data_session"]
+        cycle = self._md["cycle"]
+        if "Commissioning" in get_proposal_type():
+            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/"
+        else:
+            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/"
+        return root_path
+
     def make_filename(self):
         """Make a filename.
         Taken/Modified from ophyd.areadetector.filestore_mixins
@@ -570,6 +609,7 @@ class FXITomoFlyer(Device):
 
     def stage(self):
         self._stage_with_delay()
+        self.root_path = self.root_path_str()
         super.stage()
 
     def _stage_with_delay(self):
@@ -795,7 +835,20 @@ class FXITomoFlyer(Device):
         # Write the file.
         # @timer_wrapper
         def get_zebra_data():
-            export_zebra_data(self._encoder, self.__write_filepath)
+            try:
+                # TODO: Define condition for when to use nano export
+                # See SRX's approach: https://github.com/NSLS2/srx-profile-collection/blob/main/startup/32-zebra.py#L953
+                # Options: check flyer name, add use_nano_export signal, etc.
+                use_nano_export = True  # Placeholder - update trigger logic as needed
+                if use_nano_export:
+                    # NOTE: this is a new export function which uses the caproto IOC for file saving into the proposal dirs.
+                    export_nano_zebra_data(self._encoder, self.__write_filepath, self.fast_axis.get())
+                else:
+                    # NOTE: this export function is legacy and uses the operator account to write data.
+                    export_zebra_data(self._encoder, self.__write_filepath)
+            except TimeoutError as ex:
+                print(f"Zebra data collection timeout error. {ex}")
+                print("Scan continuing...")
 
         get_zebra_data()
 
@@ -842,6 +895,9 @@ class FXITomoFlyer(Device):
         desc["enc1_pi_r"]["source"] = getattr(self._encoder.pc.data, "enc1").pvname
 
         # Handle the detectors we are going to get
+        from pprint import pprint as _pprint
+        from pprint import pformat
+
         for d in self.detectors:
             desc.update(d.describe())
 
@@ -1436,6 +1492,7 @@ try:
         list((MaranaU,)),
         Zebra,
         name="tomo_maranau_flyer",
+        md=RE.md,
     )
 except:
     print("MaranaU is not online")
@@ -1445,6 +1502,7 @@ try:
         list((MaranaD,)),
         Zebra,
         name="tomo_maranad_flyer",
+        md=RE.md,
     )
 except:
     print("MaranaD is not online")
@@ -1454,6 +1512,7 @@ try:
         list((KinetixU,)),
         Zebra,
         name="tomo_kinetixu_flyer",
+        md=RE.md,
     )
 except:
     print("KinetixU is not online")
@@ -1463,6 +1522,7 @@ try:
         list((KinetixD,)),
         Zebra,
         name="tomo_kinetixd_flyer",
+        md=RE.md,
     )
 except:
     print("KinetixD is not online")
@@ -1504,19 +1564,150 @@ def export_zebra_data(zebra, filepath):
         dset1[...] = np.array(enc1_d)
 
 
-class ZebraHDF5Handler(HandlerBase):
-    HANDLER_NAME = "ZEBRA_HDF51"
+def export_nano_zebra_data(zebra, filepath, fastaxis):
+    """
+    Export zebra position capture data using the ZebraSaver IOC.
 
-    def __init__(self, resource_fn):
-        self._handle = h5py.File(resource_fn, "r")
+    Parameters
+    ----------
+    zebra : FXIZebra
+        The zebra device
+    filepath : str
+        Full path for the output HDF5 file
+    fastaxis : str
+        The fast scanning axis. Options:
+        - 'PI_R': rotation axis (adjusts enc1)
+        - 'SX': sample X axis (adjusts enc2)
+        - 'SY': sample Y axis (adjusts enc3)
+    """
+    j = 0
+    while zebra.pc.data_in_progress.get() == 1:
+        print("Waiting for zebra...")
+        ttime.sleep(0.1)
+        j += 1
+        if j > 10:
+            print("THE ZEBRA IS BEHAVING BADLY CARRYING ON")
+            break
 
-    def __call__(self, *, column):
-        return self._handle[column][:]
+    time_d = zebra.pc.data.time.get()
+    enc1_d = zebra.pc.data.enc1.get()
+    enc2_d = zebra.pc.data.enc2.get()
+    enc3_d = zebra.pc.data.enc3.get()
 
-    def close(self):
-        self._handle.close()
-        self._handle = None
-        super().close()
+    px = zebra.pc.pulse_step.get()
+    if fastaxis == 'PI_R':
+        enc1_d = enc1_d + (px / 2)
+    elif fastaxis == 'SX':
+        enc2_d = enc2_d + (px / 2)
+    elif fastaxis == 'SY':
+        enc3_d = enc3_d + (px / 2)
+
+    zs.enc1.put(enc1_d)
+    zs.enc2.put(enc2_d)
+    zs.enc3.put(enc3_d)
+    zs.zebra_time.put(time_d)
+
+    write_dir = os.path.dirname(filepath)
+    file_name = os.path.basename(filepath)
+
+    zs.dev_type.put("zebra")
+    zs.write_dir.put(write_dir)
+    zs.file_name.put(file_name)
+    zs.file_stage.put("staged")
+
+    def cb(value, old_value, **kwargs):
+        if old_value in ["acquiring", 1] and value in ["idle", 0]:
+            return True
+        return False
+
+    st = SubscriptionStatus(zs.acquire, callback=cb, run=False)
+    zs.acquire.put(1)
+    try:
+        st.wait(timeout=60)
+    except WaitTimeoutError:
+        print("Zebra-save timed out! Continuing...")
+
+    zs.file_stage.put("unstaged")
 
 
-db.reg.register_handler("ZEBRA_HDF51", ZebraHDF5Handler, overwrite=True)
+def export_sis_data(ion, filepath, zebra):
+    """
+    Export scaler/ion chamber data using the ZebraSaver IOC.
+
+    Parameters
+    ----------
+    ion : FXIScaler
+        The scaler device (sclr1)
+    filepath : str
+        Full path for the output HDF5 file
+    zebra : FXIZebra
+        The zebra device (for getting expected point count)
+    """
+    N = ion.nuse_all.get()
+    t = ion.mca1.get(timeout=5.0)
+    i = ion.mca2.get(timeout=5.0)
+    im = ion.mca3.get(timeout=5.0)
+    it = ion.mca4.get(timeout=5.0)
+
+    while len(t) == 0 and len(t) != len(i):
+        t = ion.mca1.get(timeout=5.0)
+        i = ion.mca2.get(timeout=5.0)
+        im = ion.mca3.get(timeout=5.0)
+        it = ion.mca4.get(timeout=5.0)
+
+    if len(i) != N:
+        print(f'Scaler did not collect enough points.')
+        t = ion.mca1.get(timeout=5.0)
+        i = ion.mca2.get(timeout=5.0)
+        im = ion.mca3.get(timeout=5.0)
+        it = ion.mca4.get(timeout=5.0)
+        if len(i) != N:
+            print(f'Nope. Only received {len(i)}/{N} points.')
+
+    correct_length = N // 2
+    # Only consider even points
+    t = t[1::2]
+    i = i[1::2]
+    im = im[1::2]
+    it = it[1::2]
+
+    if len(t) != correct_length:
+        correction_factor = correct_length - len(t)
+        print(f"Adding {correction_factor} points to scaler!")
+        correction_list = [1e10 for _ in range(0, int(correction_factor))]
+        new_t = list(t) + correction_list
+        new_i = list(i) + correction_list
+        new_im = list(im) + correction_list
+        new_it = list(it) + correction_list
+    else:
+        new_t = t
+        new_i = i
+        new_im = im
+        new_it = it
+
+    zs.i0.put(new_i)
+    zs.im.put(new_im)
+    zs.it.put(new_it)
+    zs.sis_time.put(new_t)
+
+    write_dir = os.path.dirname(filepath)
+    file_name = os.path.basename(filepath)
+
+    zs.dev_type.put("scaler")
+    zs.write_dir.put(write_dir)
+    zs.file_name.put(file_name)
+    zs.file_stage.put("staged")
+
+    def cb(value, old_value, **kwargs):
+        if old_value in ["acquiring", 1] and value in ["idle", 0]:
+            return True
+        return False
+
+    st = SubscriptionStatus(zs.acquire, callback=cb, run=False)
+    zs.acquire.put(1)
+    try:
+        st.wait(timeout=60)
+    except WaitTimeoutError:
+        print("Scaler-save timed out! Continuing...")
+
+    zs.file_stage.put("unstaged")

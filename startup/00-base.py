@@ -8,6 +8,8 @@ print(f"Loading {__file__}...")
 
 from datetime import datetime
 from ophyd.signal import EpicsSignalBase, EpicsSignal, DEFAULT_CONNECTION_TIMEOUT
+from bluesky.callbacks.tiled_writer import TiledWriter
+from tiled.client import from_profile, from_uri
 
 try:
     from bluesky_queueserver import is_re_worker_active, parameter_annotation_decorator
@@ -62,23 +64,27 @@ if not is_re_worker_active():
 
 from bluesky.preprocessors import stage_decorator, run_decorator
 
-# This is needed for backward compatitility of the export_scan code.
-from databroker.v0 import Broker as BrokerV0
-dbv0 = BrokerV0.named("fxi")
+tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
 
-with open('/etc/bluesky/redis.secret') as f:
-    redis_secret = f.read().strip()
-    os.environ['REDIS_PASSWORD'] = redis_secret
+class TiledInserter:
+    name = 'fxi'
 
-nslsii.configure_base(get_ipython().user_ns,'fxi',
+    def insert(self, name, doc):
+        tiled_writing_client.post_document(name, doc)
+
+tiled_inserter = TiledInserter()
+
+if not is_re_worker_active():
+    db = tiled_reading_client = from_profile("nsls2", include_data_sources=True)["fxi"]["raw"]
+
+nslsii.configure_base(get_ipython().user_ns,
+                      tiled_inserter,
                       bec=True,
+                      publish_documents_with_kafka=True,
                       redis_url='xf18id1-fxi-redis1.nsls2.bnl.gov',
                       redis_port=6380,
                       redis_ssl=True
                       )
-
-
-nslsii.configure_kafka_publisher(RE, "fxi")
 
 
 # The following plan stubs should not be imported directly in the global namespace.
@@ -113,18 +119,6 @@ RE.subscribe(publisher)
 
 # nslsii.configure_base(get_ipython().user_ns, 'fxi', bec=False)
 
-"""
-def ts_msg_hook(msg):
-    t = '{:%H:%M:%S.%f}'.format(datetime.now())
-    msg_fmt = '{: <17s} -> {!s: <15s} args: {}, kwargs: {}'.format(
-        msg.command,
-        msg.obj.name if hasattr(msg.obj, 'name') else msg.obj,
-        msg.args,
-        msg.kwargs)
-    print('{} {}'.format(t, msg_fmt))
-
-RE.msg_hook = ts_msg_hook
-"""
 
 
 ## HACK HACK
@@ -220,3 +214,16 @@ def rd(obj, *, default_value=0):
 
 # monkey batch bluesky.plans_stubs to fix bug.
 bps.rd = rd
+
+
+def get_proposal_type(proposal_id=None):
+    import httpx
+    nslsii_api_client = httpx.Client(base_url="https://api.nsls2.bnl.gov")
+    if (proposal_id is None):
+        proposal_id = RE.md["proposal"]["proposal_id"]
+
+    proposal_response = nslsii_api_client.get(f"/v1/proposal/{RE.md['proposal']['proposal_id']}")
+    proposal_response.raise_for_status()
+    proposal = proposal_response.json()["proposal"]
+
+    return proposal["type"]

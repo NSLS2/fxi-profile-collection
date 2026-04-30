@@ -16,7 +16,7 @@ from ophyd import (
     HDF5Plugin,
     ProcessPlugin,
 )
-
+from nslsii.ophyd_async.providers import NSLS2PathProvider
 from ophyd.areadetector.trigger_mixins import SingleTrigger
 
 from ophyd.areadetector.cam import AreaDetectorCam
@@ -32,6 +32,7 @@ from ophyd.device import Staged
 from ophyd.status import SubscriptionStatus
 
 from bluesky.plan_stubs import abs_set
+import numpy as np
 
 global TimeStampRecord
 TimeStampRecord = []
@@ -126,6 +127,7 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         self._ts_datum_factory = None
         self._ts_resource_uid = ""
         self._ts_counter = None
+        self._device_name = kwargs["device_name"] if "device_name" in kwargs else "kinetix"
 
     def stage(self):
         self._ts_counter = itertools.count()
@@ -208,7 +210,7 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
 
     def cam_name(self):
         print(self.prefix.split("{")[1].strip("}").split(":")[1])
-        
+
     root_path = "/nsls2/data/fxi-new/legacy/Andor"
     hdf5 = Cpt(
         HDF5PluginWithFileStore,
@@ -255,7 +257,7 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
         import itertools
         if self.cam.detector_state.get() != 0:
             raise RuntimeError("Andor must be in the Idle state to stage.")
-        
+
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
@@ -303,15 +305,15 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
             else:
                 break
         return super().unstage()
-    
+
     #@timing
     def zfly_stage(self):
         import itertools
         if self.cam.detector_state.get() != 0:
             raise RuntimeError("Kinetix must be in the Idle state to stage.")
-        
+
         staged_devices = super().stage()
-                
+
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
@@ -349,11 +351,37 @@ class AndorKlass(SingleTriggerV33, DetectorBase):
         return super().unstage()
 
 
+class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
+    def _update_paths(self):
+        self.reg_root = self.root_path_str
+        self.write_path_template = self.path_template_str
+
+    @property
+    def root_path_str(self):
+        md = self.parent._md
+        data_session = md["data_session"]
+        cycle = md["cycle"]
+        device_name = self._device_name
+        if md["proposal"]["type"] == "Commissioning":
+            root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/{device_name}/"
+        else:
+            root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/{device_name}/"
+        return root_path
+
+    @property
+    def path_template_str(self):
+        path_template = "%Y/%m/%d"
+        return path_template
+
+    def stage(self, *args, **kwargs):
+        self._update_paths()
+        super().stage(*args, **kwargs)
+
 
 class KinetixKlass(SingleTriggerV33, DetectorBase):
     cam = Cpt(KinetixCam, "cam1:")
     image = Cpt(ImagePlugin, "image1:")
-    
+
     trans1 = Cpt(TransformPlugin, "Trans1:")
     roi1 = Cpt(ROIPlugin, "ROI1:")
     roi2 = Cpt(ROIPlugin, "ROI2:")
@@ -363,15 +391,17 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
 
     def cam_name(self):
         print(self.prefix.split("{")[1].strip("}").split(":")[1])
-        
-    root_path = "/nsls2/data/fxi-new/legacy/Kinetix"
-    #root_path = "/nsls2/data/fxi-new/legacy/Marana"  # CHANGE IT BACK ONCE THE FOLDERS ARE CREATED !!!!!!!!!!!!!!!!!!
+
     hdf5 = Cpt(
-        HDF5PluginWithFileStore,
+        FXIHDF5PluginWithFileStore,
         suffix="HDF1:",
-        write_path_template=f"{root_path}/%Y/%m/%d/",
-        root=root_path,
+        root="/",
+        write_path_template="",
     )
+
+    def __init__(self, *args, md=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._md = md if md is not None else {}
 
     def stop(self):
         self.hdf5.capture.put(0)
@@ -380,6 +410,11 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
     def pause(self):
         self.hdf5.capture.put(0)
         return super().pause()
+
+    def make_data_key(self):
+        ret = super().make_data_key()
+        ret["dtype_numpy"] = np.dtype(self.cam.data_type.get(as_string=True).lower()).str
+        return ret
 
     def resume(self):
         self.hdf5.capture.put(1)
@@ -405,9 +440,9 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
         import itertools
         if self.cam.detector_state.get() != 0:
             raise RuntimeError("Kinetix must be in the Idle state to stage.")
-        
+
         staged_devices = super().stage()
-                
+
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
@@ -441,15 +476,15 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
             else:
                 break
         return super().unstage()
-    
+
     #@timing
     def zfly_stage(self):
         import itertools
         if self.cam.detector_state.get() != 0:
             raise RuntimeError("Kinetix must be in the Idle state to stage.")
-        
+
         staged_devices = super().stage()
-                
+
         for j in itertools.count():
             try:
                 print(f"stage attempt {j}")
@@ -620,7 +655,7 @@ MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
 '''
 #########################################
 # added by XH
-KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU")
+KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU", md=RE.md)
 KinetixU.cam.ensure_nonblocking()
 KinetixU.read_attrs = ['hdf5']
 KinetixU.hdf5.read_attrs = ["time_stamp"]
@@ -631,7 +666,7 @@ KinetixU.hdf5.time_stamp.name = "KinetixU_timestamps"
 
 #########################################
 # added by XH
-KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD")
+KinetixD = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixD", md=RE.md)  # Placeholder, uses the same PVs as KinetixU
 KinetixD.cam.ensure_nonblocking()
 KinetixD.read_attrs = ['hdf5']
 KinetixD.hdf5.read_attrs = ["time_stamp"]
@@ -674,14 +709,14 @@ for det in [detA1]:
 CAM_RD_CFG = {
     "KINETIX": {
         "rd_time": {
-            'Sensitivity': 0.011363636363636364, 
-            'Speed': 0.002008032128514056, 
+            'Sensitivity': 0.011363636363636364,
+            'Speed': 0.002008032128514056,
             'Dynamic Range': 0.012048192771084338,
             'Sub-Electron': 0.1923076923076923,
         },
         "pxl_encoding": {
-            'Sensitivity': 'Standard, 12bpp', 
-            'Speed': 'Full Well, 8bpp', 
+            'Sensitivity': 'Standard, 12bpp',
+            'Speed': 'Full Well, 8bpp',
             'Dynamic Range': 'Standard, 16bpp',
             'Sub-Electron': 'Standard, 16bpp',
             },
@@ -692,14 +727,14 @@ CAM_RD_CFG = {
     },
     "KINETIX22": {
         "rd_time": {
-            'Sensitivity': 0.00847457627118644, 
-            'Speed': 0.0015060240963855422, 
+            'Sensitivity': 0.00847457627118644,
+            'Speed': 0.0015060240963855422,
             'Dynamic Range': 0.009009009009009009,
             'Sub-Electron': 0.14492753623188406,
         },
         "pxl_encoding": {
-            'Sensitivity': 'Standard, 12bpp', 
-            'Speed': 'Full Well, 8bpp', 
+            'Sensitivity': 'Standard, 12bpp',
+            'Speed': 'Full Well, 8bpp',
             'Dynamic Range': 'Standard, 16bpp',
             'Sub-Electron': 'Standard, 16bpp',
             },
@@ -710,13 +745,13 @@ CAM_RD_CFG = {
     },
     "MARANA-4BV6X": {
         "rd_time": {
-            '12-bit (low noise)': 0.02327893333333333, 
-            '16-bit (high dynamic rang': 0.013516799999999999, 
+            '12-bit (low noise)': 0.02327893333333333,
+            '16-bit (high dynamic rang': 0.013516799999999999,
             '11-bit (high speed)': 0.007351242105263158
         },
         "pxl_encoding": {
-            '12-bit (low noise)': 'Mono16', 
-            '16-bit (high dynamic rang': 'Mono16', 
+            '12-bit (low noise)': 'Mono16',
+            '16-bit (high dynamic rang': 'Mono16',
             '11-bit (high speed)': 'Mono12'},
         "image_mode": ['Fixed', 'Continuous'],
         "trigger_mode": ['Internal', 'Software', 'External', 'External Start', 'External Exposure'],
@@ -725,13 +760,13 @@ CAM_RD_CFG = {
     },
     "SONA-4BV6X": {
         "rd_time": {
-            '12-bit (low noise)': 0.02327893333333333, 
-            '16-bit (high dynamic rang': 0.013516799999999999, 
+            '12-bit (low noise)': 0.02327893333333333,
+            '16-bit (high dynamic rang': 0.013516799999999999,
             '11-bit (high speed)': 0.007351242105263158
         },
         "pxl_encoding": {
-            '12-bit (low noise)': 'Mono16', 
-            '16-bit (high dynamic rang': 'Mono16', 
+            '12-bit (low noise)': 'Mono16',
+            '16-bit (high dynamic rang': 'Mono16',
             '11-bit (high speed)': 'Mono12'},
         "image_mode": ['Fixed', 'Continuous'],
         "trigger_mode": ['Internal', 'Software', 'External', 'External Start', 'External Exposure'],
@@ -770,7 +805,7 @@ def _sel_cam(cam):
             return KinetixD
     except:
         return cam
-    
+
 
 def _get_cam_model(cam):
     model = cam.cam.model.value
@@ -782,12 +817,12 @@ def _get_cam_model(cam):
             return 'KINETIX'
     else:
         return model.upper()
-    
+
 
 def _get_overhead(cam):
     model = _get_cam_model(cam)
     if model.upper() in ['KINETIX', 'KINETIX22']:
         return CAM_RD_CFG[model]["rd_time"][cam.cam.readout_port_names[cam.cam.readout_port_idx.value]]
     elif model.upper() in ['MARANA-4BV6X', 'SONA-4BV6X']:
-        return 
+        return
         # return CAM_RD_CFG[model]["rd_time"][]

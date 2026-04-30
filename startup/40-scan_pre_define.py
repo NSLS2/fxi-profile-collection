@@ -14,7 +14,7 @@ def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
     """
     x_out = out_x
     y_out = out_y
-    z_out = out_z 
+    z_out = out_z
     r_out = out_r
 
     r_ini = zps.pi_r.position
@@ -69,16 +69,16 @@ def _set_Andor_chunk_size(detectors, chunk_size):
 
 def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     if detectors[0].cam.num_images.value == chunk_size:
-        return 
+        return
     print(detectors[0])
     cam_name = _get_cam_model(detectors[0])
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
             cam_name, scan_type=scan_type
-            )    
+            )
     print('change chunk size')
     print(image_mode_id, trigger_mode_id)
 
-    
+
     for detector in detectors:
         #print(f'try to unstage:\n {detector}\n')
         #yield from unstage(detector)
@@ -90,7 +90,7 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
         #print('sleep 0.2 sec')
         yield from bps.sleep(0.2)
 
-        
+
     yield from mv(detectors[0].cam.acquire, 0)
     yield from bps.sleep(0.2)
     yield from mv(detectors[0].cam.image_mode, image_mode_id)
@@ -98,14 +98,18 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     yield from mv(detectors[0].cam.trigger_mode, trigger_mode_id)
     yield from bps.sleep(0.2)
     yield from mv(detectors[0].cam.num_images, chunk_size)
-
+    # TODO: this is a bug in RE that needs to be fixed
+    del RE._run_bundlers[None]._config_values_cache[detectors[0]]
+    del RE._run_bundlers[None]._config_ts_cache[detectors[0]]
+    del RE._run_bundlers[None]._describe_cache[detectors[0]]
+    yield from bps.configure(detectors[0], {})
     yield from bps.sleep(0.2)
-        
+
     for detector in detectors:
         yield from bps.sleep(0.2)
         #yield from stage(detector)
         detector.stage()
-    
+
 
 def _take_dark_image(
     detectors, motor, num=1, chunk_size=1, stream_name="dark", simu=False
@@ -142,7 +146,7 @@ def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], 
         )
     print(image_mode_id, trigger_mode_id)
     yield from mv(cam.cam.trigger_mode, trigger_mode_id)
-        
+
     for i in range(2):
         yield from mv(cam.cam.acquire, 0)
         yield from bps.sleep(0.2)
@@ -150,8 +154,8 @@ def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], 
         yield from mv(cam.cam.image_mode, image_mode_id)
         yield from bps.sleep(0.5)
     yield from mv(cam.cam.num_images, chunk_size)
-    period_cor = max(period, exposure_time+0.024)    
-    
+    period_cor = max(period, exposure_time+0.024)
+
     yield from mv(cam.cam.acquire_time, exposure_time)
     yield from mv(cam.cam.acquire_period, period_cor)
 
@@ -217,7 +221,7 @@ def _open_shutter(simu=False):
 
 
 def _set_rotation_speed(rs=30):
-    if np.abs(zps.pi_r.velocity.value - rs) > 0.1: 
+    if np.abs(zps.pi_r.velocity.value - rs) > 0.1:
         yield from abs_set(zps.pi_r.velocity, rs, wait=True)
 
 
@@ -287,7 +291,7 @@ def _take_ref_image(
         except Exception as e:
             print(f"error: {e}")
             d.unstage()
-            d.stage()           
+            d.stage()
     print(f"ref take image starts at {ttime.asctime()}")
     yield from _take_image(dets, [], num, stream_name=stream_name)
     print(f"ref take image finishes at {ttime.asctime()}")
@@ -298,10 +302,10 @@ def _take_ref_image(
             print(f"error: {e}")
             d.unstage(d)
     print(f"ref finishes at {ttime.asctime()}")
-    
+
 
 def move_and_wait(motor, target, attr="user_setpoint", atol=0.1, timeout=10.0):
-    yield from mv(motor, target)    
+    yield from mv(motor, target)
 
     import time
     t0 = time.time()
@@ -315,4 +319,4 @@ def move_and_wait(motor, target, attr="user_setpoint", atol=0.1, timeout=10.0):
             )
         yield from bps.sleep(0.1)
 
-        
+

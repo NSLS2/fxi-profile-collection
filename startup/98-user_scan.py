@@ -3004,7 +3004,7 @@ def cal_calib_pos_xh():
 
 def _update_th2_xh():
     calib = trans_calib_xh()
-    cur_eng = XEng.position
+    cur_eng = round(XEng.position, 4)
     cur_th2 = dcm.th2.position
 
     calib_eng = np.array(list(calib.keys()))
@@ -3154,6 +3154,7 @@ def move_zp_ccd_xh(
           1: Will move stages
     """
     global GLOBAL_VLM_MAG
+    # GLOBAL_VLM_MAG = 10
 
     def find_nearest(data, value):
         data = np.array(data)
