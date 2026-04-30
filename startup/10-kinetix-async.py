@@ -47,8 +47,3 @@ def connect_to_kinetix():
     print("Done.")
 
     return kinetix
-
-# try:
-#     kinetix = connect_to_kinetix()
-# except Exception as e:
-#     print(f"Kinetix 1 is unavailable...")

@@ -14,7 +14,7 @@ ZONE_DIAMETER = ZONE_PLATE["ZONE_DIAMETER"]  # new commercial zone plate
 
 GLOBAL_VLM_MAG = 10  # vlm magnification
 #GLOBAL_MAG = -1
-try:    
+try:
     zp.wait_for_connection()
     DetU.wait_for_connection()
     GLOBAL_MAG = np.round((DetU.z.position / zp.z.position - 1) * GLOBAL_VLM_MAG, 2)
@@ -26,9 +26,8 @@ CURRENT_MAG = {}
 CALIBER_FLAG = 1
 
 CALIBER = {}
-# CALIBER = df.from_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
 
 ZP_8keV = {"D": 244,
            "dr": 30}
-ZP_9keV = {"D": 550, 
+ZP_9keV = {"D": 550,
            "dr": 50}

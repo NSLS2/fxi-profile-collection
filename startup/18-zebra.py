@@ -899,10 +899,7 @@ class FXITomoFlyer(Device):
         from pprint import pformat
 
         for d in self.detectors:
-            # print(f"{d.name = }\n{pformat(d.describe())}")
             desc.update(d.describe())
-
-        # _pprint(desc)
 
         return {"primary": desc}
 

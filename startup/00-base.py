@@ -65,10 +65,7 @@ if not is_re_worker_active():
 from bluesky.preprocessors import stage_decorator, run_decorator
 
 # This is needed for backward compatibility of the export_scan code.
-
-# TODO: use from_profile. It might be working now, we just have to check.
-#tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
-tiled_writing_client = from_uri("https://tiled.nsls2.bnl.gov", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
+tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
 
 class TiledInserter:
     name = 'fxi'
@@ -79,7 +76,7 @@ class TiledInserter:
 tiled_inserter = TiledInserter()
 
 if not is_re_worker_active():
-    db = tiled_reading_client = from_uri("https://tiled.nsls2.bnl.gov/api/v1/metadata/fxi/raw", include_data_sources=True)
+    db = tiled_reading_client = from_profile("nsls2", include_data_sources=True)["fxi"]["raw"]
 
 nslsii.configure_base(get_ipython().user_ns,
                       tiled_inserter,
