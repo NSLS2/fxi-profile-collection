@@ -64,7 +64,6 @@ if not is_re_worker_active():
 
 from bluesky.preprocessors import stage_decorator, run_decorator
 
-# This is needed for backward compatibility of the export_scan code.
 tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
 
 class TiledInserter:

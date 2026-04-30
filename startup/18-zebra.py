@@ -1507,16 +1507,15 @@ try:
 except:
     print("MaranaD is not online")
 
-# try:
-if True:
+try:
     tomo_kinetixu_flyer = FXITomoFlyer(
         list((KinetixU,)),
         Zebra,
         name="tomo_kinetixu_flyer",
         md=RE.md,
     )
-# except:
-#     print("KinetixU is not online")
+except:
+    print("KinetixU is not online")
 
 try:
     tomo_kinetixd_flyer = FXITomoFlyer(
