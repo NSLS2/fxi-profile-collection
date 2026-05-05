@@ -99,9 +99,9 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     yield from bps.sleep(0.2)
     yield from mv(detectors[0].cam.num_images, chunk_size)
     # TODO: this is a bug in RE that needs to be fixed
-    del RE._run_bundlers[None]._config_values_cache[detectors[0]]
-    del RE._run_bundlers[None]._config_ts_cache[detectors[0]]
-    del RE._run_bundlers[None]._describe_cache[detectors[0]]
+    del RE._run_bundlers[None]._current_stream_cache.config_values_cache[detectors[0]]
+    del RE._run_bundlers[None]._current_stream_cache.config_ts_cache[detectors[0]]
+    del RE._run_bundlers[None]._current_stream_cache.describe_cache[detectors[0]]
     yield from bps.configure(detectors[0], {})
     yield from bps.sleep(0.2)
 
