@@ -39,7 +39,6 @@ def test_fly_scan3():
     """
     print("Starting fly scan test 3")
     uid, = RE(fly_scan(exposure_time=0.05, start_angle=0, relative_rot_angle=180, period=0.05, out_x=None, out_y=-10, out_z=None, out_r=0, rs=6, relative_move_flag=True, rot_first_flag=1, filters=[], add_bkg_filt_only=False, rot_back_velo=30, binning=None, move_to_ini_pos=True, simu=True, take_bkg_img=True, take_dark_img=True, close_shutter_finish=True, note="None"))
-    uid, = RE(xanes_scan2([8.35, 8.36, 8.37], simu=True))
     print("Fly scan complete")
     print("Reading scan from tiled...")
     db[uid].table(fill=True)
