@@ -1,5 +1,6 @@
 print(f"Loading {__file__}...")
 
+
 def _move_sample_out(out_x, out_y, out_z, out_r, repeat=1, rot_first_flag=1):
     """
     move out by relative distance
@@ -67,7 +68,7 @@ def _set_Andor_chunk_size(detectors, chunk_size):
         yield from detector.stage()
 
 
-def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
+def _set_cam_chunk_size(detectors, chunk_size, scan_type="fly"):
     if detectors[0].cam.num_images.value == chunk_size:
         return
     #print(detectors[0])
@@ -85,18 +86,16 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     print('change chunk size')
     print(image_mode_id, trigger_mode_id)
 
-
     for detector in detectors:
-        #print(f'try to unstage:\n {detector}\n')
-        #yield from unstage(detector)
+        # print(f'try to unstage:\n {detector}\n')
+        # yield from unstage(detector)
         try:
             detector.unstage()
         except Exception as e:
             print(e)
             pass
-        #print('sleep 0.2 sec')
+        # print('sleep 0.2 sec')
         yield from bps.sleep(0.2)
-
 
     yield from mv(detectors[0].cam.acquire, 0)
     yield from bps.sleep(0.2)
@@ -110,7 +109,7 @@ def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
 
     for detector in detectors:
         yield from bps.sleep(0.2)
-        #yield from stage(detector)
+        # yield from stage(detector)
         detector.stage()
 
 
@@ -142,7 +141,9 @@ def _take_bkg_image(
     yield from _take_image(detectors, motor, num, stream_name=stream_name)
 
 
-def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None):
+def _set_cam_param(
+    exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None
+):
     cam = _sel_cam(cam)
     if 'mako' in cam.name.lower():
         image_mode_id = 1
@@ -164,7 +165,7 @@ def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], 
         yield from mv(cam.cam.image_mode, image_mode_id)
         yield from bps.sleep(0.5)
     yield from mv(cam.cam.num_images, chunk_size)
-    period_cor = max(period, exposure_time+0.024)
+    period_cor = max(period, exposure_time + 0.024)
 
     yield from mv(cam.cam.acquire_time, exposure_time)
     yield from mv(cam.cam.acquire_period, period_cor)
@@ -181,7 +182,11 @@ def _xanes_per_step(
     mag=None,
 ):
     yield from move_zp_ccd_TEST(
-        eng, move_flag=move_flag, move_clens_flag=move_clens_flag, info_flag=info_flag, mag=mag,
+        eng,
+        move_flag=move_flag,
+        move_clens_flag=move_clens_flag,
+        info_flag=info_flag,
+        mag=mag,
     )
     yield from bps.sleep(0.1)
     if not (type(detectors) == list):
@@ -246,15 +251,15 @@ def _move_sample(tgt_pos, repeat=1):
         repeat (int, optional): number of trials. Defaults to 1.
     """
     for i in range(repeat):
-        yield from mv(zps.pi_r, tgt_pos['r'])
-        yield from mv(zps.sx, tgt_pos['x'], zps.sy, tgt_pos['y'], zps.sz, tgt_pos['z'])
+        yield from mv(zps.pi_r, tgt_pos["r"])
+        yield from mv(zps.sx, tgt_pos["x"], zps.sy, tgt_pos["y"], zps.sz, tgt_pos["z"])
 
 
-def _set_cam_chunk_size_xhx(cam, chunk_size, scan_type='fly'):
+def _set_cam_chunk_size_xhx(cam, chunk_size, scan_type="fly"):
     cam_name = _get_cam_model(cam)
     image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
         cam_name, scan_type=scan_type
-        )
+    )
 
     yield from mv(cam.cam.acquire, 0)
     if cam.cam.image_mode.value != image_mode_id:
@@ -276,14 +281,14 @@ def _take_image_xh(detectors, motor, stream_name="primary"):
 
 def _take_ref_image(
     dets,
-    mots_pos = {},
+    mots_pos={},
     chunk_size=1,
     stream_name="flat",
     simu=False,
     stage=True,
 ):
     print(f"ref set cam starts at {ttime.asctime()}")
-    yield from _set_cam_chunk_size_xhx(dets[0], chunk_size, scan_type='fly')
+    yield from _set_cam_chunk_size_xhx(dets[0], chunk_size, scan_type="fly")
     print(f"ref set cam finishes at {ttime.asctime()}")
 
     if stage:
@@ -294,7 +299,7 @@ def _take_ref_image(
                 print(f"error: {e}")
                 d.unstage()
                 d.stage()
-    
+
     if stream_name == "flat":
         print(f"ref move sam starts at {ttime.asctime()}")
         yield from _move_sample(
@@ -328,6 +333,7 @@ def move_and_wait(motor, target, attr="user_setpoint", atol=0.1, timeout=10.0):
     yield from mv(motor, target)
 
     import time
+
     t0 = time.time()
     while True:
         rbv = motor.user_readback.value
@@ -338,5 +344,3 @@ def move_and_wait(motor, target, attr="user_setpoint", atol=0.1, timeout=10.0):
                 f"Motor did not reach target within {timeout}s, last rbv={rbv}"
             )
         yield from bps.sleep(0.1)
-
-
