@@ -22,7 +22,8 @@ from ophyd.areadetector.trigger_mixins import SingleTrigger
 from ophyd.areadetector.cam import AreaDetectorCam
 from ophyd.areadetector.detectors import DetectorBase
 from ophyd_async.epics import adcore, advimba
-from ophyd_async.core import init_devices, UUIDFilenameProvider, YMDPathProvider
+from ophyd_async.core import init_devices, UUIDFilenameProvider
+from nslsii.ophyd_async.providers import NSLS2PathProvider
 
 from nslsii.ad33 import StatsPluginV33, CamV33Mixin, SingleTriggerV33
 
@@ -121,7 +122,6 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         self._ts_datum_factory = None
         self._ts_resource_uid = ""
         self._ts_counter = None
-        self._device_name = kwargs["device_name"] if "device_name" in kwargs else "kinetix"
 
     def stage(self):
         self._ts_counter = itertools.count()
@@ -355,7 +355,7 @@ class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
         md = self.parent._md
         data_session = md["data_session"]
         cycle = md["cycle"]
-        device_name = self._device_name
+        device_name = self.parent.name
         if md["proposal"]["type"] == "Commissioning":
             root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/{device_name}/"
         else:
@@ -529,20 +529,17 @@ class Manta(SingleTrigger, AreaDetector):
     proc1 = Cpt(ProcessPlugin, "Proc1:")
 
     hdf5 = Cpt(
-        HDF5PluginWithFileStore,
+        FXIHDF5PluginWithFileStore,
         suffix="HDF1:",
-        # write_path_template="/nsls2/data/fxi-new/legacy/Andor/%Y/%m/%d/",
-        write_path_template="/nsls2/data/fxi-new/legacy/Oryx/%Y/%m/%d/",
-        # write_path_template='/tmp/test_2022/%Y/%m/%d/' ,
-        # write_path_template="/nsls2/data/fxi-new/assets/default/%Y/%m/%d/",
-        # write_path_template="/nsls2/data/fxi-new/legacy/Andor//%Y/%m/%d/",
-        # root="/nsls2/data/fxi-new/assets/default",
-        root="/nsls2/data/fxi-new/legacy/Oryx",
-        # write_path_template='/tmp/',
-        # root='/',
+        root="/",
+        write_path_template="",
     )
 
     ac_period = Cpt(EpicsSignal, "cam1:AcquirePeriod")
+
+    def __init__(self, *args, md=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._md = md if md is not None else {}
 
     def stop(self):
         self.hdf5.capture.put(0)
@@ -572,22 +569,22 @@ class Manta(SingleTrigger, AreaDetector):
         return super().resume()
 
 
-WPFS = Manta("XF:18IDA-BI{WPFS:1}", name="WPFS")
+WPFS = Manta("XF:18IDA-BI{WPFS:1}", name="WPFS", md=RE.md)
 WPFS.read_attrs = ["hdf5", "stats1"]
 WPFS.stats1.read_attrs = ["total"]
 WPFS.hdf5.read_attrs = []
 
-PMFS = Manta("XF:18IDA-BI{PMFS:1}", name="PMFS")
+PMFS = Manta("XF:18IDA-BI{PMFS:1}", name="PMFS", md=RE.md)
 PMFS.read_attrs = ["hdf5", "stats1"]
 PMFS.stats1.read_attrs = ["total"]
 PMFS.hdf5.read_attrs = []
 
-MFS = Manta("XF:18IDA-BI{MFS:1}", name="MFS")
+MFS = Manta("XF:18IDA-BI{MFS:1}", name="MFS", md=RE.md)
 MFS.read_attrs = ["hdf5", "stats1"]
 MFS.stats1.read_attrs = ["total"]
 MFS.hdf5.read_attrs = []
 
-detA1 = Manta("XF:18IDB-BI{Det:A1}", name="detA1")
+detA1 = Manta("XF:18IDB-BI{Det:A1}", name="manta", md=RE.md)
 detA1.read_attrs = ["hdf5", "stats1"]
 #detA1.read_attrs = ['hdf5']
 detA1.read_attrs = ["hdf5", "stats1"]
@@ -595,15 +592,13 @@ detA1.stats1.read_attrs = ["total"]
 # detA1.stats5.read_attrs = ['total']
 detA1.hdf5.read_attrs = []
 
-filename_provider = UUIDFilenameProvider()
-path_provider = YMDPathProvider(filename_provider)
 
-with init_devices():
-    mako = advimba.VimbaDetector(
-        "XF:18IDB-BI{Det:Mako}",
-        path_provider,
-        writer_cls=adcore.ADHDFWriter
-    )
+class Mako(Manta):
+    image = None
+
+mako = Mako("XF:18IDB-BI{Det:Mako}", name="mako", md=RE.md)
+mako.read_attrs = ["hdf5", "stats1"]
+mako.stats1.read_attrs = ["total"]
 
 """
 # return to old version of Andor
@@ -659,7 +654,7 @@ MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
 '''
 #########################################
 # added by XH
-KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU", md=RE.md)
+KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="kinetix", md=RE.md)
 KinetixU.cam.ensure_nonblocking()
 KinetixU.read_attrs = ['hdf5']
 KinetixU.hdf5.read_attrs = ["time_stamp"]
