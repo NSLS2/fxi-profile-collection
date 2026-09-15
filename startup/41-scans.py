@@ -544,6 +544,7 @@ def fly_scan(
     take_bkg_img=True,
     take_dark_img=True,
     close_shutter_finish=True,
+    detectors=[KinetixU],
 ):
     """
     Inputs:
@@ -595,7 +596,8 @@ def fly_scan(
     global ZONE_PLATE
 
     #detectors = [KinetixU, ic3]
-    detectors = [KinetixU]
+    #detectors = [KinetixU]
+    
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
     offset_angle = -1 * rs
@@ -676,8 +678,9 @@ def fly_scan(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
+    
     yield from _set_cam_param(
-        exposure_time=exposure_time, period=period, chunk_size=20, binning=binning
+        exposure_time=exposure_time, period=period, chunk_size=20, binning=binning, cam=detectors[0]
     )
     yield from _set_rotation_speed(rs=np.abs(rs))
     print("set rotation speed: {} deg/sec".format(rs))
@@ -705,7 +708,11 @@ def fly_scan(
         temporary solution is to calculate the period by exposure time
         #true_period = yield from rd(KinetixU.cam.acquire_period)
         """
-        true_period = exposure_time # temperary solution
+        
+        if 'mako' in detectors[0].name or 'manta' in detectors[0].name:
+             true_period = detectors[0].cam.acquire_period.value
+        else:
+            true_period = exposure_time # temperary solution
         ###########################################################################
 
         rot_time = np.abs(relative_rot_angle) / np.abs(rs) + 1 # it seems acceleration/de-acceleration take more time

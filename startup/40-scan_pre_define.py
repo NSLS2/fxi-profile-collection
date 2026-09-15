@@ -70,11 +70,18 @@ def _set_Andor_chunk_size(detectors, chunk_size):
 def _set_cam_chunk_size(detectors, chunk_size, scan_type='fly'):
     if detectors[0].cam.num_images.value == chunk_size:
         return
-    print(detectors[0])
+    #print(detectors[0])
     cam_name = _get_cam_model(detectors[0])
-    image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
-            cam_name, scan_type=scan_type
-            )
+    if 'mako' in cam_name.lower():
+        image_mode_id = 1
+        trigger_mode_id = 1 # trigger mode = "on"
+    elif 'manta' in cam_name.lower():
+        image_mode_id = 1
+        trigger_mode_id = 5 # trigger mode = "software"
+    else:
+        image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
+                cam_name, scan_type=scan_type
+                )
     print('change chunk size')
     print(image_mode_id, trigger_mode_id)
 
@@ -137,9 +144,16 @@ def _take_bkg_image(
 
 def _set_cam_param(exposure_time=0.1, period=0.1, chunk_size=1, binning=[1, 1], cam=None):
     cam = _sel_cam(cam)
-    image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
-        _get_cam_model(cam), scan_type='fly'
-        )
+    if 'mako' in cam.name.lower():
+        image_mode_id = 1
+        trigger_mode_id = 1
+    elif 'manta' in cam.name.lower():
+        image_mode_id = 1
+        trigger_mode_id = 5
+    else:
+        image_mode_id, trigger_mode_id = _get_image_and_trigger_mode_ids(
+            _get_cam_model(cam), scan_type='fly'
+            )
     print(image_mode_id, trigger_mode_id)
     yield from mv(cam.cam.trigger_mode, trigger_mode_id)
 
