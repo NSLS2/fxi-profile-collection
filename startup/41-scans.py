@@ -53,6 +53,7 @@ def tomo_scan(
     rot_first_flag=1,
     note="",
     simu=False,
+    detectors=[mako],
     md=None,
 ):
     """
@@ -77,7 +78,7 @@ def tomo_scan(
 
     detectors = [KinetixU, ic3]
     yield from _set_cam_param(
-        exposure_time=exposure_time, period=exposure_time, chunk_size=20
+        exposure_time=exposure_time, period=exposure_time, chunk_size=20, cam=detectors[0]
     )
 
     motor_eng = XEng
@@ -597,7 +598,7 @@ def fly_scan(
 
     #detectors = [KinetixU, ic3]
     #detectors = [KinetixU]
-    
+
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
     offset_angle = -1 * rs
@@ -630,9 +631,12 @@ def fly_scan(
 
     motor = [zps.sx, zps.sy, zps.sz, zps.pi_r]
 
-
+    if "kinetix" in detectors[0].name.lower():
+        det_name = "KinetixU"
+    if "mako" in detectors[0].name.lower():
+        det_name = "mako"
     _md = {
-        "detectors": ["KinetixU"],
+        "detectors": [det_name],
         "motors": [mot.name for mot in motor],
         "XEng": XEng.position,
         "ion_chamber": ic3.name,
@@ -678,7 +682,7 @@ def fly_scan(
     else:
         _md["hints"].setdefault("dimensions", dimensions)
 
-    
+
     yield from _set_cam_param(
         exposure_time=exposure_time, period=period, chunk_size=20, binning=binning, cam=detectors[0]
     )
@@ -708,9 +712,10 @@ def fly_scan(
         temporary solution is to calculate the period by exposure time
         #true_period = yield from rd(KinetixU.cam.acquire_period)
         """
-        
+
         if 'mako' in detectors[0].name or 'manta' in detectors[0].name:
              true_period = detectors[0].cam.acquire_period.value
+             print(f'period = {true_period}')
         else:
             true_period = exposure_time # temperary solution
         ###########################################################################
@@ -811,6 +816,7 @@ def xanes_scan2(
     simu=False,
     return_ini=True,
     mag=None,
+    detectors=[KinetixU],
     md=None,
 ):
     """
@@ -856,9 +862,9 @@ def xanes_scan2(
 
     """
     global ZONE_PLATE
-    detectors = [KinetixU, ic3, ic4]
+    #detectors = [KinetixU, ic3, ic4]
     period = exposure_time if exposure_time >= 0.05 else 0.05
-    yield from _set_cam_param(exposure_time, period, chunk_size)
+    yield from _set_cam_param(exposure_time, period, chunk_size, cam=detectors[0])
     motor_eng = XEng
     eng_ini = XEng.position
 
@@ -1003,7 +1009,8 @@ def xanes_scan2(
                 yield from bps.sleep(0.5)
 
     yield from xanes_inner_scan()
-    yield from mv(KinetixU.cam.image_mode, 2)
+    #yield from mv(KinetixU.cam.image_mode, 2)
+    yield from mv(detectors[0].cam.image_mode, 2)
     txt1 = get_scan_parameter()
     eng_list = np.round(eng_list, 5)
     if len(eng_list) > 10:
@@ -2051,7 +2058,7 @@ def raster_2D_scan(
             "rot_first_flag": rot_first_flag,
             "filters": [t.name for t in filters] if filters else "None",
             "scan_x_flag": scan_x_flag,
-            "note": note if note else "None",            
+            "note": note if note else "None",
             "zone_plate": ZONE_PLATE,
         },
         "plan_name": "raster_2D",

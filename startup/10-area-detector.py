@@ -573,16 +573,22 @@ WPFS = Manta("XF:18IDA-BI{WPFS:1}", name="WPFS", md=RE.md)
 WPFS.read_attrs = ["hdf5", "stats1"]
 WPFS.stats1.read_attrs = ["total"]
 WPFS.hdf5.read_attrs = []
+WPFS.hdf5.read_attrs = ['time_stamp']
+WPFS.hdf5.time_stamp.name = 'WPFS_timestamps'
 
 PMFS = Manta("XF:18IDA-BI{PMFS:1}", name="PMFS", md=RE.md)
 PMFS.read_attrs = ["hdf5", "stats1"]
 PMFS.stats1.read_attrs = ["total"]
 PMFS.hdf5.read_attrs = []
+PMFS.hdf5.read_attrs = ['time_stamp']
+PMFS.hdf5.time_stamp.name = 'PMFS_timestamps'
 
 MFS = Manta("XF:18IDA-BI{MFS:1}", name="MFS", md=RE.md)
 MFS.read_attrs = ["hdf5", "stats1"]
 MFS.stats1.read_attrs = ["total"]
 MFS.hdf5.read_attrs = []
+MFS.hdf5.read_attrs = ['time_stamp']
+MFS.hdf5.time_stamp.name = 'MFS_timestamps'
 
 detA1 = Manta("XF:18IDB-BI{Det:A1}", name="manta", md=RE.md)
 detA1.read_attrs = ["hdf5", "stats1"]
@@ -590,7 +596,8 @@ detA1.read_attrs = ["hdf5", "stats1"]
 detA1.read_attrs = ["hdf5", "stats1"]
 detA1.stats1.read_attrs = ["total"]
 # detA1.stats5.read_attrs = ['total']
-detA1.hdf5.read_attrs = []
+detA1.hdf5.read_attrs = ['time_stamp']
+detA1.hdf5.time_stamp.name = 'detA1_timestamps'
 
 
 class Mako(Manta):
@@ -599,6 +606,8 @@ class Mako(Manta):
 mako = Mako("XF:18IDB-BI{Det:Mako}", name="mako", md=RE.md)
 mako.read_attrs = ["hdf5", "stats1"]
 mako.stats1.read_attrs = ["total"]
+mako.hdf5.read_attrs = ['time_stamp']
+mako.hdf5.time_stamp.name = 'mako_timestamps'
 
 """
 # return to old version of Andor
