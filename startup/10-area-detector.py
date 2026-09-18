@@ -355,7 +355,10 @@ class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
         md = self.parent._md
         data_session = md["data_session"]
         cycle = md["cycle"]
-        device_name = self.parent.name
+        if hasattr(self.parent, 'filepath_name'):
+            device_name = self.parent.filepath_name
+        else:
+            device_name = self.parent.name
         if md["proposal"]["type"] == "Commissioning":
             root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/{device_name}/"
         else:
@@ -382,6 +385,10 @@ class KinetixKlass(SingleTriggerV33, DetectorBase):
     roi3 = Cpt(ROIPlugin, "ROI3:")
     roi4 = Cpt(ROIPlugin, "ROI4:")
     proc1 = Cpt(ProcessPlugin, "Proc1:")
+
+    # If device name cannot be used for the directory storing the data for whatever reason,
+    # define filepath_name here
+    filepath_name = 'kinetix'
 
     def cam_name(self):
         print(self.prefix.split("{")[1].strip("}").split(":")[1])
@@ -663,7 +670,7 @@ MaranaD.hdf5.time_stamp.name = "MaranaD_timestamps"
 '''
 #########################################
 # added by XH
-KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="kinetix", md=RE.md)
+KinetixU = KinetixKlass("XF:18ID1-ES{Kinetix-Det:1}", name="KinetixU", md=RE.md)
 KinetixU.cam.ensure_nonblocking()
 KinetixU.read_attrs = ['hdf5']
 KinetixU.hdf5.read_attrs = ["time_stamp"]

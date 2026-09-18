@@ -713,11 +713,14 @@ def fly_scan(
         #true_period = yield from rd(KinetixU.cam.acquire_period)
         """
 
+        """
         if 'mako' in detectors[0].name or 'manta' in detectors[0].name:
              true_period = detectors[0].cam.acquire_period.value
              print(f'period = {true_period}')
         else:
             true_period = exposure_time # temperary solution
+        """
+        true_period = exposure_time # temperary solution
         ###########################################################################
 
         rot_time = np.abs(relative_rot_angle) / np.abs(rs) + 1 # it seems acceleration/de-acceleration take more time
