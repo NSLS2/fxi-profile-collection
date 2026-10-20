@@ -184,7 +184,7 @@ def tomo_zfly(
                 print(f"Scan # {ii} set sam in position starts at {ttime.asctime()}")
                 yield from _move_sample(
                     {'x': x_ini, 'y': y_ini, 'z': z_ini, 'r': r_ini},
-                    repeat=2,
+                    repeat=1,
                 )
                 print(f"Scan # {ii} set sam in position finishes at {ttime.asctime()}")
                 
@@ -210,8 +210,11 @@ def tomo_zfly(
                     yield from bps.trigger(d, group=det_stream)
                 wait(det_stream)
 
-                set_and_wait(
-                    flyer.encoder.pc.gate_start, scn_cfg["ang_s"], rtol=0.1
+                # set_and_wait(
+                #     flyer.encoder.pc.gate_start, scn_cfg["ang_s"], rtol=0.1
+                # )
+                yield from abs_set(
+                    flyer.encoder.pc.gate_start, scn_cfg["ang_s"], wait=True
                 )
                 yield from abs_set(flyer.encoder.pc.arm, 1, wait=True)
 
@@ -244,7 +247,6 @@ def tomo_zfly(
 
                 yield from _close_shutter_xhx(simu=simu)
                 print(f"Scan # {ii} cleaning at {ttime.asctime()}")
-                scn_cfg["ang_s"] = r_ini
                 yield from FXITomoFlyer.init_mot_r(scn_cfg)
 
                 print(f"Scan # {ii} post init_mot_r finishes at {ttime.asctime()}")
@@ -418,7 +420,8 @@ def tomo_zfly(
                 )
                 scn_cfg["rot_dir"] *= -1
                 if ii == scn_cfg["num_swing"] - 1:
-                    set_and_wait(flyer.encoder.pc.disarm, 1)
+                    # set_and_wait(flyer.encoder.pc.disarm, 1)
+                    yield from abs_set(flyer.encoder.pc.disarm, 1, wait=True)
 
             t1 = ttime.monotonic()
             while int(flyer.encoder.pc.gated.get()):

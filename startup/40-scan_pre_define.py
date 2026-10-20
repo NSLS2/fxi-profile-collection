@@ -298,7 +298,7 @@ def _take_ref_image(
     if stream_name == "flat":
         print(f"ref move sam starts at {ttime.asctime()}")
         yield from _move_sample(
-            mots_pos, repeat=2
+            mots_pos, repeat=1
         )
         print(f"ref open shutter starts at {ttime.asctime()}")
         yield from _open_shutter_xhx(simu)
@@ -306,7 +306,7 @@ def _take_ref_image(
     elif stream_name == "dark":
         print(f"ref close shutter starts at {ttime.asctime()}")
         yield from _move_sample(
-            mots_pos, repeat=2
+            mots_pos, repeat=1
         )
         yield from _close_shutter_xhx(simu)
         print(f"ref close shutter finishes at {ttime.asctime()}")

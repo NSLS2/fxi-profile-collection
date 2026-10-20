@@ -3282,44 +3282,25 @@ def move_zp_ccd_xh(
     aper_x_eng2 = CALIBER[f"aper_x_pos{id2}"]
     aper_y_eng2 = CALIBER[f"aper_y_pos{id2}"]
 
-    chi2_motor_target = (eng_new - eng2) * (dcm_chi2_eng1 - dcm_chi2_eng2) / (
-        eng1 - eng2
-    ) + dcm_chi2_eng2
+    scalar = (eng2 - eng_new) / (eng2 - eng1)
+    if abs(eng2 - eng_new) < 1e-4:
+        scalar = 0
+    if abs(eng_new - eng1) < 1e-4:
+            scalar = 1
+    chi2_motor_target = scalar * (dcm_chi2_eng1 - dcm_chi2_eng2) + dcm_chi2_eng2
+    
+    zp_x_target = scalar * (zp_x_pos_eng1 - zp_x_pos_eng2) + zp_x_pos_eng2
+    zp_y_target = scalar * (zp_y_pos_eng1 - zp_y_pos_eng2) + zp_y_pos_eng2
 
-    zp_x_target = (eng_new - eng2) * (zp_x_pos_eng1 - zp_x_pos_eng2) / (
-        eng1 - eng2
-    ) + zp_x_pos_eng2
-    zp_y_target = (eng_new - eng2) * (zp_y_pos_eng1 - zp_y_pos_eng2) / (
-        eng1 - eng2
-    ) + zp_y_pos_eng2
-
-    th2_motor_target = (eng_new - eng2) * (th2_motor_eng1 - th2_motor_eng2) / (
-        eng1 - eng2
-    ) + th2_motor_eng2
-    clens_x_target = (eng_new - eng2) * (clens_x_eng1 - clens_x_eng2) / (
-        eng1 - eng2
-    ) + clens_x_eng2
-    clens_y1_target = (eng_new - eng2) * (clens_y1_eng1 - clens_y1_eng2) / (
-        eng1 - eng2
-    ) + clens_y1_eng2
-    clens_y2_target = (eng_new - eng2) * (clens_y2_eng1 - clens_y2_eng2) / (
-        eng1 - eng2
-    ) + clens_y2_eng2
-    clens_p_target = (eng_new - eng2) * (clens_p_eng1 - clens_p_eng2) / (
-        eng1 - eng2
-    ) + clens_p_eng2
-    DetU_x_target = (eng_new - eng2) * (DetU_x_eng1 - DetU_x_eng2) / (
-        eng1 - eng2
-    ) + DetU_x_eng2
-    DetU_y_target = (eng_new - eng2) * (DetU_y_eng1 - DetU_y_eng2) / (
-        eng1 - eng2
-    ) + DetU_y_eng2
-    aper_x_target = (eng_new - eng2) * (aper_x_eng1 - aper_x_eng2) / (
-        eng1 - eng2
-    ) + aper_x_eng2
-    aper_y_target = (eng_new - eng2) * (aper_y_eng1 - aper_y_eng2) / (
-        eng1 - eng2
-    ) + aper_y_eng2
+    th2_motor_target = scalar * (th2_motor_eng1 - th2_motor_eng2) + th2_motor_eng2
+    clens_x_target = scalar * (clens_x_eng1 - clens_x_eng2) + clens_x_eng2
+    clens_y1_target = scalar * (clens_y1_eng1 - clens_y1_eng2) + clens_y1_eng2
+    clens_y2_target = scalar * (clens_y2_eng1 - clens_y2_eng2) + clens_y2_eng2
+    clens_p_target = scalar * (clens_p_eng1 - clens_p_eng2) + clens_p_eng2
+    DetU_x_target = scalar * (DetU_x_eng1 - DetU_x_eng2) + DetU_x_eng2
+    DetU_y_target = scalar * (DetU_y_eng1 - DetU_y_eng2) + DetU_y_eng2
+    aper_x_target = scalar * (aper_x_eng1 - aper_x_eng2) + aper_x_eng2
+    aper_y_target = scalar * (aper_y_eng1 - aper_y_eng2) + aper_y_eng2
 
     dcm_chi2_ini = dcm.chi2.position
     zp_x_ini = zp.x.position
@@ -4358,6 +4339,10 @@ def radiographic_record(
     simu=False,
     rot_first_flag=1,
     relative_move_flag=1,
+    control_zones=False,
+    zoneC={"startTemp": None, "targetTemp": None, "rampRate": None},
+    zoneD={"startTemp": None, "targetTemp": None, "rampRate": None},
+    T_set_delaytime=0,
     cam=None,
 ):
     cam = _sel_cam(cam)
@@ -4426,6 +4411,10 @@ def radiographic_record(
     }
     _md.update(md or {})
 
+    if control_zones:
+        yield from set_two_zone_temperture(zoneC=zoneC, zoneD=zoneD)
+        yield from bps.sleep(T_set_delaytime)
+
     @stage_decorator(list(dets))
     @run_decorator(md=_md)
     def rad_record_inner():
@@ -4491,6 +4480,41 @@ def radiographic_record(
     yield from rad_record_inner()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
 
+
+def set_two_zone_temperture(zoneC={"startTemp": None, "targetTemp": None, "rampRate": None},
+                            zoneD={"startTemp": None, "targetTemp": None, "rampRate": None},
+                            ):
+    if zoneC["startTemp"] is None:
+        zoneC_startT = lakeshore336.out3.setpoint.get()
+    else:
+        zoneC_startT = zoneC["startTemp"]
+    if zoneD["startTemp"] is None:
+        zoneD_startT = lakeshore336.out4.setpoint.get()
+    else:
+        zoneD_startT = zoneD["startTemp"]
+
+    if zoneC["targetTemp"] is None:
+        zoneC_targetT = lakeshore336.out3.setpoint.get()
+    else:
+        zoneC_targetT = zoneC["targetTemp"]
+    if zoneD["targetTemp"] is None:
+        zoneD_targetT = lakeshore336.out4.setpoint.get()
+    else:
+        zoneD_targetT = zoneD["targetTemp"]
+
+    if zoneC["rampRate"] is None:
+        zoneC_rampR = lakeshore336.out3.ramp_rate.get()
+    else:
+        zoneC_rampR = zoneC["rampRate"]
+    if zoneD["rampRate"] is None:
+        zoneD_rampR = lakeshore336.out4.ramp_rate.get()
+    else:
+        zoneD_rampR = zoneD["rampRate"]
+
+    yield from mv(lakeshore336.out3.setpoint, zoneC_startT, lakeshore336.out4.setpoint, zoneD_startT)
+    yield from mv(lakeshore336.out3.ramp_rate, zoneC_rampR, lakeshore336.out4.ramp_rate, zoneD_rampR)
+    yield from mv(lakeshore336.out3.setpoint, zoneC_targetT, lakeshore336.out4.setpoint, zoneD_targetT)    
+    
 
 def multi_pos_radiography_record(
     x_list,
@@ -4791,10 +4815,10 @@ def multi_pos_2D_xanes_and_3D_tomo(
 def z_scan_xh(
     start=-0.03,
     stop=0.03,
-    steps=5,
+    steps=31,
     out_pos={'x': None, 'y': -100, 'z': None, 'r': None},
     chunk_size=10,
-    exposure_time=0.02,
+    exposure_time=0.05,
     relative_move_flag=1,
     note="",
     md=None,
@@ -4893,6 +4917,7 @@ def z_scan_xh(
     @stage_decorator(list(detectors) + motor)
     @run_decorator(md=_md)
     def z_inner_scan():
+        yield from _open_shutter_xhx(simu)
         yield from _move_sample(
             {'x': x_ini, 'y': y_ini, 'z': z_ini, 'r': r_ini},
             repeat=1
@@ -4900,7 +4925,7 @@ def z_scan_xh(
         for pos in zp_pos:
             yield from mv(real_motor, pos)
             yield from bps.sleep(0.1)
-            yield from _take_image(detectors, motor=motor, num=1, stream_name="primary")
+            yield from _take_image_xh(detectors, motor=motor, stream_name="primary")
         # take flat image
         yield from _take_ref_image(
             detectors,
@@ -4921,8 +4946,6 @@ def z_scan_xh(
 
     yield from z_inner_scan()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
-    txt = get_scan_parameter()
-    print(txt)
 
 
 def get_caliber_record(n=1, sh=False):

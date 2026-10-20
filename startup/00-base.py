@@ -9,7 +9,11 @@ print(f"Loading {__file__}...")
 from datetime import datetime
 from ophyd.signal import EpicsSignalBase, EpicsSignal, DEFAULT_CONNECTION_TIMEOUT
 from bluesky.callbacks.tiled_writer import TiledWriter
-from tiled.client import from_profile, from_uri
+from tiled.client import from_profile, from_uri, show_logs
+from bluesky.utils import ts_msg_hook
+
+# show_logs()
+
 
 try:
     from bluesky_queueserver import is_re_worker_active, parameter_annotation_decorator
@@ -95,7 +99,7 @@ del one_1d_step
 del one_nd_step
 del one_shot
 
-
+#RE.msg_hook = ts_msg_hook
 # disable plotting from best effort callback
 bec.disable_plots()
 

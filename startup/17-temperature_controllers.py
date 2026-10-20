@@ -62,7 +62,7 @@ lakeshore336.ChanB.wait_for_connection()
 lakeshore336.ChanC.wait_for_connection()
 lakeshore336.ChanD.wait_for_connection()
 motor_lakeshore = [
-    lakeshore336.ChanC.T,
+    # lakeshore336.ChanC.T,
     lakeshore336.out3.setpoint,
     lakeshore336.out3.readback,
     lakeshore336.out3.p_gain,
@@ -73,3 +73,23 @@ motor_lakeshore = [
 ]
 """
 motor_lakeshore = []
+
+lakeshore336 = Lakeshore336("XF:18ID-ES{Env:01", name="lakeshore336")
+lakeshore_baseline = [
+    lakeshore336.out3.setpoint,
+    lakeshore336.out3.readback,
+    lakeshore336.out3.ramp_rate,
+    lakeshore336.out3.ramp_enabled,
+    lakeshore336.out3.p_gain,
+    lakeshore336.out3.i_gain,
+    lakeshore336.out3.d_gain,
+    lakeshore336.out4.setpoint,
+    lakeshore336.out4.readback,
+    lakeshore336.out4.ramp_rate,
+    lakeshore336.out4.ramp_enabled,
+    lakeshore336.out4.p_gain,
+    lakeshore336.out4.i_gain,
+    lakeshore336.out4.d_gain,
+]
+
+

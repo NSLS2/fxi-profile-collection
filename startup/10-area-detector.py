@@ -361,8 +361,10 @@ class FXIHDF5PluginWithFileStore(HDF5PluginWithFileStore):
             device_name = self.parent.name
         if md["proposal"]["type"] == "Commissioning":
             root_path = f"/nsls2/data/fxi-new/proposals/commissioning/{data_session}/assets/{device_name}/"
+            # root_path = f"/mnt/t51/proposals/commissioning/{data_session}/assets/{device_name}/"
         else:
             root_path = f"/nsls2/data/fxi-new/proposals/{cycle}/{data_session}/assets/{device_name}/"
+            # root_path = f"/mnt/t51/proposals/{cycle}/{data_session}/assets/{device_name}/"
         return root_path
 
     @property

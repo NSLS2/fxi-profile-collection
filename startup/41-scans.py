@@ -53,7 +53,7 @@ def tomo_scan(
     rot_first_flag=1,
     note="",
     simu=False,
-    detectors=[mako],
+    detectors=None,
     md=None,
 ):
     """
@@ -76,7 +76,9 @@ def tomo_scan(
     """
     global ZONE_PLATE
 
-    detectors = [KinetixU, ic3]
+    if detectors is None:
+        detectors = [KinetixU, ic3]
+
     yield from _set_cam_param(
         exposure_time=exposure_time, period=exposure_time, chunk_size=20, cam=detectors[0]
     )
@@ -545,7 +547,7 @@ def fly_scan(
     take_bkg_img=True,
     take_dark_img=True,
     close_shutter_finish=True,
-    detectors=[KinetixU],
+    detectors=None,
 ):
     """
     Inputs:
@@ -596,8 +598,10 @@ def fly_scan(
     """
     global ZONE_PLATE
 
-    #detectors = [KinetixU, ic3]
-    #detectors = [KinetixU]
+    if detectors is None:
+        detectors = [KinetixU]
+    elif 'MAKO' in detectors:
+        detectors = mako
 
     if not (start_angle is None):
         yield from mv(zps.pi_r, start_angle)
@@ -798,9 +802,9 @@ def fly_scan(
     uid = yield from fly_inner_scan()
     yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
-    txt = get_scan_parameter(print_flag=0)
-    insert_text(txt)
-    print(txt)
+    #txt = get_scan_parameter(print_flag=0)
+    #insert_text(txt)
+    #print(txt)
     return uid
 
 
@@ -819,7 +823,7 @@ def xanes_scan2(
     simu=False,
     return_ini=True,
     mag=None,
-    detectors=[KinetixU],
+    detectors=None,
     md=None,
 ):
     """
@@ -865,7 +869,11 @@ def xanes_scan2(
 
     """
     global ZONE_PLATE
-    #detectors = [KinetixU, ic3, ic4]
+    if detectors is None:
+        detectors=[KinetixU]
+    elif 'MAKO' in detectors:
+        detectors = [mako]
+        
     period = exposure_time if exposure_time >= 0.05 else 0.05
     yield from _set_cam_param(exposure_time, period, chunk_size, cam=detectors[0])
     motor_eng = XEng
@@ -1002,10 +1010,11 @@ def xanes_scan2(
                 yield from mv(filt, 0)
                 yield from bps.sleep(0.5)
         '''
-        if return_ini:
-            yield from move_zp_ccd(eng_ini, move_flag=1, info_flag=0)
         print("closing shutter")
         yield from _close_shutter(simu=simu)
+        if return_ini:
+            yield from move_zp_ccd(eng_ini, move_flag=1, info_flag=0)
+        
         if len(filters):
             for filt in filters:
                 yield from mv(filt, 0)
@@ -1021,7 +1030,7 @@ def xanes_scan2(
     else:
         txt2 = f"eng_list: {eng_list}"
     txt = txt1 + "\n" + txt2
-    insert_text(txt)
+    #insert_text(txt)
     print(txt)
 
 
@@ -3587,7 +3596,7 @@ def xanes_3D(
     binning=[2, 2],
 ):
     txt = "start 3D xanes scan, containing following fly_scan:\n"
-    insert_text(txt)
+    #insert_text(txt)
     print(txt)
 
     for eng in eng_list:
@@ -3616,7 +3625,7 @@ def xanes_3D(
         yield from bps.sleep(1)
         #KinetixU.unstage()
     #yield from mv(KinetixU.cam.image_mode, 2)
-    export_pdf(1)
+    #export_pdf(1)
 
 '''
 def fly_scan_repeat(

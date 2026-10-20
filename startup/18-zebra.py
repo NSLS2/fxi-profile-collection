@@ -339,6 +339,7 @@ class FXITomoFlyer(Device):
             "min_exp": 0.0001,
         },
     }
+    MOT_R_PREC = 0.01
     rot_axis = zps.pi_r
 
     scn_modes = {
@@ -1404,8 +1405,9 @@ class FXITomoFlyer(Device):
         if (-360 > cur_pos) or (cur_pos < 360):
             cur_pos = (
                 np.sign((scn_cfg["ang_s"])) * (abs(scn_cfg["ang_s"]) // 360)
-            ) * 360 + np.sign(cur_pos) * (abs(cur_pos) % 360)        
-            zps.pi_r.set_current_position(cur_pos)
+            ) * 360 + np.sign(cur_pos) * (abs(cur_pos) % 360)  
+            if abs(cur_pos) > FXITomoFlyer.MOT_R_PREC:      
+                zps.pi_r.set_current_position(cur_pos)
         yield from abs_set(zps.pi_r.acceleration, 1, wait=True)
         yield from abs_set(zps.pi_r.velocity, scn_cfg["mb_vel"], wait=True)
         yield from abs_set(zps.pi_r, scn_cfg["ang_s"], wait=True)
