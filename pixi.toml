@@ -39,6 +39,7 @@ pip = "<27,>=26.2.2"
 pvapy = ">=5.6.0,<6"
 ca-certificates = ">=2026.10.19"
 certifi = ">=2026.10.19"
+black = "*"
 
 [feature.profile.pypi-dependencies]
 pvxslibs = ">=1.3.2, <2"
@@ -70,10 +71,6 @@ qtconsole = ">=5.7.0,<6"
 [feature.terminal.tasks]
 start = "unset SESSION_MANAGER PYTHONPATH && MPLBACKEND=qtagg ipython --profile-dir=."
 pvs = "ipython --profile-dir=. -c 'get_pv_types(); exit()'"
-
-[feature.dev.dependencies]
-black = "*"
-ca-certificates = ">=2026.10.19"
 
 [environments]
 terminal = {features=["profile", "terminal"], solve-group="profile"}
