@@ -68,6 +68,10 @@ numpy = ">2"
 pyqt = ">=5,<6"
 qtconsole = ">=5.7.0,<6"
 
+[feature.dev.dependencies]
+ca-certificates = ">=2026.10.19"
+black = "*"
+
 [feature.terminal.tasks]
 start = "unset SESSION_MANAGER PYTHONPATH && MPLBACKEND=qtagg ipython --profile-dir=."
 pvs = "ipython --profile-dir=. -c 'get_pv_types(); exit()'"
@@ -75,3 +79,4 @@ pvs = "ipython --profile-dir=. -c 'get_pv_types(); exit()'"
 [environments]
 terminal = {features=["profile", "terminal"], solve-group="profile"}
 qs = {features=["profile", "qs"], solve-group="profile"}
+dev = {features=["dev"]}
