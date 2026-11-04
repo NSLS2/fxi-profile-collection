@@ -10,6 +10,7 @@ from datetime import datetime
 from ophyd.signal import EpicsSignalBase, EpicsSignal, DEFAULT_CONNECTION_TIMEOUT
 from bluesky.callbacks.tiled_writer import TiledWriter
 from tiled.client import from_profile, from_uri, show_logs
+from bluesky_tiled_plugins import BufferingWrapper, TiledInserter
 from bluesky.utils import ts_msg_hook
 
 # show_logs()
@@ -71,13 +72,33 @@ from bluesky.preprocessors import stage_decorator, run_decorator
 tiled_writing_client = from_profile("nsls2", api_key=os.getenv("TILED_BLUESKY_WRITING_API_KEY_FXI", ""))["fxi"]["raw"]
 tiled_writing_client.context.http_client.headers['tiled-qos'] = 'acquisition'
 
-class TiledInserter:
-    name = 'fxi'
+TILED_BACKUP_ROOT = "/nsls2/data/fxi/shared/config/bluesky/tiled_backup"
 
-    def insert(self, name, doc):
-        tiled_writing_client.post_document(name, doc)
+tiled_inserter = TiledInserter(
+    tiled_writing_client,
+    "fxi",
+    backup_directory=f"{TILED_BACKUP_ROOT}/raw",
+)
+tiled_inserter = BufferingWrapper(tiled_inserter)  # in-process queue: RE never blocks
 
-tiled_inserter = TiledInserter()
+
+def flush_tiled(timeout=30):
+    """Block until all buffered documents have been written to Tiled.
+
+    Call this before reading a just-acquired run back from Tiled: documents
+    are buffered, so Tiled's view may lag behind Bluesky. Flushes every
+    writer buffer, so it stays correct regardless of which writers are
+    subscribed to RE.
+
+    Raises RuntimeError if a buffer does not drain within ``timeout``
+    seconds or its worker thread has died.
+    """
+    for label, buffer in (("raw", tiled_inserter),):
+        if not buffer.flush(timeout):
+            raise RuntimeError(
+                f"Tiled {label} buffer was not flushed within {timeout} s "
+                "(timed out or its worker thread died)."
+            )
 
 if not is_re_worker_active():
     db = tiled_reading_client = from_profile("nsls2", include_data_sources=True)["fxi"]["raw"]
@@ -86,7 +107,7 @@ if not is_re_worker_active():
 nslsii.configure_base(get_ipython().user_ns,
                       tiled_inserter,
                       bec=True,
-                      publish_documents_with_kafka=True,
+                      publish_documents_with_kafka="fxi",
                       redis_url='xf18id1-fxi-redis1.nsls2.bnl.gov',
                       redis_port=6380,
                       redis_ssl=True

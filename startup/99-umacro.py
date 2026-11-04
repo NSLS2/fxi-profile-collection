@@ -575,7 +575,8 @@ def test_Andor_stage_unstage(n=500):
         #Andor.unstage()
         #uid = RE_test(count([Andor], 1))[0]
         uid = RE(count([KinetixU], 5))[0]
-        sid = db[-1].start['scan_id']
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        sid = db[uid].start['scan_id']
         uid_list.append(sid)
         print(f'save {fsave_ts}')
         np.savetxt(fsave_ts, TimeStampRecord)
