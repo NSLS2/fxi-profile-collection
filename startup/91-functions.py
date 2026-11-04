@@ -21,6 +21,7 @@ def reload_bsui():
     os.execl(sys.executable, sys.executable, * sys.argv)
 
 def check_latest_scan_id(init_guess=60000, search_size=100):
+    flush_tiled()  # wait for buffered documents to reach Tiled
     sid_from_md = RE.md["scan_id"]
     if len(list(db(scan_id=sid_from_md))) > 0:
         sid_i = max(db[-1].start["scan_id"], sid_from_md, init_guess)
@@ -1208,8 +1209,9 @@ def read_ic(ics, num, dwell_time=1.0):
     """
 
     set_ic_dwell_time(dwell_time=dwell_time)
-    yield from count(ics, num, delay=dwell_time)
-    h = db[-1]
+    uid = yield from count(ics, num, delay=dwell_time)
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     ic_num = len(ics)
     fig = plt.figure()
     x = np.linspace(1, num, num)
@@ -1234,6 +1236,7 @@ def plot_ic(scan_id=[-1], ics=[]):
     plot ic reading from single/multiple scan(s),
     e.g. plot_ic([-1, -2],['ic3', 'ic4'])
     """
+    flush_tiled()  # wait for buffered documents to reach Tiled
     if type(scan_id) == int:
         scan_id = [scan_id]
 
@@ -1269,6 +1272,7 @@ def plot2dsum(scan_id=-1, fn="Det_Image", save_flag=0):
     """
     valid only if the scan using KinetixU or detA1 camera
     """
+    flush_tiled()  # wait for buffered documents to reach Tiled
     h = db[scan_id]
     if scan_id == -1:
         scan_id = h.start["scan_id"]
@@ -1302,6 +1306,7 @@ def plot2dsum(scan_id=-1, fn="Det_Image", save_flag=0):
 
 
 def plot1d(scan_id=-1, detectors=[], plot_time_stamp=0, return_flag=0):
+    flush_tiled()  # wait for buffered documents to reach Tiled
     h = db[scan_id]
     scan_id = h.start["scan_id"]
     n = len(detectors)
@@ -1395,6 +1400,7 @@ def save_hdf_file(fn, *args):
 
 
 def export_ic3(scan_id=-1, return_flag=1, save_flag=0, plot_flag=0):
+    flush_tiled()  # wait for buffered documents to reach Tiled
     h = db[scan_id]
     scan_id = h.start["scan_id"]
     pos = h.table()
@@ -1434,6 +1440,7 @@ def export_ic3(scan_id=-1, return_flag=1, save_flag=0, plot_flag=0):
 
 
 def print_baseline_list():
+    flush_tiled()  # wait for buffered documents to reach Tiled
     a = list(db[-1].table("baseline"))
     with open("/home/xf18id/Documents/FXI_manual/FXI_baseline_record.txt", "w") as tx:
         i = 1
@@ -1457,6 +1464,7 @@ def get_img(h, det="KinetixU", sli=[]):
 
 
 def get_scan_parameter(scan_id=-1, print_flag=1):
+    flush_tiled()  # wait for buffered documents to reach Tiled
     h = db[scan_id]
     scan_id = h.start["scan_id"]
     uid = h.start["uid"]

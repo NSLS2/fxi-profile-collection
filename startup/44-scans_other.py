@@ -7,8 +7,9 @@ print(f"Loading {__file__}...")
 
 
 def test_test():
-    yield from count([KinetixU], 2)
-    h = db[-1]
+    uid = yield from count([KinetixU], 2)
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     print(h.start["scan_id"])
 
 
@@ -826,6 +827,9 @@ class LoadCellScanPlot(QtAwareCallback):
         # Scan UID
         uid = doc["run_start"]
 
+        # The stop document may still be in the write buffer when this
+        # callback fires; wait for Tiled to catch up before reading.
+        flush_tiled()
         h = db[uid]
         # Scan ID
         scan_id = h.start["scan_id"]
@@ -1064,14 +1068,15 @@ def load_cell_scan_original(
         for pbsl_pos in pbsl_y_pos_list:
             yield from mv(pbsl.y_ctr, pbsl_pos)
             for i in range(num):
-                yield from eng_scan(
+                uid = yield from eng_scan(
                     eng_start,
                     stop=eng_end,
                     num=steps,
                     detectors=[ic3, ic4],
                     delay_time=delay_time,
                 )
-                h = db[-1]
+                flush_tiled()  # wait for buffered documents to reach Tiled
+                h = db[uid]
                 y0 = np.array(list(h.data(ic3.name)))
                 y1 = np.array(list(h.data(ic4.name)))
                 r = np.log(y0 / y1)
@@ -1212,10 +1217,11 @@ def tm_pitch_scan(tm_pitch_list, ssa_h_start, ssa_h_end, steps, delay_time=0.5):
     for tm_pos in tm_pitch_list:
         yield from mv(tm.p, tm_pos)
         yield from bps.sleep(1)
-        yield from delay_scan(
+        uid = yield from delay_scan(
             [ic3], ssa.h_ctr, ssa_h_start, ssa_h_end, steps, sleep_time=delay_time
         )
-        h = db[-1]
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        h = db[uid]
         y = np.array(list(h.data(ic3.name)))
         x = np.linspace(ssa_h_start, ssa_h_end, steps)
         (line,) = ax1.plot(x, y, ".-")
@@ -1273,7 +1279,7 @@ def ssa_scan_tm_bender(bender_pos_list, ssa_motor, ssa_start, ssa_end, ssa_steps
         ax2 = fig.add_subplot(312)
         ax3 = fig.add_subplot(313)
         #        yield from scan([ic3, ic4, Vout2], ssa_motor, ssa_start, ssa_end, ssa_steps)
-        yield from delay_scan(
+        uid = yield from delay_scan(
             [ic3, ic4, Vout2],
             ssa_motor,
             ssa_start,
@@ -1283,7 +1289,8 @@ def ssa_scan_tm_bender(bender_pos_list, ssa_motor, ssa_start, ssa_end, ssa_steps
             md=None,
             mv_back=mv_back
         )
-        h = db[-1]
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        h = db[uid]
         y0 = np.abs(np.array(list(h.data(ic3.name))))
         y1 = np.abs(np.array(list(h.data(ic4.name))))
         y2 = np.array(list(h.data(Vout2.name)))
@@ -1335,7 +1342,7 @@ def ssa_scan_tm_yaw(tm_yaw_pos_list, ssa_motor, ssa_start, ssa_end, ssa_steps):
         ax2 = fig.add_subplot(312)
         ax3 = fig.add_subplot(313)
         #        yield from scan([ic3, ic4, Vout2], ssa_motor, ssa_start, ssa_end, ssa_steps)
-        yield from delay_scan(
+        uid = yield from delay_scan(
             [ic3, ic4, Vout2],
             ssa_motor,
             ssa_start,
@@ -1344,7 +1351,8 @@ def ssa_scan_tm_yaw(tm_yaw_pos_list, ssa_motor, ssa_start, ssa_end, ssa_steps):
             sleep_time=1.2,
             md=None,
         )
-        h = db[-1]
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        h = db[uid]
         y0 = np.array(list(h.data(ic3.name)))
         y1 = np.array(list(h.data(ic4.name)))
         y2 = np.array(list(h.data(Vout2.name)))
@@ -1385,7 +1393,7 @@ def ssa_scan_pbsl_x_gap(pbsl_x_gap_list, ssa_motor, ssa_start, ssa_end, ssa_step
         ax2 = fig.add_subplot(312)
         ax3 = fig.add_subplot(313)
         #        yield from scan([ic3, ic4, Vout2], ssa_motor, ssa_start, ssa_end, ssa_steps)
-        yield from delay_scan(
+        uid = yield from delay_scan(
             [ic3, ic4, Vout2],
             ssa_motor,
             ssa_start,
@@ -1394,7 +1402,8 @@ def ssa_scan_pbsl_x_gap(pbsl_x_gap_list, ssa_motor, ssa_start, ssa_end, ssa_step
             sleep_time=1.2,
             md=None,
         )
-        h = db[-1]
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        h = db[uid]
         y0 = np.array(list(h.data(ic3.name)))
         y1 = np.array(list(h.data(ic4.name)))
         y2 = np.array(list(h.data(Vout2.name)))
@@ -1434,7 +1443,7 @@ def ssa_scan_pbsl_y_gap(pbsl_y_gap_list, ssa_motor, ssa_start, ssa_end, ssa_step
         ax2 = fig.add_subplot(312)
         ax3 = fig.add_subplot(313)
         #        yield from scan([ic3, ic4, Vout2], ssa_motor, ssa_start, ssa_end, ssa_steps)
-        yield from delay_scan(
+        uid = yield from delay_scan(
             [ic3, ic4, Vout2],
             ssa_motor,
             ssa_start,
@@ -1443,7 +1452,8 @@ def ssa_scan_pbsl_y_gap(pbsl_y_gap_list, ssa_motor, ssa_start, ssa_end, ssa_step
             sleep_time=1.2,
             md=None,
         )
-        h = db[-1]
+        flush_tiled()  # wait for buffered documents to reach Tiled
+        h = db[uid]
         y0 = np.array(list(h.data(ic3.name)))
         y1 = np.array(list(h.data(ic4.name)))
         y2 = np.array(list(h.data(Vout2.name)))
@@ -1536,7 +1546,8 @@ def overnight_count(detectors, num=1, delay=None, *, md=None):
     #        return (yield from bps.repeat(partial(bps.trigger_and_read, detectors),
     #                                      num=num, delay=delay))
     uid = yield from inner_count()
-    h = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     det = [det.name for det in detectors]
     det_name = ""
@@ -1595,7 +1606,7 @@ def knife_edge_scan_for_condensor(
     from scipy.special import erf
     from scipy.signal.windows import gaussian
 
-    yield from rel_grid_scan(
+    run_uid = yield from rel_grid_scan(
         det,
         mot1,
         mot1_start,
@@ -1608,7 +1619,11 @@ def knife_edge_scan_for_condensor(
         mot2_snake,
     )
 
-    hdr = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    hdr = db[run_uid]
+    # TODO: `db.get_resource_uids` and `db.reg` are databroker v1 APIs that do
+    # not exist on the Tiled client; rewrite via the resource documents, e.g.
+    # `[doc for name, doc in hdr.documents() if name == "resource"]`.
     res_uids = list(db.get_resource_uids(hdr))
     for i, uid in enumerate(res_uids):
         res_doc = db.reg.resource_given_uid(uid)

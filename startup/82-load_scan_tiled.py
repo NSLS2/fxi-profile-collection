@@ -128,6 +128,7 @@ def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None, fpath=No
     """
     e.g. load_scan([0001, 0002])
     """
+    flush_tiled()  # wait for buffered documents to reach Tiled
     if scan_id_end is None:
         if isinstance(scan_id, int):
             scan_id = [scan_id]
@@ -152,6 +153,7 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=Fals
     """
     date_end_by: string, e.g., '2020-01-20'
     """
+    flush_tiled()  # wait for buffered documents to reach Tiled
     tmp = list(tiled_client_fxi.search(Key("scan_id")==scan_id))
 
     if date_end_by is None:
@@ -169,6 +171,7 @@ def custom_export(scan_id, binning=4, date_end_by=None, fpath=None, reverse=Fals
 
 def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     import datetime
+    flush_tiled()  # wait for buffered documents to reach Tiled
     #h = dbv0[scan_id]
     h = tiled_client_fxi[scan_id]
     scan_id = h.start["scan_id"]
