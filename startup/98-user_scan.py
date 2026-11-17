@@ -2884,7 +2884,7 @@ def mosaic_fly_scan_xh(
 
 def record_calib_pos_new_xh(n=None):
     global GLOBAL_MAG, CALIBER
-
+    fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv"
     def find_missing_or_next(nums):
         nums = sorted(set(nums))  # Sort and remove duplicates
 
@@ -2941,7 +2941,8 @@ def record_calib_pos_new_xh(n=None):
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(tmp)
     df = pd.DataFrame.from_dict(CALIBER, orient="index")
-    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    #df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    df.to_csv(fn)
     print(
         f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}'
     )
@@ -2974,7 +2975,10 @@ def record_calib_pos_new_xh(n=None):
 def remove_caliber_pos_new_xh(eng):
     global CALIBER_FLAG, CURRENT_MAG, CALIBER
     df = pd.DataFrame.from_dict(CALIBER, orient="index")
-    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_backup.csv")
+    fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv"
+    fn_backup = "/home/xf18id/.ipython/profile_collection/startup/calib_backup.csv"
+    # df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_backup.csv")
+    df.to_csv(fn_backup)
     CALIBER_backup = CALIBER.copy()
 
     for key in CALIBER.keys():
@@ -2991,7 +2995,8 @@ def remove_caliber_pos_new_xh(eng):
             if f"mag{idx}" == k:
                 del CALIBER[k]
         df = pd.DataFrame.from_dict(CALIBER, orient="index")
-        df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+        #df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+        df.to_csv(fn)
     except:
         CALIBER = CALIBER.copy()
         print(f"fails to remove CALIBER postion {n}, or it does not exist")
@@ -3144,8 +3149,8 @@ def cal_zp_ccd_xh(eng, mag, zp_cfg=None, show=True):
     """
     if zp_cfg is None:
         zp_cfg = {
-            "D": 244,
-            "dr": 30,
+            "D": ZONE_PLATE["ZONE_DIAMETER"],
+            "dr": ZONE_PLATE["OUT_ZONE_WIDTH"],
         }  # 'D': zp diameter in um; 'dr': outmost zone width in nm
     # wl = 12.39847/eng/10  # in nm
     wl = 6.6261e-34 * 299792458 / (1.602176565e-19 * eng) * 1e6  # in nm
@@ -3288,7 +3293,7 @@ def move_zp_ccd_xh(
     if abs(eng_new - eng1) < 1e-4:
             scalar = 1
     chi2_motor_target = scalar * (dcm_chi2_eng1 - dcm_chi2_eng2) + dcm_chi2_eng2
-    
+
     zp_x_target = scalar * (zp_x_pos_eng1 - zp_x_pos_eng2) + zp_x_pos_eng2
     zp_y_target = scalar * (zp_y_pos_eng1 - zp_y_pos_eng2) + zp_y_pos_eng2
 
@@ -3390,58 +3395,36 @@ def move_zp_ccd_xh(
                     )
         if move_flag:  # move stages
             print("Now moving stages ....")
-
-            # yield from mv(dcm_th2.feedback_enable, 0)
-            # yield from mv(dcm_th2.feedback, th2_motor_target)
-            # yield from mv(dcm_th2.feedback_enable, 1)
-
-            # yield from mv(zp.x, zp_x_target, zp.y, zp_y_target, wait=False)
-            # yield from mv(aper.x, aper_x_target, aper.y, aper_y_target, wait=False)
-            # yield from mv(zp.z, zp_final, det.z, det_final, wait=False)
-            # if eng_new > eng_ini:
-            #     yield from mv(XEng, eng_new+0.1)
-            #     yield from bps.sleep(2)
-            # yield from mv(XEng, eng_new)
-
-            yield from mv(dcm_th2.feedback_enable, 0)
-            yield from mv(dcm_th2.feedback, th2_motor_target)
-            yield from mv(dcm_th2.feedback_enable, 1)
-
-            yield from mv(zp.x, zp_x_target, zp.y, zp_y_target, wait=False)
-            yield from mv(aper.x, aper_x_target, aper.y, aper_y_target, wait=False)
-            yield from mv(zp.z, zp_final, det.z, det_final, wait=False)
             if eng_new > eng_ini:
-                yield from mv(dcm_th2.feedback_enable, 0)
-                yield from mv(dcm_th2.feedback, th2_motor_target)
-                yield from mv(dcm_th2.feedback_enable, 1)
-            
                 yield from mv(
-                    zp.x, zp_x_target, 
+                    zp.x, zp_x_target,
                     zp.y, zp_y_target,
-                    aper.x, aper_x_target, 
+                    aper.x, aper_x_target,
                     aper.y, aper_y_target,
-                    zp.z, zp_final, 
-                    det.z, det_final, 
-                    XEng, eng_new+0.1,
+                    zp.z, zp_final,
+                    det.z, det_final,
+                    XEng, eng_new+0.2,
                     wait=False,
                 )
                 yield from bps.sleep(2)
                 yield from mv(XEng, eng_new)
-            else:
                 yield from mv(dcm_th2.feedback_enable, 0)
                 yield from mv(dcm_th2.feedback, th2_motor_target)
                 yield from mv(dcm_th2.feedback_enable, 1)
-            
+            else:
                 yield from mv(
-                    zp.x, zp_x_target, 
+                    zp.x, zp_x_target,
                     zp.y, zp_y_target,
-                    aper.x, aper_x_target, 
+                    aper.x, aper_x_target,
                     aper.y, aper_y_target,
-                    zp.z, zp_final, 
-                    det.z, det_final, 
+                    zp.z, zp_final,
+                    det.z, det_final,
                     XEng, eng_new,
                     wait=False,
                 )
+                yield from mv(dcm_th2.feedback_enable, 0)
+                yield from mv(dcm_th2.feedback, th2_motor_target)
+                yield from mv(dcm_th2.feedback_enable, 1)
 
             if move_clens_flag:
                 yield from mv(
@@ -4179,13 +4162,12 @@ def dummy_scan(
     yield from _set_rotation_speed(rs=rot_back_velo)
 
 
-"""
 def radiographic_record(
     exp_t=0.1,
     period=0.1,
     t_span=10,
     stop=True,
-    out_pos,
+    out_pos=[None, None, None, None],
     flts=[],
     binning=None,
     md={},
@@ -4193,8 +4175,10 @@ def radiographic_record(
     simu=False,
     rot_first_flag=1,
     relative_move_flag=1,
-    cam=KinetixU,
+    cam=None,
 ):
+    cam = _sel_cam(cam)
+
     (motor_x_ini,
      motor_y_ini,
      motor_z_ini,
@@ -4215,7 +4199,8 @@ def radiographic_record(
     yield from FXITomoFlyer.prime_det(cam)
     yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
 
-    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, period)
+    acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(cam, exp_t, period)
+
     if acq_p > period:
         print(
               "Acquisition period is too small for the camera. Reset acquisition period to minimum allowed exposure time."
@@ -4256,10 +4241,9 @@ def radiographic_record(
     }
     _md.update(md or {})
 
-    yield from abs_set_wait(cam.cam.acquire, 0)
-    yield from _set_cam_param(exposure_time=exp_t, period=period)
-    yield from abs_set_wait(cam.cam.image_mode, 0)
-
+    # yield from abs_set_wait(cam.cam.acquire, 0)
+    # yield from _set_cam_param(exposure_time=exp_t, period=period)
+    # yield from abs_set_wait(cam.cam.image_mode, 0)
 
     @stage_decorator(list(dets))
     @run_decorator(md=_md)
@@ -4273,6 +4257,7 @@ def radiographic_record(
         scn_cfg["num_images"] = int(t_span / period)
         scn_cfg["num_images"] = int(t_span / period)
         yield from FXITomoFlyer.set_cam_step_for_scan(cam, scn_cfg)
+        yield from mv(cam.cam.acquire_period, acq_p)
 
         yield from trigger_and_read([cam], name="primary")
 
@@ -4300,13 +4285,12 @@ def radiographic_record(
             motor_r_ini,
         )
         yield from trigger_and_read([cam], name="dark")
-        yield from mv(cam.cam.image_mode, 1)
-        yield from abs_set_wait(cam.cam.image_mode, 1)
+        # yield from mv(cam.cam.image_mode, 1)
         yield from select_filters([])
 
     yield from rad_record_inner()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
-"""
+
 
 
 def _set_cam_param_xh(exposure_time=0.1, period=0.1, chunk_size=1, cam=None):
@@ -4315,6 +4299,7 @@ def _set_cam_param_xh(exposure_time=0.1, period=0.1, chunk_size=1, cam=None):
         _get_cam_model(cam), scan_type='fly'
         )
     print(image_mode_id, trigger_mode_id)
+    yield from abs_set(det.cam.acquire, 0, wait=True)
     yield from mv(cam.cam.trigger_mode, trigger_mode_id)
     yield from mv(cam.cam.image_mode, image_mode_id)
     yield from mv(cam.cam.num_images, chunk_size)
@@ -4324,6 +4309,7 @@ def _set_cam_param_xh(exposure_time=0.1, period=0.1, chunk_size=1, cam=None):
     yield from mv(cam.cam.acquire_period, acq_p)
 
 
+"""
 def radiographic_record(
     exp_t=0.1,
     period=0.1,
@@ -4378,7 +4364,7 @@ def radiographic_record(
     yield from FXITomoFlyer.prime_det(cam)
     yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
 
-    acq_p, _ = yield from FXITomoFlyer.check_cam_acq_p(cam, exp_t, period)
+    acq_p, _ = FXITomoFlyer.check_cam_acq_p(cam, exp_t, period)
 
     motors = [zps.sx, zps.sy, zps.sz, zps.pi_r]
     dets = [cam, ic3]
@@ -4474,11 +4460,12 @@ def radiographic_record(
                 motor_r_ini,
             )
         yield from trigger_and_read([cam], name="dark")
-        yield from mv(cam.cam.image_mode, 1)
+        yield from mv(cam.cam.image_mode, 2)
         yield from select_filters([])
 
     yield from rad_record_inner()
     yield from FXITomoFlyer.set_cam_mode(cam, stage="post-scan")
+"""
 
 
 def set_two_zone_temperture(zoneC={"startTemp": None, "targetTemp": None, "rampRate": None},
@@ -4513,8 +4500,8 @@ def set_two_zone_temperture(zoneC={"startTemp": None, "targetTemp": None, "rampR
 
     yield from mv(lakeshore336.out3.setpoint, zoneC_startT, lakeshore336.out4.setpoint, zoneD_startT)
     yield from mv(lakeshore336.out3.ramp_rate, zoneC_rampR, lakeshore336.out4.ramp_rate, zoneD_rampR)
-    yield from mv(lakeshore336.out3.setpoint, zoneC_targetT, lakeshore336.out4.setpoint, zoneD_targetT)    
-    
+    yield from mv(lakeshore336.out3.setpoint, zoneC_targetT, lakeshore336.out4.setpoint, zoneD_targetT)
+
 
 def multi_pos_radiography_record(
     x_list,
@@ -5169,30 +5156,162 @@ def zps_motor_scan_with_Andor(
     print(txt)
 
 
-def diff_img(out_pos=[None, None, None], eng_1st=8.97, eng_2nd=8.92, flts=[], cam=None,):
+# def diff_img(out_pos=[None, None, None], eng_1st=8.97, eng_2nd=8.92, flts=[], cam=None,):
+#     yield from move_zp_ccd_xh(eng_1st)
+#     cam = _sel_cam(cam)
+#     yield from mv(cam.cam.acquire, 0)
+#     x_ini, y_ini, z_ini = zps.sx.position, zps.sy.position, zps.sz.position
+#     x_ref = x_ini + out_pos[0] if out_pos[0] is not None else x_ini
+#     y_ref = y_ini + out_pos[1] if out_pos[1] is not None else y_ini
+#     z_ref = z_ini + out_pos[2] if out_pos[2] is not None else z_ini
+#     flts_ini = curr_filters()
+#     yield from select_filters(flts)
+#     yield from count([cam], 1)
+#     yield from mv(zps.sx, x_ref, zps.sy, y_ref, zps.sz, z_ref)
+#     yield from count([cam], 1)
+
+#     yield from move_zp_ccd_xh(eng_2nd)
+#     yield from count([cam], 1)
+#     yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
+#     yield from count([cam], 1)
+
+#     yield from _close_shutter_xhx()
+#     yield from count([cam], 1)
+#     yield from select_filters(flts_ini)
+
+def diff_img_run(
+    out_pos=None,
+    eng_1st=7.844,
+    eng_2nd=7.744,
+    flts=None,
+    exposure_time=0.1,
+    chunk_size=20,
+    cam=None,
+    note="",
+    md=None,
+):
+    """
+    Differential imaging at two energies, recorded as ONE run (one scan id).
+
+    Replaces `diff_img`, which called `count` five times (five runs / files).
+    Each trigger acquires a stack of `chunk_size` images. Stack order and the
+    stream each one is saved to:
+
+        1. sample @ eng_1st, sample in         -> "primary"
+        2. flat   @ eng_1st, sample out        -> "flat"
+        3. flat   @ eng_2nd, sample out        -> "flat"
+        4. sample @ eng_2nd, sample in         -> "primary"
+        5. dark (shutter closed)               -> "dark"
+
+    Each event also records XEng so energies can be told apart on export.
+
+    Parameters
+    ----------
+    out_pos : list of 3 (float or None), optional
+        Relative (x, y, z) offset of the flat-field (sample out) position.
+        None keeps that axis unchanged.
+    eng_1st, eng_2nd : float
+        Energies in keV.
+    flts : list of int, optional
+        Filters inserted during the scan; the previous state is restored.
+    exposure_time : float
+        Exposure time (s) of each image; the period is set equal to it.
+    chunk_size : int
+        Number of images per stack.
+    cam : camera, optional
+        Passed through `_sel_cam`.
+    note : str
+        Free-text note saved in the run metadata.
+    md : dict, optional
+        Extra metadata merged into the run start document.
+
+    Returns
+    -------
+    scan_id : int
+        Scan id of the run; pass it to `export_diff_img`.
+    """
+    out_pos = list(out_pos) if out_pos is not None else [None, None, None]
+    flts = list(flts) if flts is not None else []
+
     yield from move_zp_ccd_xh(eng_1st)
     cam = _sel_cam(cam)
     yield from mv(cam.cam.acquire, 0)
+    yield from _set_cam_param_xh(
+        exposure_time=exposure_time,
+        period=exposure_time,
+        chunk_size=chunk_size,
+        cam=cam,
+    )
+
     x_ini, y_ini, z_ini = zps.sx.position, zps.sy.position, zps.sz.position
     x_ref = x_ini + out_pos[0] if out_pos[0] is not None else x_ini
     y_ref = y_ini + out_pos[1] if out_pos[1] is not None else y_ini
     z_ref = z_ini + out_pos[2] if out_pos[2] is not None else z_ini
     flts_ini = curr_filters()
-    yield from select_filters(flts)
-    yield from count([cam], 1)
-    yield from mv(zps.sx, x_ref, zps.sy, y_ref, zps.sz, z_ref)
-    yield from count([cam], 1)
 
-    yield from move_zp_ccd_xh(eng_2nd)
-    yield from count([cam], 1)
-    yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
-    yield from count([cam], 1)
+    dets = [cam, XEng]
+    _md = {
+        "detectors": [cam.name],
+        "XEng": XEng.position,
+        "plan_args": {
+            "out_pos": out_pos,
+            "eng_1st": eng_1st,
+            "eng_2nd": eng_2nd,
+            "exposure_time": exposure_time,
+            "chunk_size": chunk_size,
+            "filters": ["filter{}".format(t) for t in flts] if flts else "None",
+            "sample_in_pos": [x_ini, y_ini, z_ini],
+            "sample_out_pos": [x_ref, y_ref, z_ref],
+            "note": note if note else "None",
+            "zone_plate": ZONE_PLATE,
+        },
+        "plan_name": "diff_img_run",
+        "chunk_size": chunk_size,
+        "energies": [eng_1st, eng_2nd],
+        "hints": {},
+        "operator": "FXI",
+        "note": note if note else "None",
+        "zone_plate": ZONE_PLATE,
+    }
+    _md.update(md or {})
 
-    yield from _close_shutter_xhx()
-    yield from count([cam], 1)
-    yield from select_filters(flts_ini)
+    start_docs = []
 
+    def _grab_start(name, doc):
+        if name == "start":
+            start_docs.append(doc)
 
+    @stage_decorator([cam])
+    @run_decorator(md=_md)
+    def _inner():
+        yield from select_filters(flts)
+
+        yield from _open_shutter_xhx()
+        yield from bps.sleep(1)
+        yield from trigger_and_read(dets, name="primary")
+        yield from mv(zps.sx, x_ref, zps.sy, y_ref, zps.sz, z_ref)
+        yield from trigger_and_read(dets, name="flat")
+
+        yield from move_zp_ccd_xh(eng_2nd)
+        yield from trigger_and_read(dets, name="flat")
+        yield from mv(zps.sx, x_ini, zps.sy, y_ini, zps.sz, z_ini)
+        yield from trigger_and_read(dets, name="primary")
+
+        yield from _close_shutter_xhx()
+        yield from trigger_and_read(dets, name="dark")
+
+    def _restore():
+        yield from select_filters(flts_ini)
+        yield from mv(cam.cam.image_mode, 2)
+
+    yield from bpp.finalize_wrapper(
+        bpp.subs_wrapper(_inner(), {"start": _grab_start}), _restore()
+    )
+    yield from _restore()
+
+    scan_id = start_docs[0]["scan_id"] if start_docs else None
+    print(f"diff_img_run finished, scan id: {scan_id}")
+    return scan_id
 
 
 def diff_tomo(

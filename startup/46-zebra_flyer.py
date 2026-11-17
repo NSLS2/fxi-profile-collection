@@ -25,6 +25,7 @@ def tomo_zfly(
     bin_fac=None,
     roi={"min_x": 176, "size_x": 2048, "min_y": 176, "size_y": 2048},
     note="",
+    shutter_off=True,
     md=None,
     simu=False,
     sleep=0,
@@ -150,7 +151,7 @@ def tomo_zfly(
                 yield from FXITomoFlyer.set_cam_mode(cam, stage="ref-scan")
                 print(f"Scan # {ii} set ref-scan finishes at {ttime.asctime()}")
                 
-                print(f"taking dark images at {ttime.asctime()}")
+                print(f"taking dark images at {ttime.asctime()}")                
                 yield from _take_ref_image(
                     flyer.detectors,
                     mots_pos={
@@ -161,8 +162,10 @@ def tomo_zfly(
                     },
                     chunk_size=10,
                     stream_name="dark",
+                    shutter_off=shutter_off,
                     simu=simu,
                 )
+                
                 print(f"{resolver.latest_dark()['file_reference']}")
                 
                 yield from bps.sleep(0.5)
@@ -177,6 +180,7 @@ def tomo_zfly(
                     },
                     chunk_size=10,
                     stream_name="flat",
+                    shutter_off=shutter_off,
                     simu=simu,
                 )
                 print(f"{resolver.latest_flat()['file_reference']}")
@@ -245,7 +249,9 @@ def tomo_zfly(
                 for mot in mots:
                     mot.unstage()
 
-                yield from _close_shutter_xhx(simu=simu)
+                if shutter_off:
+                    yield from _close_shutter_xhx(simu=simu)
+                    
                 print(f"Scan # {ii} cleaning at {ttime.asctime()}")
                 yield from FXITomoFlyer.init_mot_r(scn_cfg)
 
@@ -356,6 +362,7 @@ def tomo_zfly(
                 },
                 chunk_size=10,
                 stream_name="flat",
+                shutter_off=shutter_off,
                 simu=simu,
             )
             yield from _take_ref_image(
@@ -368,6 +375,7 @@ def tomo_zfly(
                 },
                 chunk_size=10,
                 stream_name="dark",
+                shutter_off=shutter_off,
                 simu=simu,
             )
             print(13)
@@ -453,6 +461,7 @@ def tomo_zfly(
                 },
                 chunk_size=10,
                 stream_name="flat",
+                shutter_off=shutter_off,
                 simu=simu,
             )
             yield from _take_ref_image(
@@ -465,6 +474,7 @@ def tomo_zfly(
                 },
                 chunk_size=10,
                 stream_name="dark",
+                shutter_off=shutter_off,
                 simu=simu,
             )
             yield from _move_sample(
@@ -500,6 +510,7 @@ def tomo_zfly_repeat(
     cam=None,
     flyer=None,
     open_sh=False,
+    shutter_off=True,
 ):
     
     cam = _sel_cam(cam)
@@ -521,6 +532,7 @@ def tomo_zfly_repeat(
                             bin_fac=bin_fac,
                             roi=roi,
                             note=note,
+                            shutter_off=shutter_off,
                             md=md,
                             simu=simu,
                             sleep=0,

@@ -802,8 +802,8 @@ def fly_scan(
     uid = yield from fly_inner_scan()
     yield from mv(KinetixU.cam.image_mode, 2)
     print("scan finished")
-    #txt = get_scan_parameter(print_flag=0)
-    #insert_text(txt)
+    txt = get_scan_parameter(print_flag=0)
+    insert_text(txt)
     #print(txt)
     return uid
 
@@ -1030,7 +1030,7 @@ def xanes_scan2(
     else:
         txt2 = f"eng_list: {eng_list}"
     txt = txt1 + "\n" + txt2
-    #insert_text(txt)
+    insert_text(txt)
     print(txt)
 
 
@@ -3596,7 +3596,7 @@ def xanes_3D(
     binning=[2, 2],
 ):
     txt = "start 3D xanes scan, containing following fly_scan:\n"
-    #insert_text(txt)
+    insert_text(txt)
     print(txt)
 
     for eng in eng_list:

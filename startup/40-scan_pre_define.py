@@ -281,6 +281,7 @@ def _take_ref_image(
     stream_name="flat",
     simu=False,
     stage=True,
+    shutter_off=True,
 ):
     print(f"ref set cam starts at {ttime.asctime()}")
     yield from _set_cam_chunk_size_xhx(dets[0], chunk_size, scan_type='fly')
@@ -305,10 +306,13 @@ def _take_ref_image(
         print(f"ref open shutter finishes at {ttime.asctime()}")
     elif stream_name == "dark":
         print(f"ref close shutter starts at {ttime.asctime()}")
-        yield from _move_sample(
-            mots_pos, repeat=1
-        )
-        yield from _close_shutter_xhx(simu)
+        if shutter_off:
+            yield from _move_sample(
+                mots_pos, repeat=1
+            )
+            yield from _close_shutter_xhx(simu)
+        else:
+            yield from _open_shutter_xhx(simu)
         print(f"ref close shutter finishes at {ttime.asctime()}")
 
     print(f"ref take image starts at {ttime.asctime()}")

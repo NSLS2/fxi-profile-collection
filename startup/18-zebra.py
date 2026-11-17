@@ -948,7 +948,7 @@ class FXITomoFlyer(Device):
         yield from FXITomoFlyer.bin_det(self.detectors[0], scn_cfg["bin_fac"])
         yield from FXITomoFlyer.prime_det(self.detectors[0])
         yield from FXITomoFlyer.init_mot_r(scn_cfg)
-        scn_cfg = yield from FXITomoFlyer.cal_cam_rot_params(self.detectors[0], scn_cfg)
+        scn_cfg = FXITomoFlyer.cal_cam_rot_params(self.detectors[0], scn_cfg)
         pc_cfg = FXITomoFlyer.cal_zebra_pc_params(scn_cfg)
         yield from self.preset_zebra(pc_cfg)
         print("preset_flyer is done")
@@ -1001,7 +1001,7 @@ class FXITomoFlyer(Device):
             )
             scn_cfg["exp_t"] = FXITomoFlyer.CAM_MODES_IN_FLYER[cam_model]["min_exp"]
 
-        acq_p, acq_min = yield from FXITomoFlyer.check_cam_acq_p(
+        acq_p, acq_min = FXITomoFlyer.check_cam_acq_p(
             det, scn_cfg["exp_t"], scn_cfg["acq_p"]
         )
 
@@ -1100,7 +1100,6 @@ class FXITomoFlyer(Device):
 
     @staticmethod
     def check_cam_acq_p(det, exp_t, acq_p):
-        yield from abs_set(det.cam.acquire, 0, wait=True)
         cam_model = _get_cam_model(det)
         if cam_model == "MARANA-4BV6X":
             full_acq_min = CAM_RD_CFG[cam_model]["rd_time"][
