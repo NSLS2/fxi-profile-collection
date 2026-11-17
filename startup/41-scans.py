@@ -4039,7 +4039,8 @@ def multipos_2D_scan(
 
         yield from _open_shutter(simu)
         for rep in range(repeat_num):
-            print(f"repeat multi-pos scan #{rep}")
+            yield from _open_shutter(simu)
+            print(f"\nrepeat multi-pos scan #{rep}\n")
             for i in range(num):
                 yield from mv(zps.sx, x_list[i], 
                               zps.sy, y_list[i],
@@ -4049,28 +4050,28 @@ def multipos_2D_scan(
                 yield from trigger_and_read(list(detectors) + motor, name="primary")
 
 
-	# move sample out to take background
-        yield from _take_bkg_image(
-                    motor_x_out,
-                    motor_y_out,
-                    motor_z_out,
-                    motor_r_out,
-                    detectors,
-                    motor,
-                    num=1,
-                    chunk_size=chunk_size,
-                    stream_name="flat",
-                    simu=simu,
-                )
-                # move sample in to the first position
-        yield from _move_sample_in(
-                    motor_x_ini, motor_y_ini, motor_z_ini, motor_r_ini
-                )
-        yield from _close_shutter(simu)
-        # sleep
-        if rep < repeat_num and sleep_time > 0:
-            print(f"\nsleep for {sleep_time} seconds ...")
-            yield from bps.sleep(sleep_time)
+	        # move sample out to take background
+            yield from _take_bkg_image(
+                        motor_x_out,
+                        motor_y_out,
+                        motor_z_out,
+                        motor_r_out,
+                        detectors,
+                        motor,
+                        num=1,
+                        chunk_size=chunk_size,
+                        stream_name="flat",
+                        simu=simu,
+                    )
+                    # move sample in to the first position
+            yield from _move_sample_in(
+                        motor_x_ini, motor_y_ini, motor_z_ini, motor_r_ini
+                    )
+            yield from _close_shutter(simu)
+            # sleep
+            if rep < repeat_num and sleep_time > 0:
+                print(f"\nsleep for {sleep_time} seconds ...")
+                yield from bps.sleep(sleep_time)
 
     yield from inner_scan()
     txt1 = get_scan_parameter()
