@@ -2,11 +2,21 @@ print(f"Loading {__file__}...")
 
 import numpy as np
 
-ZONE_PLATE = {}
-ZONE_PLATE["OUT_ZONE_WIDTH"] = 30
-ZONE_PLATE["ZONE_DIAMETER"] = 244
-ZONE_PLATE["MANUFACTURE"] = "NanoTools"
-ZONE_PLATE["EFFICIENCY"] = "Not determined"
+# ZONE_PLATE = {
+#     "OUT_ZONE_WIDTH": 30,
+#     "ZONE_DIAMETER": 244,
+#     "MANUFACTURE": "NanoTools",
+#     "EFFICIENCY": "Not determined",
+# }
+
+ZONE_PLATE = {
+    "OUT_ZONE_WIDTH": 30,
+    "ZONE_DIAMETER": 250,
+    "MANUFACTURE": "ANT",
+    "SN": "BXVB1",
+    "THICKNESS": "1100nm: 550nm + 550nm",
+    "EFFICIENCY": "Not determined",
+}
 
 # ZONE_DIAMETER = 200 # 200 um  ### xridia zone plate
 OUT_ZONE_WIDTH = ZONE_PLATE["OUT_ZONE_WIDTH"]  # 30 nm
