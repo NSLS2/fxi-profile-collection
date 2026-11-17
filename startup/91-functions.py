@@ -141,7 +141,7 @@ def trans_calib():
 
 def record_calib_pos_new(n, record_th2_only=False):
     global GLOBAL_MAG, CALIBER
-
+    fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv" 
     CALIBER[f"chi2_pos{n}"] = dcm.chi2.position
     CALIBER[f"XEng_pos{n}"] = XEng.position
     CALIBER[f"zp_x_pos{n}"] = zp.x.position
@@ -178,15 +178,19 @@ def record_calib_pos_new(n, record_th2_only=False):
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(tmp)
     df = pd.DataFrame.from_dict(CALIBER, orient="index")
-    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+    # df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv"
     # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
+    df.to_csv(fn)
     print(f'calib_pos{n} recored: current Magnification = GLOBAL_MAG = {CALIBER[f"mag{n}"]}')
 
 
 def remove_caliber_pos(n):
     global CALIBER_FLAG, CURRENT_MAG, CALIBER
+    fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv"
+    fn_backup = "/home/xf18id/.ipython/profile_collection/startup/calib_backup.csv"
     df = pd.DataFrame.from_dict(CALIBER, orient="index")
-    df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_backup.csv")
+    #df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_backup.csv")
+    df.to_csv(fn_backup)
     CALIBER_backup = CALIBER.copy()
     try:
         for k in CALIBER_backup.keys():
@@ -195,7 +199,8 @@ def remove_caliber_pos(n):
                 del CALIBER[k]
         df = pd.DataFrame.from_dict(CALIBER, orient="index")
         # df.to_csv("/home/xf18id/.ipython/profile_collection/startup/calib_new.csv", sep="\t")
-        df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+        # df.to_csv("/nsls2/data/fxi-new/legacy/log/calib_new.csv")
+        df.to_csv(fn)
     except:
         CALIBER = CALIBER.copy()
         print(f"fails to remove CALIBER postion {n}, or it does not exist")
@@ -232,8 +237,8 @@ def print_caliber(print_eng_only=1, pos=-1):
 
 
 def read_calib_file_new(return_flag=0):
-    # fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv"
-    fn = "/nsls2/data/fxi-new/legacy/log/calib_new.csv"
+    fn = "/home/xf18id/.ipython/profile_collection/startup/calib_new.csv"
+    # fn = "/nsls2/data/fxi-new/legacy/log/calib_new.csv"
     df = pd.read_csv(fn, index_col=0)
     d = df.to_dict("split")
     d = dict(zip(d["index"], d["data"]))
@@ -243,6 +248,7 @@ def read_calib_file_new(return_flag=0):
 
     # pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(CALIBER)
+    print(f"read caliberation file from: {fn}\n")
     print("Energy caliberated at: ")
     print_caliber()
     # except:

@@ -23,12 +23,11 @@ PDF_ARGS = {}
 
 
 def reset_pdf():
+    fn_root = "/nsls2/data/fxi-new/shared/software/FXI_log"
     _, _, PDF_ARGS["year"], PDF_ARGS["month"], PDF_ARGS["day"] = get_current_date()
-    PDF_ARGS[
-        "fn_log"
-    ] = f'/nsls2/data/fxi-new/legacy/log/TXM_log_test_{PDF_ARGS["year"]}{PDF_ARGS["month"]}{PDF_ARGS["day"]}.pdf'
+    PDF_ARGS["fn_log"] = f'{fn_root}/TXM_log_{PDF_ARGS["year"]}{PDF_ARGS["month"]}{PDF_ARGS["day"]}.pdf'
     # PDF_ARGS["temp_folder"] = "/home/xf18id/.ipython/profile_collection/startup/temp"
-    PDF_ARGS["temp_folder"] = "/nsls2/data/fxi-new/legacy/log/temp"
+    PDF_ARGS["temp_folder"] = f"{fn_root}/temp"
     PDF_ARGS["temp_img_folder"] = PDF_ARGS["temp_folder"] + "/img"
     PDF_ARGS["fn_tmp"] = PDF_ARGS["temp_folder"] + "/tmp.pdf"
     PDF_ARGS["fn_tmp_txt"] = PDF_ARGS["temp_folder"] + "/current_log.txt"
@@ -226,8 +225,10 @@ def export_pdf(merge_flag=0):
 
 def merge_log():
     """
-    merge "current_log.txt" to "/nsls2/data/fxi-new/legacy/log/TXM_log_{year}{month}{day}.pdf"
+    (obselete) merge "current_log.txt" to "/nsls2/data/fxi-new/legacy/log/TXM_log_{year}{month}{day}.pdf"
+    (updated) merge "current_log.txt" to "/nsls2/data/fxi-new/shared/FXI_log/TXM_log_{year}{month}{day}.pdf"
     """
+    print("TXM log will be saved in folder: /nsls2/data/fxi-new/shared/FXI_log\n")
     export_pdf()
     reset_pdf()
     num = 0
