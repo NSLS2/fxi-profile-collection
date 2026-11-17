@@ -2106,20 +2106,22 @@ def raster_2D_scan(
 
         print("taking mosaic image ...")
         for ii in np.arange(x_range[0], x_range[1] + 1):
-            if scan_x_flag == 1:
-                yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
-                yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
-            else:
-                yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
-                yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
-            sleep_time = (x_range[-1] - x_range[0]) * img_sizeX * pxl * 1.0 / 1000 / 600
-            yield from bps.sleep(sleep_time)
+            for it in range(2):
+                if scan_x_flag == 1:
+                    yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                    yield from mv(zps.sx, motor_x_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                else:
+                    yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                    yield from mv(zps.sz, motor_z_ini + ii * img_sizeX * pxl * 1.0 / 1000)
+                #sleep_time = (x_range[-1] - x_range[0]) * img_sizeX * pxl * 1.0 / 1000 / 600
+                sleep_time = 1
+                yield from bps.sleep(sleep_time)
             for jj in np.arange(y_range[0], y_range[1] + 1):
                 yield from mv(zps.sy, motor_y_ini + jj * img_sizeY * pxl * 1.0 / 1000)
+                if jj == 0:
+                    yield from bps.sleep(1)        
                 yield from _take_image(detectors, motor, 1, stream_name="primary")
-                yield from bps.sleep(0.1)
-        #                yield from trigger_and_read(list(detectors) + motor)
-
+                yield from bps.sleep(0.3)
         print("moving sample out to take 5 background image")
 
         yield from _take_bkg_image(
@@ -3863,4 +3865,214 @@ def tomo_mosaic_scan(
                 )
     txt4 = "\n######  mosaic tomogrpahy scan finished  ######"
     txt = txt1 + txt4 + txt3
+    insert_text(txt)
+
+############
+def multipos_2D_scan(
+    x_list,
+    y_list,
+    z_list,
+    r_list,
+    exposure_time=0.2,
+    repeat_num = 1, 
+    out_x=None,
+    out_y=None,
+    out_z=None,
+    out_r=None,
+    sleep_time=0,
+    chunk_size=5,
+    simu=False,
+    relative_move_flag=True,
+    binning=[2, 2],
+    note="",
+    md=None,
+
+):
+    """
+    Inputs:
+    --------
+    num_repeat: int, 
+
+    x_list: list or numpy array,
+            x_position, in unit of um
+
+    y_list: list or numpy array,
+            y_position, in unit of um
+
+    z_list: list or numpy array,
+            z_position, in unit of um
+
+    r_list: list or numpy array,
+            rotation_angle, in unit of degree
+
+    out_x: float, default is 0
+        relative movement of sample in "x" direction using zps.sx to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_y: float, default is 0
+        relative movement of sample in "y" direction using zps.sy to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_z: float, default is 0
+        relative movement of sample in "z" direction using zps.sz to move out sample (in unit of um)
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    out_r: float, default is 0
+        relative movement of sample by rotating "out_r" degrees, using zps.pi_r to move out sample
+        NOTE:  BE CAUSION THAT IT WILL ROTATE SAMPLE BY "out_r" FIRST, AND THEN MOVE X, Y, Z
+
+    repeat_num: integer, default is 1
+        repeating multiposition xanes scans
+
+    exposure_time: float
+           in unit of seconds
+
+    sleep_time: float(int)
+           in unit of seconds
+
+    chunk_size: int
+           number of background images == num of dark images ==  num of image for each energy
+
+    relative_move_flag:
+          if 1: relative movement of out_x, out_y, out_z, and out_r
+          if 0: set absolute position of x, y, z, r to move out sample
+
+    note: string
+
+    """
+
+    print(x_list)
+    print(y_list)
+    print(z_list)
+    print(r_list)
+    print(out_x)
+    print(out_y)
+    print(out_z)
+    print(out_r)
+    global ZONE_PLATE
+    txt = "starting multipos_2D_scan:"
+    insert_text(txt)
+    detectors = [KinetixU]
+    period = max(0.05, exposure_time)
+    yield from mv(KinetixU.cam.acquire, 0)
+    yield from mv(KinetixU.cam.bin_y, binning[0], KinetixU.cam.bin_x, binning[1])
+    yield from _set_cam_param(exposure_time, period=period, chunk_size=chunk_size)
+
+
+    motor_x_ini = zps.sx.position
+    motor_y_ini = zps.sy.position
+    motor_z_ini = zps.sz.position
+    motor_r_ini = zps.pi_r.position
+
+    if relative_move_flag:
+        motor_x_out = motor_x_ini + out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = motor_y_ini + out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = motor_z_ini + out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = motor_r_ini + out_r if not (out_r is None) else motor_r_ini
+    else:
+        motor_x_out = out_x if not (out_x is None) else motor_x_ini
+        motor_y_out = out_y if not (out_y is None) else motor_y_ini
+        motor_z_out = out_z if not (out_z is None) else motor_z_ini
+        motor_r_out = out_r if not (out_r is None) else motor_r_ini
+
+    motor = [XEng, zps.sx, zps.sy, zps.sz, zps.pi_r]
+
+    _md = {
+        "detectors": [det.name for det in detectors],
+        "motors": [mot.name for mot in motor],
+        "num_bkg_images": chunk_size,
+        "num_dark_images": chunk_size,
+        "chunk_size": chunk_size,
+        "exposure_time": exposure_time,
+        "num_pos": len(x_list),
+        "XEng": XEng.position,
+        "plan_args": {
+            "repeat_num": repeat_num,
+            "x_list": x_list,
+            "y_list": y_list,
+            "z_list": z_list,
+            "r_list": r_list,
+            "out_x": out_x,
+            "out_y": out_y,
+            "out_z": out_z,
+            "out_r": out_r,
+            "exposure_time": exposure_time,
+            "sleep_time": sleep_time,
+            "chunk_size": chunk_size,
+            "relative_move_flag": relative_move_flag,
+            "note": note if note else "None",
+            "zone_plate": ZONE_PLATE,
+        },
+        "plan_name": "multipos_2D_scan",
+        "hints": {},
+        "operator": "FXI",
+        "zone_plate": ZONE_PLATE,
+        "note": note if note else "None",
+        #'motor_pos':  wh_pos(print_on_screen=0),
+    }
+    _md.update(md or {})
+    try:
+        dimensions = [(motor.hints["fields"], "primary")]
+    except (AttributeError, KeyError):
+        pass
+    else:
+        _md["hints"].setdefault("dimensions", dimensions)
+
+    @stage_decorator(list(detectors) + motor)
+    @run_decorator(md=_md)
+    def inner_scan():
+        # close shutter and take dark image
+        num = len(x_list)  # num of position points
+        print(f"\ntake {chunk_size} dark images...")
+        yield from _take_dark_image(
+            detectors,
+            motor,
+            num=1,
+            chunk_size=chunk_size,
+            stream_name="dark",
+            simu=False,
+        )
+        yield from bps.sleep(1)
+
+        # start multipos 2D image scan
+        print(f"\nopening shutter, and start scan at multipos scan ")
+
+        yield from _open_shutter(simu)
+        for rep in range(repeat_num):
+            print(f"repeat multi-pos scan #{rep}")
+            for i in range(num):
+                yield from mv(zps.sx, x_list[i], 
+                              zps.sy, y_list[i],
+                              zps.sz, z_list[i], 
+                              zps.pi_r, r_list[i],
+                              )
+                yield from trigger_and_read(list(detectors) + motor, name="primary")
+
+
+	# move sample out to take background
+        yield from _take_bkg_image(
+                    motor_x_out,
+                    motor_y_out,
+                    motor_z_out,
+                    motor_r_out,
+                    detectors,
+                    motor,
+                    num=1,
+                    chunk_size=chunk_size,
+                    stream_name="flat",
+                    simu=simu,
+                )
+                # move sample in to the first position
+        yield from _move_sample_in(
+                    motor_x_ini, motor_y_ini, motor_z_ini, motor_r_ini
+                )
+        yield from _close_shutter(simu)
+        # sleep
+        if rep < repeat_num and sleep_time > 0:
+            print(f"\nsleep for {sleep_time} seconds ...")
+            yield from bps.sleep(sleep_time)
+
+    yield from inner_scan()
+    txt1 = get_scan_parameter()
+    txt = txt1 + "\n"
     insert_text(txt)

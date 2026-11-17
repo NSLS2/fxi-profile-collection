@@ -252,6 +252,12 @@ def export_single_scan(scan_id=-1, binning=4, fpath=None, reverse=False, bkg_sca
         export_count_img(h, fpath)
     elif scan_type == "multipos_2D_xanes_scan2":
         print("exporting multipos_2D_xanes_scan2: #{}".format(scan_id))
+    
+
+    elif scan_type == "multipos_2D_scan":
+        print("exporting multipos_2D_scan: #{}".format(scan_id))
+    
+
         export_multipos_2D_xanes_scan2(h, fpath)
     elif scan_type == "multipos_2D_xanes_scan3":
         print("exporting multipos_2D_xanes_scan3: #{}".format(scan_id))
@@ -1209,9 +1215,10 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
 
     scan_x_flag = h.start['plan_args']['scan_x_flag']
     if scan_x_flag:
-        pix = pix * np.cos(rot_angle/180.*np.pi)
+        pix_x = pix * np.cos(rot_angle/180.*np.pi)
     else:
-        pix = pix * np.sin(rot_angle/180.*np.pi)
+        pix_x = pix * np.sin(rot_angle/180.*np.pi)
+    pix_y = pix
 
     if not bkg_scan_id is None:
         h_ref = tiled_client_fxi[bkg_scan_id]
@@ -1250,15 +1257,16 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
     else:
         warn_msg = ''
 
-    frac = np.abs(np.round(pix / pxl_sz, 2)) # e.g., 10nm/20nm = 0.5
-    rl = int(np.abs(s[1] * frac)) # num of pixel (row) in cropped_and_centered image
-    rs = s[1]/2 * (1 - frac)
+    frac_y = np.abs(np.round(pix_y / pxl_sz, 2)) # e.g., 10nm/20nm = 0.5
+    rl = int(np.abs(s[1] * frac_y)) # num of pixel (row) in cropped_and_centered image
+    rs = s[1]/2 * (1 - frac_y)
     rs = int(max(0, rs))
     re = rs + rl
     re = int(min(re, s[1]))
 
-    cl = int(np.abs(s[2] * frac)) # num of pixel (column) in cropped_and_centered image
-    cs = s[2]/2 *(1 - frac)
+    frac_x = np.abs(np.round(pix_x / pxl_sz, 2))
+    cl = int(np.abs(s[2] * frac_x)) # num of pixel (column) in cropped_and_centered image
+    cs = s[2]/2 *(1 - frac_x)
     cs = int(max(0, cs))
     ce = cs + cl
     ce = int(min(ce, s[2]))
@@ -1330,6 +1338,61 @@ def export_raster_2D(h, binning=4, fpath=None, reverse=False, bkg_scan_id=None):
         hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
 
     del img, img_patch, img_raw, img_dark, img_bkg
+
+
+def export_multipos_2D_scan(h, fpath=None):
+    if fpath is None:
+        fpath = "./"
+    else:
+        if not fpath[-1] == "/":
+            fpath += "/"
+    det_name = h.start["detectors"][0]
+    scan_type = h.start["plan_name"]
+    uid = h.start["uid"]
+    note = h.start["note"]
+    scan_id = h.start["scan_id"]
+    scan_time = h.start["time"]
+
+    x_eng = h.start["XEng"]
+    num_pos = h.start["num_pos"]
+    zp_z_pos = h["baseline"]["data"]["zp_z"][1].item()
+    DetU_z_pos = h["baseline"]["data"]["DetU_z"][1].item()
+    M = (DetU_z_pos / zp_z_pos - 1) * 10.0
+    pxl_sz = 6500.0 / M
+
+    img = np.array(list(h["primary"]["data"][f"{det_name}_image"]))
+    img_dark = np.array(list(h["dark"]["data"][f"{det_name}_image"]))
+    img_bkg = np.array(list(h["flat"]["data"][f"{det_name}_image"]))
+
+    img = np.median(img, axis=1)
+    img_dark = np.median(img_dark, axis=1)
+    img_bkg = np.median(img_bkg, axis=1)
+
+    for j in range(num_pos):
+        img = img_xanes[j::num_pos]
+        img_n = (img - img_dark) / (img_bkg - img_dark)
+        fn = fpath
+        fname = (f"{fn}{scan_type}_id_{scan_id}_pos_{j:02d}.h5")
+
+        try:
+            print(f"saving {fname}")
+            with h5py.File(fname, "w") as hf:
+                    hf.create_dataset("uid", data=uid)
+                    hf.create_dataset("scan_id", data=scan_id)
+                    hf.create_dataset("note", data=str(note))
+                    hf.create_dataset("scan_time", data=scan_time)
+                    hf.create_dataset("X_eng", data=x_eng)
+                    #hf.create_dataset("img_raw", data=np.array(img, dtype=np.float32))
+                    hf.create_dataset("img_bkg", data=np.array(img_bkg, dtype=np.float32))
+                    hf.create_dataset("img_dark", data=np.array(img_dark, dtype=np.float32))
+                    hf.create_dataset("img", data=np.array(img_n, dtype=np.float32))
+                    hf.create_dataset("Magnification", data=M)
+                    hf.create_dataset("Pixel Size", data=str(pxl_sz) + "nm")
+        except Exception as err:
+            print(err)
+    del img
+    del img_bkg
+    del img_dark
 
 
 def export_multipos_2D_xanes_scan2(h, fpath=None):
