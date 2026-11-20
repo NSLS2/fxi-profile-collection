@@ -3594,6 +3594,7 @@ def xanes_3D(
     relative_move_flag=1,
     rot_first_flag=1,
     filters=[],
+    add_bkg_filt_only=False,
     note="",
     binning=[2, 2],
 ):
@@ -3619,6 +3620,7 @@ def xanes_3D(
             rs=rs,
             relative_move_flag=relative_move_flag,
             filters=filters,
+            add_bkg_filt_only=add_bkg_filt_only,
             note=my_note,
             simu=simu,
             rot_first_flag=rot_first_flag,

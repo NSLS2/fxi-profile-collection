@@ -183,7 +183,7 @@ def _xanes_per_step(
     yield from move_zp_ccd_TEST(
         eng, move_flag=move_flag, move_clens_flag=move_clens_flag, info_flag=info_flag, mag=mag,
     )
-    yield from bps.sleep(0.1)
+    yield from bps.sleep(0.5)
     if not (type(detectors) == list):
         detectors = list(detectors)
     if not (type(motor) == list):

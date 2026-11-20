@@ -816,7 +816,7 @@ def move_zp_ccd_TEST(eng_new, move_flag=1, info_flag=1, move_clens_flag=0, move_
                     yield from mv(DetU.y, DetU_y_target)
                 yield from bps.sleep(0.5)
                 if abs(eng_new - eng_ini) >= 0.005:
-                    t = 10 * abs(eng_new - eng_ini)
+                    t = 20 * abs(eng_new - eng_ini)
                     t = min(t, 2)
                     print(f"sleep for {t} sec")
                     yield from bps.sleep(t)
