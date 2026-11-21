@@ -1537,6 +1537,9 @@ class EngScanPlot(QtAwareCallback):
         # Scan UID
         uid = doc["run_start"]
 
+        # The stop document may still be in the write buffer when this
+        # callback fires; wait for Tiled to catch up before reading.
+        flush_tiled()
         h = db[uid]
         # Scan ID
         scan_id = h.start["scan_id"]
@@ -1624,8 +1627,9 @@ def eng_scan(
                     ),
                     [engscan_plot],
                 )
-    yield from eng_scan_with_plot
-    h = db[-1]
+    uid = yield from eng_scan_with_plot
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     det = [det.name for det in detectors]
     det_name = ""
@@ -1638,6 +1642,7 @@ def eng_scan(
     txt = txt1 + "\n" + txt2
     insert_text(txt)
     print(txt)
+    return uid
 
 
 def grid2D_rel(
@@ -1722,9 +1727,10 @@ def grid2D_rel(
                 yield from trigger_and_read(list(detectors) + [motor1, motor2])
         yield from mv(motor1, motor1_ini, motor2, motor2_ini)
 
-    yield from grid2D_rel_inner()
+    uid = yield from grid2D_rel_inner()
 
-    h = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     det = [det.name for det in detectors]
     det_name = ""
@@ -1780,7 +1786,8 @@ def delay_count(detectors, num=1, delay=None, *, note="", plot_flag=0, md=None):
         )
 
     uid = yield from inner_count()
-    h = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     if plot_flag:
         plot1d(scan_id)
@@ -1900,7 +1907,8 @@ def delay_scan(
         yield from bps.sleep(1)
         yield from abs_set(shutter_close, 1)
         yield from bps.sleep(1)
-    h = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     if plot_flag:
         plot1d(scan_id)

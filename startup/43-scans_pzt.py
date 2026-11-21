@@ -83,7 +83,8 @@ def pzt_scan(pzt_motor, start, stop, steps, detectors=[Vout2], sleep_time=1, md=
 
     uid = yield from pzt_inner_scan()
 
-    h = db[-1]
+    flush_tiled()  # wait for buffered documents to reach Tiled
+    h = db[uid]
     scan_id = h.start["scan_id"]
     det = [det.name for det in detectors]
     det_name = ""
@@ -230,15 +231,18 @@ def pzt_scan_multiple(
     current_eng = XEng.position
     df = pd.DataFrame(data=[])
 
+    uid_list = []
     for num in range(repeat_num):
-        yield from pzt_scan(
+        uid = yield from pzt_scan(
             moving_pzt, start, stop, steps, detectors=detectors, sleep_time=sleep_time
         )
+        uid_list.append(uid)
     yield from abs_set(XEng, current_eng, wait=True)
     print("\nscan finished, ploting and saving data...")
+    flush_tiled()  # wait for buffered documents to reach Tiled
     fig = plt.figure()
     for num in reversed(range(repeat_num)):
-        h = db[-1 - num]
+        h = db[uid_list[-1 - num]]
         scan_id = h.start["scan_id"]
         detector_set_read = h.start["detector_set_read"]
         col_x_prefix = detector_set_read[1]

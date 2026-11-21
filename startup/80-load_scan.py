@@ -1816,6 +1816,7 @@ def batch_export_flyscan(sid1, sid2):
     n = sid2 - sid1
     k = 0
     while True:
+        flush_tiled()  # wait for buffered documents to reach Tiled
         sid_last = db[-2].start['scan_id']
         if sid_last == sid2 or k >= n:
             break
